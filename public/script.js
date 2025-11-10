@@ -695,92 +695,313 @@ function generatePDF() {
     
     // Configurações
     let y = 20;
-    const margin = 20;
+    const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
+    const lineHeight = 5;
     
-    // Título
+    // ===== CABEÇALHO =====
     doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
     doc.setTextColor(204, 112, 0);
     doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
     
-    y += 10;
-    doc.setFontSize(12);
+    y += 8;
+    doc.setFontSize(14);
     doc.text(`Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
     
-    y += 15;
+    y += 12;
+    
+    // ===== DADOS PARA FATURAMENTO (FIXO) =====
+    doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.text('DADOS PARA FATURAMENTO', margin, y);
+    
+    y += lineHeight + 1;
     doc.setFontSize(10);
-    
-    // Informações gerais
     doc.setFont(undefined, 'bold');
-    doc.text('Responsável:', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.text(ordem.responsavel, margin + 35, y);
+    doc.text('I.R. COMERCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
     
-    doc.setFont(undefined, 'bold');
-    doc.text('Data:', pageWidth - margin - 60, y);
+    y += lineHeight;
     doc.setFont(undefined, 'normal');
-    doc.text(formatDate(ordem.dataOrdem), pageWidth - margin - 35, y);
+    doc.setFontSize(9);
+    doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
+    
+    y += lineHeight;
+    doc.text('Rua Tadorna nº 472, sala 2', margin, y);
+    
+    y += lineHeight;
+    doc.text('Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
+    
+    y += lineHeight;
+    doc.text('Telefax: (27) 3209-4291  |  E-mail: comercial.ircomercio@gmail.com', margin, y);
     
     y += 10;
     
-    // Fornecedor
-    doc.setFontSize(12);
+    // ===== DADOS DO FORNECEDOR - TABELA =====
+    doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('FORNECEDOR', margin, y);
-    y += 7;
+    doc.text('DADOS DO FORNECEDOR', margin, y);
     
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Razão Social: ${ordem.razaoSocial}`, margin, y);
-    y += 5;
-    doc.text(`CNPJ: ${ordem.cnpj}`, margin, y);
-    y += 5;
-    if (ordem.contato) {
-        doc.text(`Contato: ${ordem.contato}`, margin, y);
-        y += 5;
-    }
-    if (ordem.telefone) {
-        doc.text(`Telefone: ${ordem.telefone}`, margin, y);
-        y += 5;
-    }
+    y += 6;
     
-    y += 10;
+    // Desenha tabela do fornecedor
+    const tableStartY = y;
+    const colWidth = (pageWidth - 2 * margin) / 2;
+    const rowHeight = 7;
     
-    // Itens
-    doc.setFontSize(12);
+    const fornecedorFields = [
+        ['Razão Social', ordem.razaoSocial],
+        ['Nome Fantasia', ordem.nomeFantasia || '-'],
+        ['CNPJ', ordem.cnpj],
+        ['Endereço', ordem.enderecoFornecedor || '-'],
+        ['Site', ordem.site || '-'],
+        ['Contato', ordem.contato || '-'],
+        ['Telefone', ordem.telefone || '-'],
+        ['E-mail', ordem.email || '-']
+    ];
+    
+    doc.setFontSize(8);
+    
+    fornecedorFields.forEach((field, index) => {
+        const currentY = tableStartY + (index * rowHeight);
+        
+        // Desenha borda da célula
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(margin, currentY, colWidth, rowHeight);
+        doc.rect(margin + colWidth, currentY, colWidth, rowHeight);
+        
+        // Label (coluna esquerda)
+        doc.setFont(undefined, 'bold');
+        doc.text(field[0] + ':', margin + 2, currentY + 4.5);
+        
+        // Valor (coluna direita)
+        doc.setFont(undefined, 'normal');
+        const textValue = field[1].length > 45 ? field[1].substring(0, 42) + '...' : field[1];
+        doc.text(textValue, margin + colWidth + 2, currentY + 4.5);
+    });
+    
+    y = tableStartY + (fornecedorFields.length * rowHeight) + 8;
+    
+    // ===== ITENS DO PEDIDO - TABELA =====
+    doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('ITENS DO PEDIDO', margin, y);
-    y += 7;
     
-    doc.setFontSize(9);
-    ordem.items.forEach(item => {
-        if (y > 270) {
+    y += 6;
+    
+    // Configuração da tabela de itens
+    const itemTableStartY = y;
+    const colWidths = {
+        item: 12,
+        especificacao: 85,
+        qtd: 15,
+        unid: 15,
+        valorUn: 25,
+        total: 28
+    };
+    
+    const totalWidth = Object.values(colWidths).reduce((a, b) => a + b, 0);
+    const itemRowHeight = 8;
+    
+    // Cabeçalho da tabela
+    doc.setFillColor(204, 112, 0);
+    doc.rect(margin, y, totalWidth, itemRowHeight, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    
+    let xPos = margin;
+    doc.text('Item', xPos + 3, y + 5.5);
+    xPos += colWidths.item;
+    
+    doc.text('Especificação', xPos + 3, y + 5.5);
+    xPos += colWidths.especificacao;
+    
+    doc.text('QTD', xPos + 3, y + 5.5);
+    xPos += colWidths.qtd;
+    
+    doc.text('Unid', xPos + 3, y + 5.5);
+    xPos += colWidths.unid;
+    
+    doc.text('Valor UN (R$)', xPos + 3, y + 5.5);
+    xPos += colWidths.valorUn;
+    
+    doc.text('Total (R$)', xPos + 3, y + 5.5);
+    
+    y += itemRowHeight;
+    doc.setTextColor(0, 0, 0);
+    
+    // Linhas dos itens
+    doc.setFont(undefined, 'normal');
+    ordem.items.forEach((item, index) => {
+        if (y > 260) {
             doc.addPage();
             y = 20;
         }
-        doc.text(`${item.item}. ${item.especificacao}`, margin, y);
-        y += 5;
-        doc.text(`   Qtd: ${item.quantidade} ${item.unidade} | Valor UN: R$ ${item.valorUnitario.toFixed(2)} | Total: ${item.valorTotal}`, margin, y);
-        y += 7;
+        
+        // Linha zebrada
+        if (index % 2 === 0) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(margin, y, totalWidth, itemRowHeight, 'F');
+        }
+        
+        // Bordas das células
+        doc.setDrawColor(200, 200, 200);
+        xPos = margin;
+        
+        // Item
+        doc.rect(xPos, y, colWidths.item, itemRowHeight);
+        doc.text(item.item.toString(), xPos + 4, y + 5.5);
+        xPos += colWidths.item;
+        
+        // Especificação
+        doc.rect(xPos, y, colWidths.especificacao, itemRowHeight);
+        const especificacao = item.especificacao.length > 50 
+            ? item.especificacao.substring(0, 47) + '...' 
+            : item.especificacao;
+        doc.text(especificacao, xPos + 2, y + 5.5);
+        xPos += colWidths.especificacao;
+        
+        // QTD
+        doc.rect(xPos, y, colWidths.qtd, itemRowHeight);
+        doc.text(item.quantidade.toString(), xPos + 3, y + 5.5);
+        xPos += colWidths.qtd;
+        
+        // Unid
+        doc.rect(xPos, y, colWidths.unid, itemRowHeight);
+        doc.text(item.unidade, xPos + 3, y + 5.5);
+        xPos += colWidths.unid;
+        
+        // Valor UN
+        doc.rect(xPos, y, colWidths.valorUn, itemRowHeight);
+        doc.text(item.valorUnitario.toFixed(2).replace('.', ','), xPos + 3, y + 5.5);
+        xPos += colWidths.valorUn;
+        
+        // Total
+        doc.rect(xPos, y, colWidths.total, itemRowHeight);
+        doc.text(item.valorTotal.replace('R$ ', ''), xPos + 3, y + 5.5);
+        
+        y += itemRowHeight;
     });
     
+    y += 6;
+    
+    // ===== VALOR TOTAL =====
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(204, 112, 0);
+    doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
+    
+    y += 8;
+    doc.setTextColor(0, 0, 0);
+    
+    // ===== INFORMAÇÕES ADICIONAIS =====
+    if (ordem.ipi || ordem.st) {
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        if (ordem.ipi) {
+            doc.text(`IPI: ${ordem.ipi}`, margin, y);
+            y += 5;
+        }
+        if (ordem.st) {
+            doc.text(`ST: ${ordem.st}`, margin, y);
+            y += 5;
+        }
+        y += 3;
+    }
+    
+    // ===== LOCAL DE ENTREGA (FIXO) =====
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text('LOCAL DE ENTREGA:', margin, y);
     y += 5;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.text('Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
+    
+    y += 8;
+    
+    // ===== PRAZO E FRETE =====
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text('PRAZO DE ENTREGA:', margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.text(ordem.prazoEntrega, margin + 38, y);
+    
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(10);
+    doc.text('FRETE:', pageWidth - margin - 35, y);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.text(ordem.frete, pageWidth - margin - 20, y);
+    
+    y += 10;
+    
+    // ===== DADOS DO PAGAMENTO =====
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
+    doc.text('DADOS DO PAGAMENTO', margin, y);
+    
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Forma de Pagamento: ${ordem.formaPagamento}`, margin, y);
+    
+    y += 5;
+    doc.text(`Prazo de Pagamento: ${ordem.prazoPagamento}`, margin, y);
+    
+    if (ordem.dadosBancarios) {
+        y += 5;
+        doc.text(`Dados Bancários: ${ordem.dadosBancarios}`, margin, y);
+    }
+    
+    y += 12;
+    
+    // ===== DATA E ASSINATURA =====
+    const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
+    const dia = dataOrdem.getDate();
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const mes = meses[dataOrdem.getMonth()];
+    const ano = dataOrdem.getFullYear();
+    
+    doc.setFontSize(10);
+    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, pageWidth / 2, y, { align: 'center' });
     
     y += 15;
     
-    // Pagamento
-    doc.setFontSize(12);
-    doc.text('PAGAMENTO', margin, y);
-    y += 7;
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Forma: ${ordem.formaPagamento}`, margin, y);
+    // Linha de assinatura
+    doc.setLineWidth(0.5);
+    doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+    
     y += 5;
-    doc.text(`Prazo: ${ordem.prazoPagamento}`, margin, y);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, y, { align: 'center' });
+    
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    doc.text('Diretora', pageWidth / 2, y, { align: 'center' });
+    
+    y += 12;
+    
+    // ===== ATENÇÃO SR. FORNECEDOR =====
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(204, 112, 0);
+    doc.text('ATENÇÃO SR. FORNECEDOR', pageWidth / 2, y, { align: 'center' });
+    
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, margin, y);
+    
+    y += 5;
+    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin, y);
     
     // Salvar PDF
     doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);

@@ -794,19 +794,20 @@ function generatePDF() {
     const itemTableStartY = y;
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
-        item: tableWidth * 0.08,        // 8%
-        especificacao: tableWidth * 0.42, // 42%
+        item: tableWidth * 0.06,        // 6%
+        especificacao: tableWidth * 0.44, // 44%
         qtd: tableWidth * 0.10,         // 10%
         unid: tableWidth * 0.10,        // 10%
         valorUn: tableWidth * 0.15,     // 15%
         total: tableWidth * 0.15        // 15%
     };
     
-    const itemRowHeight = 9;
+    const itemRowHeight = 10;
     
     // Cabeçalho da tabela com fundo cinza escuro
-    doc.setFillColor(108, 117, 125); // Cinza escuro como na imagem
-    doc.rect(margin, y, tableWidth, itemRowHeight, 'F');
+    doc.setFillColor(108, 117, 125); // Cinza escuro
+    doc.setDrawColor(180, 180, 180);
+    doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
@@ -814,23 +815,38 @@ function generatePDF() {
     
     let xPos = margin;
     
-    // Centraliza texto nas células do cabeçalho
-    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6, { align: 'center' });
+    // Desenha bordas verticais do cabeçalho
+    doc.line(xPos, y, xPos, y + itemRowHeight); // Início
+    
+    // ITEM
+    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.item;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
     
-    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6, { align: 'center' });
+    // ESPECIFICAÇÃO
+    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.especificacao;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
     
-    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6, { align: 'center' });
+    // QTD
+    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.qtd;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
     
-    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6, { align: 'center' });
+    // UNID
+    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.unid;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
     
-    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6, { align: 'center' });
+    // VALOR UN
+    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.valorUn;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
     
-    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6, { align: 'center' });
+    // TOTAL
+    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.total;
+    doc.line(xPos, y, xPos, y + itemRowHeight); // Final
     
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
@@ -840,74 +856,94 @@ function generatePDF() {
     doc.setFontSize(9);
     
     ordem.items.forEach((item, index) => {
-        if (y > 250) {
+        if (y > 245) {
             doc.addPage();
             y = 20;
+            
+            // Redesenha cabeçalho na nova página
+            doc.setFillColor(108, 117, 125);
+            doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont(undefined, 'bold');
+            
+            xPos = margin;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.item;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.especificacao;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.qtd;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.unid;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.valorUn;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.total;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            
+            y += itemRowHeight;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
         }
         
-        // Linha zebrada (branco e cinza claro alternados)
+        // Linha zebrada (cinza claro em linhas ímpares)
         if (index % 2 !== 0) {
             doc.setFillColor(240, 240, 240);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'F');
         }
         
-        // Bordas verticais
-        doc.setDrawColor(180, 180, 180);
-        doc.setLineWidth(0.3);
         xPos = margin;
         
-        // Item - centralizado
-        const itemX = xPos + (colWidths.item / 2);
-        doc.text(item.item.toString(), itemX, y + 6, { align: 'center' });
-        doc.line(xPos, y, xPos, y + itemRowHeight); // Borda esquerda
-        xPos += colWidths.item;
-        doc.line(xPos, y, xPos, y + itemRowHeight); // Borda direita do item
+        // Desenha borda esquerda
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(xPos, y, xPos, y + itemRowHeight);
         
-        // Especificação - alinhado à esquerda
-        const especificacao = item.especificacao.length > 55 
-            ? item.especificacao.substring(0, 52) + '...' 
+        // ITEM - centralizado
+        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.item;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        // ESPECIFICAÇÃO - alinhado à esquerda com margem
+        const especificacao = item.especificacao.length > 60 
+            ? item.especificacao.substring(0, 57) + '...' 
             : item.especificacao;
-        doc.text(especificacao, xPos + 2, y + 6);
+        doc.text(especificacao, xPos + 3, y + 6.5);
         xPos += colWidths.especificacao;
         doc.line(xPos, y, xPos, y + itemRowHeight);
         
         // QTD - centralizado
-        const qtdX = xPos + (colWidths.qtd / 2);
-        doc.text(item.quantidade.toString(), qtdX, y + 6, { align: 'center' });
+        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
         xPos += colWidths.qtd;
         doc.line(xPos, y, xPos, y + itemRowHeight);
         
-        // Unid - centralizado
-        const unidX = xPos + (colWidths.unid / 2);
-        doc.text(item.unidade, unidX, y + 6, { align: 'center' });
+        // UNID - centralizado
+        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
         xPos += colWidths.unid;
         doc.line(xPos, y, xPos, y + itemRowHeight);
         
-        // Valor UN - centralizado
-        const valorUnX = xPos + (colWidths.valorUn / 2);
+        // VALOR UN - centralizado com R$
         const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
-        doc.text(valorUnFormatted, valorUnX, y + 6, { align: 'center' });
+        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
         xPos += colWidths.valorUn;
         doc.line(xPos, y, xPos, y + itemRowHeight);
         
-        // Total - centralizado
-        const totalX = xPos + (colWidths.total / 2);
-        doc.text(item.valorTotal, totalX, y + 6, { align: 'center' });
+        // TOTAL - centralizado
+        doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
         xPos += colWidths.total;
-        doc.line(xPos, y, xPos, y + itemRowHeight); // Borda direita
+        doc.line(xPos, y, xPos, y + itemRowHeight);
         
         // Borda horizontal inferior
         doc.line(margin, y + itemRowHeight, margin + tableWidth, y + itemRowHeight);
         
         y += itemRowHeight;
     });
-    
-    // Borda final da tabela
-    doc.setLineWidth(0.5);
-    doc.line(margin, itemTableStartY, margin + tableWidth, itemTableStartY); // Topo
-    doc.line(margin, y, margin + tableWidth, y); // Base
-    doc.line(margin, itemTableStartY, margin, y); // Esquerda
-    doc.line(margin + tableWidth, itemTableStartY, margin + tableWidth, y); // Direita
     
     y += 8;
     
@@ -918,22 +954,20 @@ function generatePDF() {
     
     y += 6;
     doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    
     doc.setFont(undefined, 'bold');
-    doc.text('IPI:', margin, y);
+    doc.text('IPI: ', margin, y);
     doc.setFont(undefined, 'normal');
     doc.text(ordem.ipi || 'ISENTO', margin + 10, y);
     
     y += 5;
     doc.setFont(undefined, 'bold');
-    doc.text('ST:', margin, y);
+    doc.text('ST: ', margin, y);
     doc.setFont(undefined, 'normal');
     doc.text(ordem.st || 'NÃO INCLUÍDO', margin + 10, y);
     
     y += 5;
     doc.setFont(undefined, 'bold');
-    doc.text('Frete:', margin, y);
+    doc.text('Frete: ', margin, y);
     doc.setFont(undefined, 'normal');
     doc.text(ordem.frete, margin + 15, y);
     

@@ -5,6 +5,10 @@ let ordens = [];
 let currentMonth = new Date();
 let editingId = null;
 let itemCounter = 0;
+let currentTab = 0;
+let isOnline = false;
+
+const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
 // ============================================
 // INICIALIZAÇÃO
@@ -12,8 +16,44 @@ let itemCounter = 0;
 document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage();
     updateDisplay();
-    checkOpenOrders(); // Verifica ordens abertas
+    checkServerStatus();
+    startRealtimeSync();
 });
+
+// ============================================
+// CONEXÃO E STATUS
+// ============================================
+function startRealtimeSync() {
+    setInterval(async () => {
+        await checkServerStatus();
+    }, 3000); // Verifica a cada 3 segundos
+}
+
+async function checkServerStatus() {
+    try {
+        const response = await fetch(window.location.origin, { 
+            method: 'HEAD',
+            cache: 'no-cache'
+        });
+        isOnline = response.ok;
+    } catch (error) {
+        isOnline = false;
+    }
+    updateConnectionStatus();
+}
+
+function updateConnectionStatus() {
+    const statusDiv = document.getElementById('connectionStatus');
+    if (!statusDiv) return;
+
+    if (isOnline) {
+        statusDiv.className = 'connection-status online';
+        statusDiv.querySelector('span:last-child').textContent = 'Online';
+    } else {
+        statusDiv.className = 'connection-status offline';
+        statusDiv.querySelector('span:last-child').textContent = 'Offline';
+    }
+}
 
 // ============================================
 // LOCAL STORAGE
@@ -46,9 +86,17 @@ function updateMonthDisplay() {
 }
 
 // ============================================
-// SISTEMA DE ABAS
+// SISTEMA DE ABAS - NAVEGAÇÃO
 // ============================================
 function switchTab(tabId) {
+    const tabIndex = tabs.indexOf(tabId);
+    if (tabIndex !== -1) {
+        currentTab = tabIndex;
+        showTab(currentTab);
+    }
+}
+
+function showTab(index) {
     // Remove active de todas as abas do formulário
     document.querySelectorAll('#formModal .tab-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -57,12 +105,51 @@ function switchTab(tabId) {
         content.classList.remove('active');
     });
     
-    // Ativa a aba clicada
-    const clickedBtn = event.target.closest('.tab-btn');
-    if (clickedBtn) {
-        clickedBtn.classList.add('active');
+    // Ativa a aba atual
+    document.querySelectorAll('#formModal .tab-btn')[index].classList.add('active');
+    document.getElementById(tabs[index]).classList.add('active');
+    
+    updateNavigationButtons();
+}
+
+function nextTab() {
+    if (currentTab < tabs.length - 1) {
+        currentTab++;
+        showTab(currentTab);
+    } else {
+        // Última aba - submete o formulário
+        document.getElementById('ordemForm').dispatchEvent(new Event('submit'));
     }
-    document.getElementById(tabId).classList.add('active');
+}
+
+function previousTab() {
+    if (currentTab > 0) {
+        currentTab--;
+        showTab(currentTab);
+    }
+}
+
+function updateNavigationButtons() {
+    const btnVoltar = document.getElementById('btnVoltar');
+    const btnProximo = document.getElementById('btnProximo');
+    
+    // Botão Voltar: não aparece na primeira aba
+    if (currentTab === 0) {
+        btnVoltar.style.display = 'none';
+    } else {
+        btnVoltar.style.display = 'inline-flex';
+    }
+    
+    // Botão Próximo/Registrar: muda texto na última aba
+    if (currentTab === tabs.length - 1) {
+        btnProximo.textContent = editingId ? 'Atualizar Ordem' : 'Registrar Ordem';
+        btnProximo.classList.remove('secondary');
+        btnProximo.classList.add('primary');
+    } else {
+        btnProximo.textContent = 'Próximo';
+        btnProximo.classList.add('secondary');
+        btnProximo.classList.remove('primary');
+    }
 }
 
 function switchInfoTab(tabId) {
@@ -87,8 +174,8 @@ function switchInfoTab(tabId) {
 // ============================================
 function openFormModal() {
     editingId = null;
+    currentTab = 0;
     document.getElementById('formTitle').textContent = 'Nova Ordem de Compra';
-    document.getElementById('submitText').textContent = 'Registrar Ordem';
     document.getElementById('ordemForm').reset();
     document.getElementById('editId').value = '';
     
@@ -104,10 +191,7 @@ function openFormModal() {
     setTodayDate();
     
     // Reseta para a primeira aba
-    document.querySelectorAll('#formModal .tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('#formModal .tab-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('#formModal .tab-btn')[0].classList.add('active');
-    document.getElementById('tab-geral').classList.add('active');
+    showTab(0);
     
     document.getElementById('formModal').classList.add('show');
 }
@@ -206,8 +290,10 @@ function handleSubmit(event) {
         });
     });
     
+    const timestamp = Date.now();
+    
     const formData = {
-        id: editingId || Date.now().toString(),
+        id: editingId || timestamp.toString(),
         numeroOrdem: document.getElementById('numeroOrdem').value,
         responsavel: document.getElementById('responsavel').value,
         dataOrdem: document.getElementById('dataOrdem').value,
@@ -230,11 +316,14 @@ function handleSubmit(event) {
         formaPagamento: document.getElementById('formaPagamento').value,
         prazoPagamento: document.getElementById('prazoPagamento').value,
         dadosBancarios: document.getElementById('dadosBancarios').value,
-        status: 'aberta'
+        status: 'aberta',
+        timestamp: timestamp // Usado para ordenação
     };
     
     if (editingId) {
         const index = ordens.findIndex(o => o.id === editingId);
+        // Preserva o timestamp original ao editar
+        formData.timestamp = ordens[index].timestamp;
         ordens[index] = formData;
         showToast('Ordem atualizada com sucesso!', 'success');
     } else {
@@ -255,8 +344,8 @@ function editOrdem(id) {
     if (!ordem) return;
     
     editingId = id;
+    currentTab = 0;
     document.getElementById('formTitle').textContent = 'Editar Ordem de Compra';
-    document.getElementById('submitText').textContent = 'Atualizar Ordem';
     
     // Preenche campos básicos
     document.getElementById('editId').value = ordem.id;
@@ -297,10 +386,7 @@ function editOrdem(id) {
     recalculateOrderTotal();
     
     // Reseta para a primeira aba
-    document.querySelectorAll('#formModal .tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('#formModal .tab-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('#formModal .tab-btn')[0].classList.add('active');
-    document.getElementById('tab-geral').classList.add('active');
+    showTab(0);
     
     document.getElementById('formModal').classList.add('show');
 }
@@ -462,8 +548,8 @@ function updateDashboard() {
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
     const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
     
-    // Total de ordens começa em 1226 (ordens anteriores) + ordens registradas no sistema
-    document.getElementById('totalOrdens').textContent = 1226 + ordens.length;
+    // Total de ordens começa em 1249 + ordens registradas no sistema
+    document.getElementById('totalOrdens').textContent = 1249 + ordens.length;
     document.getElementById('totalFechadas').textContent = totalFechadas;
     document.getElementById('totalAbertas').textContent = totalAbertas;
 }
@@ -504,11 +590,11 @@ function updateTable() {
         return;
     }
     
-    // Ordena por número de ordem (decrescente - maior primeiro)
+    // Ordena por número de ordem (crescente - menor primeiro)
     filteredOrdens.sort((a, b) => {
         const numA = parseInt(a.numeroOrdem.split('-')[1]);
         const numB = parseInt(b.numeroOrdem.split('-')[1]);
-        return numB - numA;
+        return numA - numB;
     });
     
     container.innerHTML = filteredOrdens.map(ordem => `
@@ -564,8 +650,8 @@ function getNextOrderNumber() {
         .map(n => parseInt(n.split('-')[1]))
         .filter(n => !isNaN(n));
     
-    // Inicia em 1226 se não houver ordens, senão usa o próximo número
-    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1226;
+    // Inicia em 1250 se não houver ordens, senão usa o próximo número
+    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
     return `${year}-${String(nextNum).padStart(4, '0')}`;
 }
 
@@ -592,43 +678,6 @@ function showToast(message, type = 'success') {
 // ============================================
 // GERAÇÃO DE PDF
 // ============================================
-function checkOpenOrders() {
-    const ordensAbertas = ordens.filter(o => o.status === 'aberta');
-    
-    if (ordensAbertas.length > 0) {
-        // Ordena por número de ordem (decrescente)
-        ordensAbertas.sort((a, b) => {
-            const numA = parseInt(a.numeroOrdem.split('-')[1]);
-            const numB = parseInt(b.numeroOrdem.split('-')[1]);
-            return numB - numA;
-        });
-        
-        showOpenOrdersModal(ordensAbertas);
-    }
-}
-
-function showOpenOrdersModal(ordensAbertas) {
-    const modal = document.getElementById('openOrdersModal');
-    const tbody = document.getElementById('openOrdersTableBody');
-    
-    tbody.innerHTML = ordensAbertas.map(ordem => `
-        <tr onclick="viewOrdem('${ordem.id}')" style="cursor: pointer;">
-            <td><strong>${ordem.numeroOrdem}</strong></td>
-            <td>${ordem.razaoSocial}</td>
-            <td>${ordem.responsavel}</td>
-            <td>${formatDate(ordem.dataOrdem)}</td>
-            <td><strong>${ordem.valorTotal}</strong></td>
-        </tr>
-    `).join('');
-    
-    document.getElementById('openOrdersCount').textContent = ordensAbertas.length;
-    modal.classList.add('show');
-}
-
-function closeOpenOrdersModal() {
-    document.getElementById('openOrdersModal').classList.remove('show');
-}
-
 function generatePDF() {
     const modalNumero = document.getElementById('modalNumero').textContent;
     const ordem = ordens.find(o => o.numeroOrdem === modalNumero);

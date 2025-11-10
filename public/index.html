@@ -11,6 +11,10 @@
         <!-- Header -->
         <div class="header">
             <h1>Ordem de Compra</h1>
+            <div id="connectionStatus" class="connection-status offline">
+                <span class="status-dot"></span>
+                <span>Verificando...</span>
+            </div>
         </div>
 
         <!-- Dashboard -->
@@ -25,7 +29,7 @@
             </div>
             <div class="dashboard-card blue">
                 <h3>Total de Ordens</h3>
-                <div class="value" id="totalOrdens">0</div>
+                <div class="value" id="totalOrdens">1249</div>
             </div>
         </div>
 
@@ -280,12 +284,12 @@
                     </div>
                 </div>
 
-                <div class="modal-actions">
-                    <button type="button" class="secondary" onclick="closeFormModal()">
-                        Cancelar
+                <div class="modal-actions" id="formActions">
+                    <button type="button" class="secondary" id="btnVoltar" onclick="previousTab()" style="display: none;">
+                        Voltar
                     </button>
-                    <button type="submit">
-                        <span id="submitText">Registrar Ordem</span>
+                    <button type="button" id="btnProximo" onclick="nextTab()">
+                        Próximo
                     </button>
                 </div>
             </form>
@@ -332,45 +336,6 @@
                 <button class="success" onclick="generatePDF()">
                     Gerar PDF
                 </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Open Orders Alert Modal -->
-    <div id="openOrdersModal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">
-                <h3 style="color: var(--primary);">
-                    Atenção: <span id="openOrdersCount">0</span> Ordem(ns) Aberta(s)
-                </h3>
-                <button class="close-modal" onclick="closeOpenOrdersModal()">×</button>
-            </div>
-            
-            <div style="margin-bottom: 1.5rem;">
-                <p style="color: var(--text-secondary); line-height: 1.6;">
-                    Você possui ordens de compra que ainda não foram fechadas. 
-                    Clique em uma ordem abaixo para visualizar os detalhes ou use o botão "Fechar" para continuar.
-                </p>
-            </div>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nº Ordem</th>
-                            <th>Fornecedor</th>
-                            <th>Responsável</th>
-                            <th>Data</th>
-                            <th>Valor Total</th>
-                        </tr>
-                    </thead>
-                    <tbody id="openOrdersTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="modal-actions">
-                <button class="secondary" onclick="closeOpenOrdersModal()">Fechar</button>
             </div>
         </div>
     </div>

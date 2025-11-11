@@ -740,45 +740,41 @@ function generatePDF() {
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
     
-    y += 6;
-    
-    // Desenha tabela do fornecedor
-    const tableStartY = y;
-    const colWidth = (pageWidth - 2 * margin) / 2;
-    const rowHeight = 7;
-    
-    const fornecedorFields = [
-        ['Razão Social', ordem.razaoSocial],
-        ['Nome Fantasia', ordem.nomeFantasia || '-'],
-        ['CNPJ', ordem.cnpj],
-        ['Endereço', ordem.enderecoFornecedor || '-'],
-        ['Site', ordem.site || '-'],
-        ['Contato', ordem.contato || '-'],
-        ['Telefone', ordem.telefone || '-'],
-        ['E-mail', ordem.email || '-']
+    y += lineHeight + 1;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${ordem.razaoSocial}`, margin, y);
+
+    y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.nomeFantasia}`, margin, y);
+
+     y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.cnpj}`, margin, y);
+
+     y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.enderecoFornecedor}`, margin, y);
+
+    y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.contato}`, margin, y);
+
+    y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.telefone}`, margin, y);
+
+    y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.email}`, margin, y);
     ];
-    
-    doc.setFontSize(8);
-    
-    fornecedorFields.forEach((field, index) => {
-        const currentY = tableStartY + (index * rowHeight);
-        
-        // Desenha borda da célula
-        doc.setDrawColor(200, 200, 200);
-        doc.rect(margin, currentY, colWidth, rowHeight);
-        doc.rect(margin + colWidth, currentY, colWidth, rowHeight);
-        
-        // Label (coluna esquerda)
-        doc.setFont(undefined, 'bold');
-        doc.text(field[0] + ':', margin + 2, currentY + 4.5);
-        
-        // Valor (coluna direita)
-        doc.setFont(undefined, 'normal');
-        const textValue = field[1].length > 45 ? field[1].substring(0, 42) + '...' : field[1];
-        doc.text(textValue, margin + colWidth + 2, currentY + 4.5);
-    });
-    
-    y = tableStartY + (fornecedorFields.length * rowHeight) + 8;
     
     // ===== ITENS DO PEDIDO - TABELA =====
     doc.setFontSize(11);

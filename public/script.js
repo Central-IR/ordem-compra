@@ -708,27 +708,27 @@ function generatePDFForOrdem(ordem) {
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('I.R. COMERCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
+    doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
     
-    y += lineHeight;
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
     
-    y += lineHeight;
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text('Rua Tadorna nº 472, sala 2', margin, y);
+    doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
     
-    y += lineHeight;
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text('Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
+    doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
     
-    y += lineHeight;
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text('Telefax: (27) 3209-4291  |  E-mail: comercial.ircomercio@gmail.com', margin, y);
+    doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
     
     y += 10;
     
@@ -786,8 +786,6 @@ function generatePDFForOrdem(ordem) {
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
         item: tableWidth * 0.05,          // 5%
-        // Continuação do script.js a partir da configuração da tabela de itens no PDF
-
         especificacao: tableWidth * 0.35,    // 35%
         qtd: tableWidth * 0.08,              // 8%
         unid: tableWidth * 0.08,             // 8%

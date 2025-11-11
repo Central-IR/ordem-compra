@@ -866,7 +866,7 @@ function generatePDFForOrdem(ordem) {
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
         // Verifica se precisa de nova página (deixa margem de 30 na parte inferior)
-        if (y + necessaryHeight > doc.internal.pageSize.height - 30) {
+        if (y + necessaryHeight > doc.internal.pageSize.height - 40) {
             doc.addPage();
             y = 20;
             
@@ -973,6 +973,10 @@ function generatePDFForOrdem(ordem) {
     y += 8;
     
     // VALOR TOTAL E FRETE
+    if (y > doc.internal.pageSize.height - 80) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
@@ -980,6 +984,10 @@ function generatePDFForOrdem(ordem) {
     y += 10;
     
     // LOCAL DE ENTREGA (FIXO)
+    if (y > doc.internal.pageSize.height - 70) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('LOCAL DE ENTREGA:', margin, y);
@@ -991,6 +999,10 @@ function generatePDFForOrdem(ordem) {
     y += 8;
     
     // PRAZO E FRETE
+    if (y > doc.internal.pageSize.height - 60) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('PRAZO DE ENTREGA:', margin, y);
@@ -1008,6 +1020,10 @@ function generatePDFForOrdem(ordem) {
     y += 10;
     
     // DADOS DO PAGAMENTO
+    if (y > doc.internal.pageSize.height - 50) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO PAGAMENTO', margin, y);
@@ -1032,6 +1048,10 @@ function generatePDFForOrdem(ordem) {
     y += 12;
     
     // DATA E ASSINATURA
+    if (y > doc.internal.pageSize.height - 40) {
+        doc.addPage();
+        y = 20;
+    }
     const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
     const dia = dataOrdem.getDate();
     const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
@@ -1060,6 +1080,10 @@ function generatePDFForOrdem(ordem) {
     y += 12;
     
     // ATENÇÃO SR. FORNECEDOR
+    if (y > doc.internal.pageSize.height - 30) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(204, 112, 0);

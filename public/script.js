@@ -1,6 +1,3 @@
-// ============================================
-// ESTADO DA APLICAÇÃO
-// ============================================
 let ordens = [];
 let currentMonth = new Date();
 let editingId = null;

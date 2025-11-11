@@ -861,7 +861,8 @@ function generatePDFForOrdem(ordem) {
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
-        if (y + necessaryHeight > 270) {
+        // Verifica se precisa de nova página (deixa margem de 30 na parte inferior)
+        if (y + necessaryHeight > doc.internal.pageSize.height - 30) {
             doc.addPage();
             y = 20;
             

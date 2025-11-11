@@ -687,6 +687,16 @@ function generatePDFForOrdem(ordem) {
     const pageWidth = doc.internal.pageSize.width;
     const lineHeight = 5;
     
+    // LOGO NO CANTO SUPERIOR ESQUERDO
+    try {
+        const logo = new Image();
+        logo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA.png';
+        doc.addImage(logo, 'PNG', margin, y, 40, 15); // x, y, largura, altura
+        y += 18; // Ajusta posição após a logo
+    } catch (error) {
+        console.log('Logo não encontrada');
+    }
+    
     // CABEÇALHO
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
@@ -1065,10 +1075,22 @@ function generatePDFForOrdem(ordem) {
     y += 15;
     
     // Linha de assinatura
-    doc.setLineWidth(0.5);
-    doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+    y += 15;
     
-    y += 5;
+    // ASSINATURA (IMAGEM)
+    try {
+        const assinatura = new Image();
+        assinatura.src = 'assinatura.png.png'; // ou o nome correto do arquivo
+        doc.addImage(assinatura, 'PNG', pageWidth / 2 - 25, y - 10, 50, 15); // centralizada
+        y += 10;
+    } catch (error) {
+        console.log('Assinatura não encontrada');
+        // Linha de assinatura (fallback se não encontrar a imagem)
+        doc.setLineWidth(0.5);
+        doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+        y += 5;
+    }
+    
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, y, { align: 'center' });

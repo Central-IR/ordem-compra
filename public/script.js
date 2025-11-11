@@ -772,7 +772,7 @@ function generatePDFForOrdem(ordem) {
     // ITENS DO PEDIDO
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('ITENSdoc.text('ITENS DO PEDIDO', margin, y);
+    doc.text('ITENS DO PEDIDO', margin, y);
     
     y += 6;
     
@@ -780,24 +780,26 @@ function generatePDFForOrdem(ordem) {
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
         item: tableWidth * 0.05,          // 5%
-        especificacao: tableWidth * 0.35, // 35%
-        qtd: tableWidth * 0.08,           // 8%
-        unid: tableWidth * 0.08,          // 8%
-        valorUn: tableWidth * 0.12,       // 12%
-        ipi: tableWidth * 0.10,           // 10%
-        st: tableWidth * 0.10,            // 10%
-        total: tableWidth * 0.12          // 12%
+        // Continuação do script.js a partir da configuração da tabela de itens no PDF
+
+        especificacao: tableWidth * 0.35,    // 35%
+        qtd: tableWidth * 0.08,              // 8%
+        unid: tableWidth * 0.08,             // 8%
+        valorUn: tableWidth * 0.12,          // 12%
+        ipi: tableWidth * 0.10,              // 10%
+        st: tableWidth * 0.10,               // 10%
+        total: tableWidth * 0.12             // 12%
     };
     
-    const itemRowHeight = 8;
+    const itemRowHeight = 10;
     
-    // Cabeçalho da tabela
+    // Cabeçalho da tabela com fundo cinza escuro
     doc.setFillColor(108, 117, 125);
     doc.setDrawColor(180, 180, 180);
     doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     
     let xPos = margin;
@@ -806,80 +808,60 @@ function generatePDFForOrdem(ordem) {
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // ITEM
-    doc.text('ITEM', xPos + (colWidths.item / 2), y + 5.5, { align: 'center' });
+    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.item;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // ESPECIFICAÇÃO
-    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 5.5, { align: 'center' });
+    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.especificacao;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // QTD
-    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 5.5, { align: 'center' });
+    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.qtd;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // UNID
-    doc.text('UNID', xPos + (colWidths.unid / 2), y + 5.5, { align: 'center' });
+    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.unid;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // VALOR UN
-    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 5.5, { align: 'center' });
+    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.valorUn;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // IPI
-    doc.text('IPI', xPos + (colWidths.ipi / 2), y + 5.5, { align: 'center' });
+    doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.ipi;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // ST
-    doc.text('ST', xPos + (colWidths.st / 2), y + 5.5, { align: 'center' });
+    doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.st;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     // TOTAL
-    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 5.5, { align: 'center' });
+    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.total;
     doc.line(xPos, y, xPos, y + itemRowHeight);
     
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
     
-    // Função para quebrar texto em múltiplas linhas
-    function wrapText(text, maxWidth) {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
-        
-        for (let i = 1; i < words.length; i++) {
-            const testLine = currentLine + ' ' + words[i];
-            const testWidth = doc.getTextWidth(testLine);
-            
-            if (testWidth < maxWidth) {
-                currentLine = testLine;
-            } else {
-                lines.push(currentLine);
-                currentLine = words[i];
-            }
-        }
-        lines.push(currentLine);
-        return lines;
-    }
-    
     // Linhas dos itens
     doc.setFont(undefined, 'normal');
     doc.setFontSize(8);
     
     ordem.items.forEach((item, index) => {
-        // Quebrar especificação em múltiplas linhas
-        const especificacaoLines = wrapText(item.especificacao, colWidths.especificacao - 4);
-        const rowHeight = Math.max(itemRowHeight, especificacaoLines.length * 4 + 2);
+        // Calcula altura necessária para a especificação
+        const maxWidth = colWidths.especificacao - 6; // margem interna
+        const especLines = doc.splitTextToSize(item.especificacao, maxWidth);
+        const lineCount = especLines.length;
+        const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
-        // Verifica se precisa adicionar nova página
-        if (y + rowHeight > 270) {
+        if (y + necessaryHeight > 270) {
             doc.addPage();
             y = 20;
             
@@ -888,32 +870,32 @@ function generatePDFForOrdem(ordem) {
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');
-            doc.setFontSize(8);
+            doc.setFontSize(9);
             
             xPos = margin;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ITEM', xPos + (colWidths.item / 2), y + 5.5, { align: 'center' });
+            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.item;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 5.5, { align: 'center' });
+            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.especificacao;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 5.5, { align: 'center' });
+            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.qtd;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('UNID', xPos + (colWidths.unid / 2), y + 5.5, { align: 'center' });
+            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.unid;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 5.5, { align: 'center' });
+            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.valorUn;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 5.5, { align: 'center' });
+            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.ipi;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ST', xPos + (colWidths.st / 2), y + 5.5, { align: 'center' });
+            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.st;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 5.5, { align: 'center' });
+            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.total;
             doc.line(xPos, y, xPos, y + itemRowHeight);
             
@@ -926,63 +908,61 @@ function generatePDFForOrdem(ordem) {
         // Linha zebrada
         if (index % 2 !== 0) {
             doc.setFillColor(240, 240, 240);
-            doc.rect(margin, y, tableWidth, rowHeight, 'F');
+            doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
         }
         
         xPos = margin;
         
-        // Desenha bordas
+        // Bordas verticais
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
         // ITEM - centralizado verticalmente
-        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.item;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // ESPECIFICAÇÃO - múltiplas linhas
-        especificacaoLines.forEach((line, lineIndex) => {
-            doc.text(line, xPos + 2, y + 5 + (lineIndex * 4));
-        });
+        // ESPECIFICAÇÃO - com quebra de linha
+        doc.text(especLines, xPos + 3, y + 4);
         xPos += colWidths.especificacao;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // QTD
-        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        // QTD - centralizado
+        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.qtd;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // UNID
-        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        // UNID - centralizado
+        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.unid;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // VALOR UN
+        // VALOR UN - centralizado
         const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
-        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.valorUn;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // IPI
-        doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        // IPI - centralizado
+        doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.ipi;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // ST
-        doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        // ST - centralizado
+        doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.st;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // TOTAL
-        doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + (rowHeight / 2) + 1.5, { align: 'center' });
+        // TOTAL - centralizado
+        doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.total;
-        doc.line(xPos, y, xPos, y + rowHeight);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
         
         // Borda horizontal inferior
-        doc.line(margin, y + rowHeight, margin + tableWidth, y + rowHeight);
+        doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
         
-        y += rowHeight;
+        y += necessaryHeight;
     });
     
     y += 8;

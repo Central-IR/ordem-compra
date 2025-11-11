@@ -230,6 +230,12 @@ function addItem() {
             <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
         </td>
         <td>
+            <input type="text" class="item-ipi" placeholder="Isento" value="Isento">
+        </td>
+        <td>
+            <input type="text" class="item-st" placeholder="Não incluído" value="Não incluído">
+        </td>
+        <td>
             <input type="text" class="item-total" readonly value="R$ 0,00">
         </td>
         <td class="item-actions">
@@ -363,8 +369,6 @@ function editOrdem(id) {
     document.getElementById('contato').value = ordem.contato || '';
     document.getElementById('telefone').value = ordem.telefone || '';
     document.getElementById('email').value = ordem.email || '';
-    document.getElementById('ipi').value = ordem.ipi || '';
-    document.getElementById('st').value = ordem.st || '';
     document.getElementById('frete').value = ordem.frete || '';
     document.getElementById('localEntrega').value = ordem.localEntrega || '';
     document.getElementById('prazoEntrega').value = ordem.prazoEntrega || '';
@@ -383,6 +387,8 @@ function editOrdem(id) {
         row.querySelector('.item-qtd').value = item.quantidade;
         row.querySelector('.item-unid').value = item.unidade;
         row.querySelector('.item-valor').value = item.valorUnitario;
+        row.querySelector('.item-ipi').value = item.ipi || 'Isento';
+        row.querySelector('.item-st').value = item.st || 'Não incluído';
         row.querySelector('.item-total').value = item.valorTotal;
     });
     
@@ -477,6 +483,8 @@ function viewOrdem(id) {
                                 <td>${item.quantidade}</td>
                                 <td>${item.unidade}</td>
                                 <td>R$ ${item.valorUnitario.toFixed(2)}</td>
+                                <td>${item.ipi || 'Isento'}</td>
+                                <td>${item.st || 'Não incluído'}</td>
                                 <td>${item.valorTotal}</td>
                             </tr>
                         `).join('')}
@@ -484,8 +492,6 @@ function viewOrdem(id) {
                 </table>
             </div>
             <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valorTotal}</p>
-            ${ordem.ipi ? `<p><strong>IPI:</strong> ${ordem.ipi}</p>` : ''}
-            ${ordem.st ? `<p><strong>ST:</strong> ${ordem.st}</p>` : ''}
             ${ordem.frete ? `<p><strong>Frete:</strong> ${ordem.frete}</p>` : ''}
         </div>
     `;
@@ -882,6 +888,12 @@ function generatePDF() {
             doc.line(xPos, y, xPos, y + itemRowHeight);
             doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.valorUn;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.ipi;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.st;
             doc.line(xPos, y, xPos, y + itemRowHeight);
             doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.total;

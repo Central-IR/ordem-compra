@@ -1115,10 +1115,10 @@ function generatePDFForOrdem(ordem) {
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'normal');
-    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, margin, y);
+    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
     
     y += 5;
-    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin, y);
+    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', pageWidth / 2, y, { align: 'center' });
     
     // Salvar PDF
     doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);

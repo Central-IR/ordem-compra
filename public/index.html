@@ -199,49 +199,43 @@
                     </div>
 
                     <!-- Tab: Pedido -->
-                    <div id="tab-pedido" class="tab-content">
-                        <div style="overflow-x: auto;">
-                            <table class="items-table" id="itemsTable">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50px;">Item</th>
-                                        <th style="width: 250px;">Especificação</th>
-                                        <th style="width: 80px;">QTD</th>
-                                        <th style="width: 80px;">UNID</th>
-                                        <th style="width: 120px;">Valor UN (R$)</th>
-                                        <th style="width: 120px;">Valor Total</th>
-                                        <th style="width: 80px;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="itemsBody">
-                                </tbody>
-                            </table>
-                        </div>
-                        <button type="button" onclick="addItem()" class="success small">Adicionar Item</button>
+<div id="tab-pedido" class="tab-content">
+    <div style="overflow-x: auto;">
+        <table class="items-table" id="itemsTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Item</th>
+                    <th style="width: 250px;">Especificação</th>
+                    <th style="width: 80px;">QTD</th>
+                    <th style="width: 80px;">UNID</th>
+                    <th style="width: 120px;">Valor UN (R$)</th>
+                    <th style="width: 80px;">IPI</th>
+                    <th style="width: 80px;">ST</th>
+                    <th style="width: 120px;">Valor Total</th>
+                    <th style="width: 80px;">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody">
+            </tbody>
+        </table>
+    </div>
+    <button type="button" onclick="addItem()" class="success small">Adicionar Item</button>
 
-                        <div class="form-grid" style="margin-top: 1.5rem;">
-                            <div class="form-group">
-                                <label>Valor Total da Ordem</label>
-                                <input type="text" id="valorTotalOrdem" readonly style="font-weight: bold; font-size: 1.1rem;">
-                            </div>
-                            <div class="form-group">
-                                <label for="ipi">IPI</label>
-                                <input type="text" id="ipi" placeholder="Ex: Isento">
-                            </div>
-                            <div class="form-group">
-                                <label for="st">ST</label>
-                                <input type="text" id="st" placeholder="Ex: Não incluído">
-                            </div>
-                            <div class="form-group">
-                                <label for="frete">Frete</label>
-                                <select id="frete" required>
-                                    <option value="">Selecione...</option>
-                                    <option value="CIF">CIF</option>
-                                    <option value="FOB">FOB</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+    <div class="form-grid" style="margin-top: 1.5rem;">
+        <div class="form-group">
+            <label>Valor Total da Ordem</label>
+            <input type="text" id="valorTotalOrdem" readonly style="font-weight: bold; font-size: 1.1rem;">
+        </div>
+        <div class="form-group">
+            <label for="frete">Frete</label>
+            <select id="frete" required>
+                <option value="">Selecione...</option>
+                <option value="CIF">CIF</option>
+                <option value="FOB">FOB</option>
+            </select>
+        </div>
+    </div>
+</div>
 
                     <!-- Tab: Entrega -->
                     <div id="tab-entrega" class="tab-content">

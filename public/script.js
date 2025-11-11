@@ -1,6 +1,4 @@
-// ============================================
 // ESTADO DA APLICAÇÃO
-// ============================================
 let ordens = [];
 let currentMonth = new Date();
 let editingId = null;
@@ -10,9 +8,7 @@ let isOnline = false;
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
-// ============================================
 // INICIALIZAÇÃO
-// ============================================
 document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage();
     updateDisplay();
@@ -20,21 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
     startRealtimeSync();
 });
 
-// ============================================
 // CONEXÃO E STATUS
-// ============================================
 function startRealtimeSync() {
-    setInterval(async () => {
-        await checkServerStatus();
-    }, 3000);
+    setInterval(async () => await checkServerStatus(), 3000);
 }
 
 async function checkServerStatus() {
     try {
-        const response = await fetch(window.location.origin, { 
-            method: 'HEAD',
-            cache: 'no-cache'
-        });
+        const response = await fetch(window.location.origin, { method: 'HEAD', cache: 'no-cache' });
         isOnline = response.ok;
     } catch (error) {
         isOnline = false;
@@ -45,70 +34,46 @@ async function checkServerStatus() {
 function updateConnectionStatus() {
     const statusDiv = document.getElementById('connectionStatus');
     if (!statusDiv) return;
-
-    if (isOnline) {
-        statusDiv.className = 'connection-status online';
-        statusDiv.querySelector('span:last-child').textContent = 'Online';
-    } else {
-        statusDiv.className = 'connection-status offline';
-        statusDiv.querySelector('span:last-child').textContent = 'Offline';
-    }
+    statusDiv.className = isOnline ? 'connection-status online' : 'connection-status offline';
+    statusDiv.querySelector('span:last-child').textContent = isOnline ? 'Online' : 'Offline';
 }
 
-// ============================================
 // LOCAL STORAGE
-// ============================================
 function loadFromLocalStorage() {
     const stored = localStorage.getItem('ordens');
-    if (stored) {
-        ordens = JSON.parse(stored);
-    }
+    if (stored) ordens = JSON.parse(stored);
 }
 
 function saveToLocalStorage() {
     localStorage.setItem('ordens', JSON.stringify(ordens));
 }
 
-// ============================================
 // NAVEGAÇÃO DE MÊS
-// ============================================
 function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
     updateDisplay();
 }
 
 function updateMonthDisplay() {
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const monthName = months[currentMonth.getMonth()];
-    const year = currentMonth.getFullYear();
-    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
+    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    document.getElementById('currentMonth').textContent = `${months[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 }
 
-// ============================================
-// SISTEMA DE ABAS - NAVEGAÇÃO
-// ============================================
+// SISTEMA DE ABAS
 function switchTab(tabId) {
     const tabIndex = tabs.indexOf(tabId);
     if (tabIndex !== -1) {
         currentTab = tabIndex;
         showTab(currentTab);
     }
-    
     event.preventDefault();
 }
 
 function showTab(index) {
-    document.querySelectorAll('#formModal .tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelectorAll('#formModal .tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
+    document.querySelectorAll('#formModal .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('#formModal .tab-content').forEach(content => content.classList.remove('active'));
     document.querySelectorAll('#formModal .tab-btn')[index].classList.add('active');
     document.getElementById(tabs[index]).classList.add('active');
-    
     updateNavigationButtons();
 }
 
@@ -132,11 +97,7 @@ function updateNavigationButtons() {
     const btnVoltar = document.getElementById('btnVoltar');
     const btnProximo = document.getElementById('btnProximo');
     
-    if (currentTab === 0) {
-        btnVoltar.style.display = 'none';
-    } else {
-        btnVoltar.style.display = 'inline-flex';
-    }
+    btnVoltar.style.display = currentTab === 0 ? 'none' : 'inline-flex';
     
     if (currentTab === tabs.length - 1) {
         btnProximo.textContent = editingId ? 'Atualizar Ordem' : 'Registrar Ordem';
@@ -150,40 +111,26 @@ function updateNavigationButtons() {
 }
 
 function switchInfoTab(tabId) {
-    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelectorAll('#infoModal .tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
+    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
     const clickedBtn = event.target.closest('.tab-btn');
-    if (clickedBtn) {
-        clickedBtn.classList.add('active');
-    }
+    if (clickedBtn) clickedBtn.classList.add('active');
     document.getElementById(tabId).classList.add('active');
 }
 
-// ============================================
 // MODAL DE FORMULÁRIO
-// ============================================
 function openFormModal() {
     editingId = null;
     currentTab = 0;
     document.getElementById('formTitle').textContent = 'Nova Ordem de Compra';
     document.getElementById('ordemForm').reset();
     document.getElementById('editId').value = '';
-    
     document.getElementById('itemsBody').innerHTML = '';
     itemCounter = 0;
     addItem();
-    
-    const nextNumber = getNextOrderNumber();
-    document.getElementById('numeroOrdem').value = nextNumber;
-    
+    document.getElementById('numeroOrdem').value = getNextOrderNumber();
     setTodayDate();
     showTab(0);
-    
     document.getElementById('formModal').classList.add('show');
 }
 
@@ -192,59 +139,37 @@ function closeFormModal() {
 }
 
 function setTodayDate() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('dataOrdem').value = today;
+    document.getElementById('dataOrdem').value = new Date().toISOString().split('T')[0];
 }
 
-// ============================================
 // GESTÃO DE ITENS
-// ============================================
 function addItem() {
     itemCounter++;
     const tbody = document.getElementById('itemsBody');
     const row = document.createElement('tr');
     row.innerHTML = `
         <td style="text-align: center;">${itemCounter}</td>
-        <td>
-            <textarea class="item-especificacao" placeholder="Descrição do item..." rows="2"></textarea>
-        </td>
-        <td>
-            <input type="number" class="item-qtd" min="0" step="0.01" value="1" onchange="calculateItemTotal(this)">
-        </td>
-        <td>
-            <input type="text" class="item-unid" value="UN" placeholder="UN">
-        </td>
-        <td>
-            <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
-        </td>
-        <td>
-            <input type="text" class="item-ipi" placeholder="Isento" value="Isento">
-        </td>
-        <td>
-            <input type="text" class="item-st" placeholder="Não incluído" value="Não incluído">
-        </td>
-        <td>
-            <input type="text" class="item-total" readonly value="R$ 0,00">
-        </td>
-        <td class="item-actions">
-            <button type="button" class="danger small" onclick="removeItem(this)">Excluir</button>
-        </td>
+        <td><textarea class="item-especificacao" placeholder="Descrição do item..." rows="2"></textarea></td>
+        <td><input type="number" class="item-qtd" min="0" step="0.01" value="1" onchange="calculateItemTotal(this)"></td>
+        <td><input type="text" class="item-unid" value="UN" placeholder="UN"></td>
+        <td><input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)"></td>
+        <td><input type="text" class="item-ipi" placeholder="Isento" value="Isento"></td>
+        <td><input type="text" class="item-st" placeholder="Não incluído" value="Não incluído"></td>
+        <td><input type="text" class="item-total" readonly value="R$ 0,00"></td>
+        <td class="item-actions"><button type="button" class="danger small" onclick="removeItem(this)">Excluir</button></td>
     `;
     tbody.appendChild(row);
 }
 
 function removeItem(btn) {
-    const row = btn.closest('tr');
-    row.remove();
+    btn.closest('tr').remove();
     recalculateOrderTotal();
     renumberItems();
 }
 
 function renumberItems() {
     const rows = document.querySelectorAll('#itemsBody tr');
-    rows.forEach((row, index) => {
-        row.cells[0].textContent = index + 1;
-    });
+    rows.forEach((row, index) => row.cells[0].textContent = index + 1);
     itemCounter = rows.length;
 }
 
@@ -252,8 +177,7 @@ function calculateItemTotal(input) {
     const row = input.closest('tr');
     const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
     const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-    const total = qtd * valor;
-    row.querySelector('.item-total').value = formatCurrency(total);
+    row.querySelector('.item-total').value = formatCurrency(qtd * valor);
     recalculateOrderTotal();
 }
 
@@ -267,15 +191,12 @@ function recalculateOrderTotal() {
     document.getElementById('valorTotalOrdem').value = formatCurrency(sum);
 }
 
-// ============================================
 // SUBMIT DO FORMULÁRIO
-// ============================================
 function handleSubmit(event) {
     event.preventDefault();
     
     const items = [];
-    const rows = document.querySelectorAll('#itemsBody tr');
-    rows.forEach((row, index) => {
+    document.querySelectorAll('#itemsBody tr').forEach((row, index) => {
         items.push({
             item: index + 1,
             especificacao: row.querySelector('.item-especificacao').value,
@@ -289,7 +210,6 @@ function handleSubmit(event) {
     });
     
     const timestamp = Date.now();
-    
     const formData = {
         id: editingId || timestamp.toString(),
         numeroOrdem: document.getElementById('numeroOrdem').value,
@@ -330,9 +250,7 @@ function handleSubmit(event) {
     closeFormModal();
 }
 
-// ============================================
 // EDIÇÃO
-// ============================================
 function editOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
     if (!ordem) return;
@@ -340,7 +258,6 @@ function editOrdem(id) {
     editingId = id;
     currentTab = 0;
     document.getElementById('formTitle').textContent = 'Editar Ordem de Compra';
-    
     document.getElementById('editId').value = ordem.id;
     document.getElementById('numeroOrdem').value = ordem.numeroOrdem;
     document.getElementById('responsavel').value = ordem.responsavel;
@@ -376,13 +293,10 @@ function editOrdem(id) {
     
     recalculateOrderTotal();
     showTab(0);
-    
     document.getElementById('formModal').classList.add('show');
 }
 
-// ============================================
 // EXCLUSÃO
-// ============================================
 function deleteOrdem(id) {
     if (confirm('Tem certeza que deseja excluir esta ordem?')) {
         ordens = ordens.filter(o => o.id !== id);
@@ -392,9 +306,7 @@ function deleteOrdem(id) {
     }
 }
 
-// ============================================
 // TOGGLE STATUS
-// ============================================
 function toggleStatus(id) {
     const ordem = ordens.find(o => o.id === id);
     if (ordem) {
@@ -405,9 +317,7 @@ function toggleStatus(id) {
     }
 }
 
-// ============================================
 // VISUALIZAÇÃO
-// ============================================
 function viewOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
     if (!ordem) return;
@@ -504,9 +414,7 @@ function closeInfoModal() {
     document.getElementById('infoModal').classList.remove('show');
 }
 
-// ============================================
 // FILTROS
-// ============================================
 function filterOrdens() {
     updateDisplay();
 }
@@ -518,9 +426,7 @@ function clearFilters() {
     updateDisplay();
 }
 
-// ============================================
 // ATUALIZAÇÃO DA TELA
-// ============================================
 function updateDisplay() {
     updateMonthDisplay();
     updateDashboard();
@@ -529,12 +435,9 @@ function updateDisplay() {
 
 function updateDashboard() {
     const monthOrdens = getOrdensForCurrentMonth();
-    const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
-    const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
-    
     document.getElementById('totalOrdens').textContent = 1249 + ordens.length;
-    document.getElementById('totalFechadas').textContent = totalFechadas;
-    document.getElementById('totalAbertas').textContent = totalAbertas;
+    document.getElementById('totalFechadas').textContent = monthOrdens.filter(o => o.status === 'fechada').length;
+    document.getElementById('totalAbertas').textContent = monthOrdens.filter(o => o.status === 'aberta').length;
 }
 
 function updateTable() {
@@ -553,73 +456,45 @@ function updateTable() {
         );
     }
     
-    if (filterResp) {
-        filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
-    }
-    
-    if (filterStatus) {
-        filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
-    }
+    if (filterResp) filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
+    if (filterStatus) filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
     
     if (filteredOrdens.length === 0) {
-        container.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem;">
-                    Nenhuma ordem encontrada
-                </td>
-            </tr>
-        `;
+        container.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem;">Nenhuma ordem encontrada</td></tr>`;
         return;
     }
     
-    filteredOrdens.sort((a, b) => {
-        const numA = parseInt(a.numeroOrdem.split('-')[1]);
-        const numB = parseInt(b.numeroOrdem.split('-')[1]);
-        return numA - numB;
-    });
+    filteredOrdens.sort((a, b) => parseInt(a.numeroOrdem.split('-')[1]) - parseInt(b.numeroOrdem.split('-')[1]));
     
     container.innerHTML = filteredOrdens.map(ordem => `
         <tr class="${ordem.status}">
             <td style="text-align: center;">
                 <button class="check-btn ${ordem.status === 'fechada' ? 'checked' : ''}" 
                         onclick="toggleStatus('${ordem.id}')" 
-                        title="${ordem.status === 'fechada' ? 'Marcar como aberta' : 'Marcar como fechada'}">
-                    ${ordem.status === 'fechada' ? '✓' : '✓'}
-                </button>
+                        title="${ordem.status === 'fechada' ? 'Marcar como aberta' : 'Marcar como fechada'}">✓</button>
             </td>
             <td><strong>${ordem.numeroOrdem}</strong></td>
             <td>${ordem.responsavel}</td>
             <td>${ordem.razaoSocial}</td>
             <td>${formatDate(ordem.dataOrdem)}</td>
             <td><strong>${ordem.valorTotal}</strong></td>
-            <td>
-                <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
-            </td>
+            <td><span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></td>
             <td>
                 <div class="actions">
-                    <button class="small" onclick="viewOrdem('${ordem.id}')" title="Ver detalhes">
-                        Ver
-                    </button>
-                    <button class="small secondary" onclick="editOrdem('${ordem.id}')" title="Editar">
-                        Editar
-                    </button>
-                    <button class="small danger" onclick="deleteOrdem('${ordem.id}')" title="Excluir">
-                        Excluir
-                    </button>
+                    <button class="small" onclick="viewOrdem('${ordem.id}')">Ver</button>
+                    <button class="small secondary" onclick="editOrdem('${ordem.id}')">Editar</button>
+                    <button class="small danger" onclick="deleteOrdem('${ordem.id}')">Excluir</button>
                 </div>
             </td>
         </tr>
     `).join('');
 }
 
-// ============================================
 // UTILIDADES
-// ============================================
 function getOrdensForCurrentMonth() {
     return ordens.filter(ordem => {
         const ordemDate = new Date(ordem.dataOrdem);
-        return ordemDate.getMonth() === currentMonth.getMonth() &&
-               ordemDate.getFullYear() === currentMonth.getFullYear();
+        return ordemDate.getMonth() === currentMonth.getMonth() && ordemDate.getFullYear() === currentMonth.getFullYear();
     });
 }
 
@@ -636,8 +511,7 @@ function getNextOrderNumber() {
 }
 
 function formatDate(dateString) {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR');
+    return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
 }
 
 function formatCurrency(value) {
@@ -649,15 +523,10 @@ function showToast(message, type = 'success') {
     toast.className = `toast ${type}`;
     toast.textContent = message;
     document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
 
-// ============================================
 // GERAÇÃO DE PDF
-// ============================================
 function generatePDF() {
     const modalNumero = document.getElementById('modalNumero').textContent;
     const ordem = ordens.find(o => o.numeroOrdem === modalNumero);
@@ -675,7 +544,7 @@ function generatePDF() {
     const pageWidth = doc.internal.pageSize.width;
     const lineHeight = 5;
     
-    // ===== CABEÇALHO =====
+    // CABEÇALHO
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(204, 112, 0);
@@ -684,41 +553,34 @@ function generatePDF() {
     y += 8;
     doc.setFontSize(14);
     doc.text(`Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-    
     y += 12;
     
-    // ===== DADOS PARA FATURAMENTO (FIXO) =====
+    // DADOS PARA FATURAMENTO
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS PARA FATURAMENTO (Informações fixas)', margin, y);
+    y += 6;
     
-    y += lineHeight + 1;
     doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
     doc.text('I.R. COMERCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
+    y += 5;
     
-    y += lineHeight;
     doc.setFont(undefined, 'normal');
     doc.setFontSize(9);
     doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
-    
-    y += lineHeight;
+    y += 5;
     doc.text('Rua Tadorna nº 472, sala 2', margin, y);
-    
-    y += lineHeight;
+    y += 5;
     doc.text('Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
-    
-    y += lineHeight;
+    y += 5;
     doc.text('Telefax: (27) 3209-4291  |  E-mail: comercial.ircomercio@gmail.com', margin, y);
-    
     y += 10;
     
-    // ===== DADOS DO FORNECEDOR - TABELA =====
+    // DADOS DO FORNECEDOR - TABELA
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
-    
     y += 6;
     
     const tableStartY = y;
@@ -737,17 +599,13 @@ function generatePDF() {
     ];
     
     doc.setFontSize(8);
-    
     fornecedorFields.forEach((field, index) => {
         const currentY = tableStartY + (index * rowHeight);
-        
         doc.setDrawColor(200, 200, 200);
         doc.rect(margin, currentY, colWidth, rowHeight);
         doc.rect(margin + colWidth, currentY, colWidth, rowHeight);
-        
         doc.setFont(undefined, 'bold');
         doc.text(field[0] + ':', margin + 2, currentY + 4.5);
-        
         doc.setFont(undefined, 'normal');
         const textValue = field[1].length > 45 ? field[1].substring(0, 42) + '...' : field[1];
         doc.text(textValue, margin + colWidth + 2, currentY + 4.5);
@@ -755,15 +613,12 @@ function generatePDF() {
     
     y = tableStartY + (fornecedorFields.length * rowHeight) + 8;
     
-    // ===== ITENS DO PEDIDO - TABELA =====
+    // TABELA DE ITENS
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('ITENS DO PEDIDO', margin, y);
-    
     y += 6;
     
-    // Configuração da tabela de itens
-    const itemTableStartY = y;
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
         item: tableWidth * 0.05,
@@ -775,277 +630,38 @@ function generatePDF() {
         st: tableWidth * 0.10,
         total: tableWidth * 0.12
     };
-    
     const itemRowHeight = 10;
     
     // Cabeçalho da tabela
     doc.setFillColor(108, 117, 125);
     doc.setDrawColor(180, 180, 180);
     doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-    
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     
     let xPos = margin;
+    const headers = ['ITEM', 'ESPECIFICAÇÃO', 'QTD', 'UNID', 'VALOR UN', 'IPI', 'ST', 'TOTAL'];
+    const widths = [colWidths.item, colWidths.especificacao, colWidths.qtd, colWidths.unid, colWidths.valorUn, colWidths.ipi, colWidths.st, colWidths.total];
     
+    headers.forEach((header, i) => {
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text(header, xPos + (widths[i] / 2), y + 6.5, { align: 'center' });
+        xPos += widths[i];
+    });
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.item;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.especificacao;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.qtd;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.unid;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.valorUn;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.ipi;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.st;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.total;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
     
     // Linhas dos itens
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    
     ordem.items.forEach((item, index) => {
         if (y > 245) {
             doc.addPage();
             y = 20;
-            
-            // Redesenha cabeçalho na nova página
+            // Redesenha cabeçalho
             doc.setFillColor(108, 117, 125);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');
-            
             xPos = margin;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.item;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.especificacao;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.qtd;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.unid;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.valorUn;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.ipi;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.st;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.total;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            
-            y += itemRowHeight;
-            doc.setTextColor(0, 0, 0);
-            doc.setFont(undefined, 'normal');
-        }
-        
-        // Linha zebrada
-        if (index % 2 !== 0) {
-            doc.setFillColor(240, 240, 240);
-            doc.rect(margin, y, tableWidth, itemRowHeight, 'F');
-        }
-        
-        xPos = margin;
-        
-        doc.setDrawColor(180, 180, 180);
-        doc.setLineWidth(0.3);
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // ITEM
-        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.item;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // ESPECIFICAÇÃO
-        const especificacao = item.especificacao.length > 50 
-            ? item.especificacao.substring(0, 47) + '...' 
-            : item.especificacao;
-        doc.text(especificacao, xPos + 2, y + 6.5);
-        xPos += colWidths.especificacao;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // QTD
-        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.qtd;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // UNID
-        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.unid;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // VALOR UN
-        const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
-        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.valorUn;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // IPI
-        doc.text(item.ipi || 'Isento', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.ipi;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // ST
-        doc.text(item.st || 'Não incluído', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.st;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // TOTAL
-        doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.total;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        
-        // Borda horizontal inferior
-        doc.line(margin, y + itemRowHeight, margin + tableWidth, y + itemRowHeight);
-        
-        y += itemRowHeight;
-    });
-    
-    y += 8;
-    
-    // ===== VALOR TOTAL =====
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, pageWidth - margin, y, { align: 'right' });
-    
-    y += 10;
-    
-    // ===== LOCAL DE ENTREGA (FIXO) =====
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text('LOCAL DE ENTREGA (FIXO):', margin, y);
-    y += 5;
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text('Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES CEP: 29.163-318', margin, y);
-    
-    y += 8;
-    
-    // ===== PRAZO E FRETE =====
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text('PRAZO DE ENTREGA:', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text(ordem.prazoEntrega, margin + 42, y);
-    
-    y += 5;
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(10);
-    doc.text('FRETE:', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text(ordem.frete, margin + 42, y);
-    
-    y += 10;
-    
-    // ===== DADOS DO PAGAMENTO =====
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text('DADOS DO PAGAMENTO', margin, y);
-    
-    y += 6;
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.text('Forma de Pagamento: ', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.text(ordem.formaPagamento, margin + 42, y);
-    
-    y += 5;
-    doc.setFont(undefined, 'bold');
-    doc.text('Prazo de Pagamento: ', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.text(ordem.prazoPagamento, margin + 42, y);
-    
-    if (ordem.dadosBancarios) {
-        y += 5;
-        doc.setFont(undefined, 'bold');
-        doc.text('Dados Bancários: ', margin, y);
-        doc.setFont(undefined, 'normal');
-        doc.text(ordem.dadosBancarios, margin + 42, y);
-    }
-    
-    y += 15;
-    
-    // ===== DATA E ASSINATURA =====
-    const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
-    const dia = dataOrdem.getDate();
-    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const mes = meses[dataOrdem.getMonth()];
-    const ano = dataOrdem.getFullYear();
-    
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, margin, y);
-    
-    y += 15;
-    
-    // Linha de assinatura
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, margin + 60, y);
-    
-    y += 5;
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.text('Rosemeire Bicalho de Lima Gravino', margin, y);
-    
-    y += 5;
-    doc.setFont(undefined, 'normal');
-    doc.text('Diretora', margin, y);
-    
-    y += 12;
-    
-    // ===== ATENÇÃO SR. FORNECEDOR =====
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(204, 112, 0);
-    doc.text('ATENÇÃO SR. FORNECEDOR', margin, y);
-    
-    y += 6;
-    doc.setFontSize(9);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont(undefined, 'normal');
-    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, margin, y);
-    
-    y += 5;
-    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin, y);
-    
-    // Salvar PDF
-    doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);
-    showToast('PDF gerado com sucesso!', 'success');
-}

@@ -39,20 +39,20 @@
 
         <div class="card">
             <div class="month-selector">
-                <button onclick="changeMonth(-1)">← Anterior</button>
+                <button onclick="changeMonth(-1)">â† Anterior</button>
                 <span id="currentMonth"></span>
-                <button onclick="changeMonth(1)">Próximo →</button>
+                <button onclick="changeMonth(1)">PrÃ³ximo â†’</button>
             </div>
 
             <!-- Filters -->
             <div class="filter-section">
                 <div class="form-group">
                     <label for="search">Pesquisar</label>
-                    <input type="text" id="search" placeholder="Digite nº ordem, fornecedor..." oninput="filterOrdens()">
+                    <input type="text" id="search" placeholder="Digite nÂº ordem, fornecedor..." oninput="filterOrdens()">
                 </div>
 
                 <div class="form-group">
-                    <label for="filterResponsavel">Filtrar por Responsável</label>
+                    <label for="filterResponsavel">Filtrar por ResponsÃ¡vel</label>
                     <select id="filterResponsavel" onchange="filterOrdens()">
                         <option value="">Todos</option>
                         <option value="Miguel">Miguel</option>
@@ -87,13 +87,13 @@
                     <thead>
                         <tr>
                             <th style="width: 80px;">Fechada</th>
-                            <th>Nº Ordem</th>
-                            <th>Responsável</th>
+                            <th>NÂº Ordem</th>
+                            <th>ResponsÃ¡vel</th>
                             <th>Fornecedor</th>
                             <th>Data</th>
                             <th>Valor Total</th>
                             <th>Status</th>
-                            <th>Ações</th>
+                            <th>AÃ§Ãµes</th>
                         </tr>
                     </thead>
                     <tbody id="ordensContainer">
@@ -113,7 +113,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="formTitle">Nova Ordem de Compra</h3>
-                <button class="close-modal" onclick="closeFormModal()">×</button>
+                <button class="close-modal" onclick="closeFormModal()">Ã—</button>
             </div>
             
             <form id="ordemForm" onsubmit="handleSubmit(event)">
@@ -144,7 +144,7 @@
                     <div id="tab-geral" class="tab-content active">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="responsavel">Responsável pelo Pedido *</label>
+                                <label for="responsavel">ResponsÃ¡vel pelo Pedido *</label>
                                 <select id="responsavel" required>
                                     <option value="">Selecione...</option>
                                     <option value="Miguel">Miguel</option>
@@ -164,7 +164,7 @@
                     <div id="tab-fornecedor" class="tab-content">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="razaoSocial">Razão Social *</label>
+                                <label for="razaoSocial">RazÃ£o Social *</label>
                                 <input type="text" id="razaoSocial" required>
                             </div>
                             <div class="form-group">
@@ -176,7 +176,7 @@
                                 <input type="text" id="cnpj" required>
                             </div>
                             <div class="form-group">
-                                <label for="enderecoFornecedor">Endereço</label>
+                                <label for="enderecoFornecedor">EndereÃ§o</label>
                                 <input type="text" id="enderecoFornecedor">
                             </div>
                             <div class="form-group">
@@ -205,14 +205,12 @@
                                 <thead>
                                     <tr>
                                         <th style="width: 50px;">Item</th>
-                                        <th style="width: 200px;">Especificação</th>
-                                        <th style="width: 70px;">QTD</th>
-                                        <th style="width: 70px;">UNID</th>
-                                        <th style="width: 100px;">Valor UN (R$)</th>
-                                        <th style="width: 100px;">IPI</th>
-                                        <th style="width: 100px;">ST</th>
-                                        <th style="width: 100px;">Valor Total</th>
-                                        <th style="width: 80px;">Ações</th>
+                                        <th style="width: 250px;">EspecificaÃ§Ã£o</th>
+                                        <th style="width: 80px;">QTD</th>
+                                        <th style="width: 80px;">UNID</th>
+                                        <th style="width: 120px;">Valor UN (R$)</th>
+                                        <th style="width: 120px;">Valor Total</th>
+                                        <th style="width: 80px;">AÃ§Ãµes</th>
                                     </tr>
                                 </thead>
                                 <tbody id="itemsBody">
@@ -225,6 +223,14 @@
                             <div class="form-group">
                                 <label>Valor Total da Ordem</label>
                                 <input type="text" id="valorTotalOrdem" readonly style="font-weight: bold; font-size: 1.1rem;">
+                            </div>
+                            <div class="form-group">
+                                <label for="ipi">IPI</label>
+                                <input type="text" id="ipi" placeholder="Ex: Isento">
+                            </div>
+                            <div class="form-group">
+                                <label for="st">ST</label>
+                                <input type="text" id="st" placeholder="Ex: NÃ£o incluÃ­do">
                             </div>
                             <div class="form-group">
                                 <label for="frete">Frete</label>
@@ -246,7 +252,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="prazoEntrega">Prazo de Entrega *</label>
-                                <input type="text" id="prazoEntrega" required placeholder="Ex: 15 dias úteis">
+                                <input type="text" id="prazoEntrega" required placeholder="Ex: 15 dias Ãºteis">
                             </div>
                             <div class="form-group">
                                 <label for="transporte">Transporte *</label>
@@ -264,15 +270,15 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="formaPagamento">Forma de Pagamento *</label>
-                                <input type="text" id="formaPagamento" required placeholder="Ex: Transferência bancária">
+                                <input type="text" id="formaPagamento" required placeholder="Ex: TransferÃªncia bancÃ¡ria">
                             </div>
                             <div class="form-group">
                                 <label for="prazoPagamento">Prazo de Pagamento *</label>
                                 <input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias">
                             </div>
                             <div class="form-group" style="grid-column: 1 / -1;">
-                                <label for="dadosBancarios">Dados Bancários</label>
-                                <textarea id="dadosBancarios" placeholder="Banco, Agência, Conta..."></textarea>
+                                <label for="dadosBancarios">Dados BancÃ¡rios</label>
+                                <textarea id="dadosBancarios" placeholder="Banco, AgÃªncia, Conta..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -283,7 +289,7 @@
                         Voltar
                     </button>
                     <button type="button" id="btnProximo" onclick="nextTab()">
-                        Próximo
+                        PrÃ³ximo
                     </button>
                 </div>
             </form>
@@ -294,8 +300,8 @@
     <div id="infoModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Ordem de Compra Nº <span id="modalNumero"></span></h3>
-                <button class="close-modal" onclick="closeInfoModal()">×</button>
+                <h3>Ordem de Compra NÂº <span id="modalNumero"></span></h3>
+                <button class="close-modal" onclick="closeInfoModal()">Ã—</button>
             </div>
             
             <!-- Tabs for Info Modal -->

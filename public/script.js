@@ -772,7 +772,7 @@ function generatePDFForOrdem(ordem) {
     // ITENS DO PEDIDO
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('ITENSdoc.text('ITENS DO PEDIDO', margin, y);
+    doc.text('ITENS DO PEDIDO', margin, y);
     
     y += 6;
     

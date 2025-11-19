@@ -580,13 +580,18 @@ function updateTable() {
     
     container.innerHTML = filteredOrdens.map(ordem => `
         <tr class="${ordem.status}">
-            <td style="text-align: center;">
-                <button class="check-btn ${ordem.status === 'fechada' ? 'checked' : ''}" 
-                        onclick="toggleStatus('${ordem.id}')" 
-                        title="${ordem.status === 'fechada' ? 'Marcar como aberta' : 'Marcar como fechada'}">
-                    ${ordem.status === 'fechada' ? '✓' : '✓'}
-                </button>
-            </td>
+           <td style="text-align: center; padding: 8px;">
+    <div class="checkbox-wrapper">
+        <input 
+            type="checkbox" 
+            id="check-${ordem.id}"
+            ${ordem.status === 'fechada' ? 'checked' : ''}
+            onchange="toggleStatus('${ordem.id}')"
+            class="styled-checkbox"
+        >
+        <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
+    </div>
+</td>
             <td><strong>${ordem.numeroOrdem}</strong></td>
             <td>${ordem.responsavel}</td>
             <td>${ordem.razaoSocial}</td>
@@ -1121,3 +1126,7 @@ function generatePDFForOrdem(ordem) {
     doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);
     showToast('PDF gerado com sucesso!', 'success');
 }
+setTimeout(() => {
+        const splash = document.getElementById('splashScreen');
+        if (splash) splash.style.display = 'none';
+    }, 3000);

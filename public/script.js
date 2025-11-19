@@ -1113,7 +1113,3 @@ function generatePDFForOrdem(ordem) {
     doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);
     showToast('PDF gerado com sucesso!', 'success');
 }
-setTimeout(() => {
-        const splash = document.getElementById('splashScreen');
-        if (splash) splash.style.display = 'none';
-    }, 3000);

@@ -1372,3 +1372,103 @@ function generatePDFForOrdem(ordem) {
     doc.text(ordem.frete || '-', pageWidth - margin - 20, y);
     
     y += 10;
+
+    // CONTINUAÇÃO DO SCRIPT - GERAÇÃO DE PDF
+
+    // CONDIÇÕES DE PAGAMENTO E ENTREGA
+    if (y > doc.internal.pageSize.height - 50) {
+        doc.addPage();
+        y = 20;
+    }
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    doc.text(`Forma: ${ordem.formaPagamento}`, margin, y);
+    y += 5;
+    doc.text(`Prazo: ${ordem.prazoPagamento}`, margin, y);
+    
+    if (ordem.dadosBancarios) {
+        y += 5;
+        doc.setFont(undefined, 'bold');
+        doc.text('Dados Bancários:', margin, y);
+        y += 5;
+        doc.setFont(undefined, 'normal');
+        const bancarioLines = doc.splitTextToSize(ordem.dadosBancarios, pageWidth - (2 * margin));
+        doc.text(bancarioLines, margin, y);
+        y += (bancarioLines.length * 5);
+    }
+    
+    y += 10;
+    
+    // ASSINATURAS
+    if (y > doc.internal.pageSize.height - 40) {
+        doc.addPage();
+        y = 20;
+    }
+    
+    const assinaturaY = doc.internal.pageSize.height - 40;
+    const col1X = margin;
+    const col2X = pageWidth / 2 + 10;
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    
+    // Linha de assinatura 1
+    doc.line(col1X, assinaturaY, col1X + 80, assinaturaY);
+    doc.text('Comprador', col1X + 20, assinaturaY + 6);
+    
+    // Linha de assinatura 2
+    doc.line(col2X, assinaturaY, col2X + 80, assinaturaY);
+    doc.text('Fornecedor', col2X + 20, assinaturaY + 6);
+    
+    // Salvar PDF
+    doc.save(`Ordem_Compra_${ordem.numeroOrdem}.pdf`);
+    showToast('PDF gerado com sucesso!', 'success');
+}
+
+// ============================================
+// UTILIDADES
+// ============================================
+function getOrdensForCurrentMonth() {
+    return ordens.filter(ordem => {
+        const ordemDate = new Date(ordem.dataOrdem);
+        return ordemDate.getMonth() === currentMonth.getMonth() &&
+               ordemDate.getFullYear() === currentMonth.getFullYear();
+    });
+}
+
+function getNextOrderNumber() {
+    const existingNumbers = ordens
+        .map(o => parseInt(o.numeroOrdem))
+        .filter(n => !isNaN(n));
+    
+    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
+    return nextNum.toString();
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR');
+}
+
+function formatCurrency(value) {
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
+}
+
+function showToast(message, type = 'success') {
+    const oldMessages = document.querySelectorAll('.floating-message');
+    oldMessages.forEach(msg => msg.remove());
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => messageDiv.remove(), 300);
+    }, 3000);
+}

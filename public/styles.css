@@ -300,6 +300,18 @@ button.secondary {
     background: #4B5563; 
 }
 
+.action-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    margin: 0 4px;
+    min-width: 70px;
+}
+
+.actions-cell { 
+    white-space: nowrap;
+    min-width: 260px;
+}
+
 /* Form */
 .form-grid {
     display: grid;

@@ -95,6 +95,28 @@
     to { opacity: 1; }
 }
 
+/* Após .modal-title */
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Adicionar wrapper de botão */
+.button-wrapper { 
+    margin-bottom: 1.5rem; 
+}
+
+/* Ajustar primary nos botões do modal */
+button.primary {
+    background: var(--primary);
+}
+
+button.primary:hover:not(:disabled) {
+    background: var(--primary-light);
+}
+
 body {
     font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
     background: var(--bg-secondary);

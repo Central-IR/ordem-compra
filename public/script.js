@@ -178,8 +178,19 @@ function openFormModal() {
     document.getElementById('formModal').classList.add('show');
 }
 
-function closeFormModal() {
-    document.getElementById('formModal').classList.remove('show');
+function closeFormModal(showCancelMessage = false) {
+    const modal = document.getElementById('formModal');
+    if (modal) {
+        const editId = document.getElementById('editId')?.value;
+        const isEditing = editId && editId !== '';
+        
+        if (showCancelMessage) {
+            showToast(isEditing ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+        }
+        
+        modal.style.animation = 'fadeOut 0.2s ease forwards';
+        setTimeout(() => modal.classList.remove('show'), 200);
+    }
 }
 
 function setTodayDate() {
@@ -376,13 +387,61 @@ function editOrdem(id) {
 // ============================================
 // EXCLUSÃO
 // ============================================
-function deleteOrdem(id) {
-    if (confirm('Tem certeza que deseja excluir esta ordem?')) {
-        ordens = ordens.filter(o => o.id !== id);
-        saveToLocalStorage();
-        updateDisplay();
-        showToast('Ordem excluída com sucesso!', 'success');
-    }
+async function deleteOrdem(id) {
+    const confirmed = await showConfirm(
+        'Tem certeza que deseja excluir esta ordem?',
+        {
+            title: 'Excluir Ordem',
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar',
+            type: 'warning'
+        }
+    );
+
+    if (!confirmed) return;
+
+    ordens = ordens.filter(o => o.id !== id);
+    saveToLocalStorage();
+    updateDisplay();
+    showToast('Ordem excluída com sucesso!', 'success');
+}
+
+// Adicionar esta função (igual ao Controle de Frete)
+function showConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
+
+        const modalHTML = `
+            <div class="modal-overlay" id="confirmModal" style="z-index: 10001; display: flex;">
+                <div class="modal-content" style="max-width: 450px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                    </div>
+                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
+                    <div class="modal-actions">
+                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
+                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = document.getElementById('confirmModal');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+
+        const closeModal = (result) => {
+            modal.style.animation = 'fadeOut 0.2s ease forwards';
+            setTimeout(() => { 
+                modal.remove(); 
+                resolve(result); 
+            }, 200);
+        };
+
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+    });
 }
 
 // ============================================

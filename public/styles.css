@@ -27,7 +27,6 @@
     --btn-edit: #777777;
     --btn-view: #fa7000;
     --btn-save: #00cc77;
-    --alert-color: #ef4444;
 }
 
 /* ============================================
@@ -66,51 +65,6 @@ body {
     line-height: 1.6;
     transition: background-color 0.3s ease, color 0.3s ease;
     overflow-y: scroll;
-}
-
-/* ============================================
-   ALERTA VISUAL - ORDENS ABERTAS
-   ============================================ */
-.stat-card.has-alert {
-    position: relative;
-    animation: pulseAlert 2s ease-in-out infinite;
-    border-color: var(--alert-color) !important;
-}
-
-@keyframes pulseAlert {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.2);
-    }
-}
-
-.pulse-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: var(--alert-color);
-    color: white;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
 }
 
 /* ============================================
@@ -158,6 +112,36 @@ body {
     to { opacity: 1; }
 }
 
+/* Após .modal-title */
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Adicionar wrapper de botão */
+.button-wrapper { 
+    margin-bottom: 1.5rem; 
+}
+
+/* Ajustar primary nos botões do modal */
+button.primary {
+    background: var(--primary);
+}
+
+button.primary:hover:not(:disabled) {
+    background: var(--primary-light);
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 /* ============================================
    CONTAINER E LAYOUT
    ============================================ */
@@ -171,6 +155,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 2rem;
     margin-bottom: 1rem;
     flex-wrap: wrap;
     gap: 1rem;
@@ -240,6 +225,8 @@ h2 {
     100% { box-shadow: 0 0 0 0 rgba(231, 0, 0, 0); }
 }
 
+
+/* Dashboard */
 /* ============================================
    DASHBOARD
    ============================================ */
@@ -256,7 +243,6 @@ h2 {
     border-radius: 10px;
     border: 1px solid var(--border-color);
     transition: all 0.2s ease;
-    position: relative;
 }
 
 .stat-card:hover {
@@ -288,6 +274,7 @@ h2 {
     font-weight: 800;
 }
 
+/* Buttons */
 /* ============================================
    BOTÕES
    ============================================ */
@@ -309,6 +296,7 @@ button {
 }
 
 button:hover:not(:disabled) {
+    background: var(--primary-light);
     opacity: 0.9;
 }
 
@@ -348,22 +336,31 @@ button.small {
 }
 
 button.register, button[onclick*="openFormModal"] { 
+    background: #0077c7; 
     background: var(--btn-register); 
 }
 
 button.danger, button.delete, button[onclick*="deleteOrdem"] { 
+    background: #e70000; 
     background: var(--btn-delete); 
 }
 
 button.edit, button[onclick*="editOrdem"] { 
+    background: #777777; 
     background: var(--btn-edit); 
 }
 
 button.view, button[onclick*="viewOrdem"] { 
+    background: #fa7000; 
     background: var(--btn-view); 
 }
 
 button.success, button.save, button[type="submit"], button[onclick*="generatePDF"] { 
+    background: #00cc77; 
+}
+
+button.secondary { 
+    background: #4B5563; 
     background: var(--btn-save); 
 }
 
@@ -379,6 +376,7 @@ button.success, button.save, button[type="submit"], button[onclick*="generatePDF
     min-width: 260px;
 }
 
+/* Form */
 .button-wrapper { 
     margin-bottom: 1.5rem; 
 }
@@ -433,6 +431,7 @@ input[readonly], select[disabled], textarea[readonly] {
     opacity: 0.9;
 }
 
+/* Month Selector */
 /* ============================================
    NAVEGAÇÃO POR MESES
    ============================================ */
@@ -478,6 +477,7 @@ input[readonly], select[disabled], textarea[readonly] {
     transform: translateY(0);
 }
 
+/* Filters */
 /* ============================================
    FILTROS
    ============================================ */
@@ -487,8 +487,9 @@ input[readonly], select[disabled], textarea[readonly] {
     gap: 1rem;
 }
 
+/* Table */
 /* ============================================
-   TABELAS - SEM SCROLL HORIZONTAL
+   TABELAS
    ============================================ */
 .table-container {
     overflow-x: auto;
@@ -501,7 +502,6 @@ table {
     border-radius: 8px;
     overflow: hidden;
     margin-top: 1rem;
-    table-layout: auto;
 }
 
 thead {
@@ -509,23 +509,21 @@ thead {
 }
 
 th {
-    padding: 16px 12px;
+    padding: 16px 20px;
     text-align: left;
     font-weight: 700;
     color: var(--th-color);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     border-bottom: 1px solid var(--th-border);
-    white-space: nowrap;
 }
 
 td {
-    padding: 12px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
-    word-wrap: break-word;
 }
 
 tbody tr {
@@ -541,11 +539,13 @@ tbody tr:hover {
     background: var(--table-hover);
 }
 
+tbody tr.fechada {
 tbody tr.row-fechada {
     background: rgba(34, 197, 94, 0.1) !important;
     border-left: 3px solid var(--success-color);
 }
 
+/* Badge */
 tbody tr.row-fechada:hover {
     background: rgba(34, 197, 94, 0.15) !important;
 }
@@ -618,6 +618,7 @@ tbody tr:nth-child(even).row-fechada {
     }
 }
 
+/* Checkbox Button */
 /* ============================================
    CHECKBOX CUSTOMIZADO
    ============================================ */
@@ -665,8 +666,22 @@ tbody tr:nth-child(even).row-fechada {
     font-weight: 700;
 }
 
+.row-fechada {
+    background-color: rgba(34, 197, 94, 0.1) !important;
+}
+
+.row-fechada:hover {
+    background-color: rgba(34, 197, 94, 0.15) !important;
+}
+
+tbody tr:nth-child(even).row-fechada {
+    background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+
+/* Modal */
 /* ============================================
-   MODAL - TABELAS SEM SCROLL
+   MODAL
    ============================================ */
 .modal-overlay {
     display: none;
@@ -704,20 +719,6 @@ tbody tr:nth-child(even).row-fechada {
     border: 1px solid var(--border-color);
     transform: scale(0.9);
     animation: scaleIn 0.2s ease forwards;
-}
-
-/* Tabela no modal sem scroll horizontal */
-.modal-content table {
-    display: block;
-    overflow-x: visible;
-    white-space: normal;
-}
-
-.modal-content table th,
-.modal-content table td {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    max-width: 200px;
 }
 
 @keyframes scaleIn {
@@ -763,7 +764,6 @@ tbody tr:nth-child(even).row-fechada {
     margin-top: 1.5rem;
     padding-top: 1.5rem;
     border-top: 2px solid var(--border-color);
-    flex-wrap: wrap;
 }
 
 .modal-actions button { 
@@ -771,6 +771,7 @@ tbody tr:nth-child(even).row-fechada {
     min-width: 120px; 
 }
 
+/* Tabs System */
 /* ============================================
    SISTEMA DE ABAS
    ============================================ */
@@ -786,6 +787,20 @@ tbody tr:nth-child(even).row-fechada {
     overflow-x: auto;
     scrollbar-width: thin;
     flex-wrap: wrap;
+}
+
+.tabs-nav::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tabs-nav::-webkit-scrollbar-track {
+    background: var(--input-bg);
+    border-radius: 3px;
+}
+
+.tabs-nav::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
 }
 
 .tab-btn {
@@ -834,6 +849,7 @@ tbody tr:nth-child(even).row-fechada {
     }
 }
 
+/* Items Table */
 /* ============================================
    TABELA DE ITENS
    ============================================ */
@@ -870,6 +886,7 @@ tbody tr:nth-child(even).row-fechada {
     display: none !important;
 }
 
+/* Info Modal Styling */
 /* ============================================
    INFO SECTION
    ============================================ */
@@ -890,6 +907,44 @@ tbody tr:nth-child(even).row-fechada {
     line-height: 1.6;
 }
 
+/* Open Orders Modal */
+#openOrdersModal .modal-content {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+#openOrdersModal tbody tr {
+    transition: all 0.2s ease;
+}
+
+#openOrdersModal tbody tr:hover {
+    background: var(--table-hover) !important;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+#openOrdersModal h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#openOrdersModal #openOrdersCount {
+    color: var(--primary-light);
+    font-size: 1.6rem;
+}
+
+/* Responsive */
 /* ============================================
    RESPONSIVO
    ============================================ */
@@ -908,6 +963,8 @@ tbody tr:nth-child(even).row-fechada {
         font-size: 1.5rem;
     }
 
+    .dashboard {
+        grid-template-columns: 1fr;
     .splash-title {
         font-size: 1.3rem;
     }
@@ -926,11 +983,11 @@ tbody tr:nth-child(even).row-fechada {
     }
 
     table {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
 
     th, td {
-        padding: 8px 6px;
+        padding: 10px 8px;
     }
 
     .tabs-nav {
@@ -1031,6 +1088,27 @@ tbody tr:nth-child(even).row-fechada {
 .mt-3 { margin-top: 1.5rem; }
 
 /* ============================================
+   SCROLLBAR CUSTOMIZADA
+   ============================================ */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-card);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-light);
+}
+
+/* ============================================
    ANIMAÇÕES EXTRAS
    ============================================ */
 @keyframes fadeInUp {
@@ -1117,7 +1195,12 @@ tbody tr:nth-child(even).row-fechada {
     }
 }
 
+/* Focus visible para acessibilidade */
 *:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
+
+/* ============================================
+   FIM DO ARQUIVO
+   ============================================ */

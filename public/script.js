@@ -1,6 +1,3 @@
-// ============================================
-// CONFIGURAÇÃO
-// ============================================
 let ordens = [];
 let currentMonth = new Date();
 let editingId = null;
@@ -43,9 +40,15 @@ async function checkServerStatus() {
 }
 
 function updateConnectionStatus() {
-    const statusElement = document.getElementById('connectionStatus');
-    if (statusElement) {
-        statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
+    const statusDiv = document.getElementById('connectionStatus');
+    if (!statusDiv) return;
+
+    if (isOnline) {
+        statusDiv.className = 'connection-status online';
+        statusDiv.querySelector('span:last-child').textContent = 'Online';
+    } else {
+        statusDiv.className = 'connection-status offline';
+        statusDiv.querySelector('span:last-child').textContent = 'Offline';
     }
 }
 
@@ -55,21 +58,12 @@ function updateConnectionStatus() {
 function loadFromLocalStorage() {
     const stored = localStorage.getItem('ordens');
     if (stored) {
-        try {
-            ordens = JSON.parse(stored);
-        } catch (e) {
-            console.error('Erro ao carregar dados:', e);
-            ordens = [];
-        }
+        ordens = JSON.parse(stored);
     }
 }
 
 function saveToLocalStorage() {
-    try {
-        localStorage.setItem('ordens', JSON.stringify(ordens));
-    } catch (e) {
-        console.error('Erro ao salvar dados:', e);
-    }
+    localStorage.setItem('ordens', JSON.stringify(ordens));
 }
 
 // ============================================
@@ -85,14 +79,11 @@ function updateMonthDisplay() {
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthName = months[currentMonth.getMonth()];
     const year = currentMonth.getFullYear();
-    const elem = document.getElementById('currentMonth');
-    if (elem) {
-        elem.textContent = `${monthName} ${year}`;
-    }
+    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
 }
 
 // ============================================
-// SISTEMA DE ABAS
+// SISTEMA DE ABAS - NAVEGAÇÃO
 // ============================================
 function switchTab(tabId) {
     const tabIndex = tabs.indexOf(tabId);
@@ -100,21 +91,21 @@ function switchTab(tabId) {
         currentTab = tabIndex;
         showTab(currentTab);
     }
+
+    event.preventDefault();
 }
 
 function showTab(index) {
-    const modal = document.getElementById('formModal');
-    if (!modal) return;
-    
-    const tabButtons = modal.querySelectorAll('.tab-btn');
-    const tabContents = modal.querySelectorAll('.tab-content');
-    
-    tabButtons.forEach(btn => btn.classList.remove('active'));
-    tabContents.forEach(content => content.classList.remove('active'));
-    
-    if (tabButtons[index]) tabButtons[index].classList.add('active');
-    if (tabContents[index]) tabContents[index].classList.add('active');
-    
+    document.querySelectorAll('#formModal .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelectorAll('#formModal .tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    document.querySelectorAll('#formModal .tab-btn')[index].classList.add('active');
+    document.getElementById(tabs[index]).classList.add('active');
+
     updateNavigationButtons();
 }
 
@@ -123,7 +114,7 @@ function nextTab() {
         currentTab++;
         showTab(currentTab);
     } else {
-        handleSubmit(new Event('submit'));
+        document.getElementById('ordemForm').dispatchEvent(new Event('submit'));
     }
 }
 
@@ -137,34 +128,37 @@ function previousTab() {
 function updateNavigationButtons() {
     const btnVoltar = document.getElementById('btnVoltar');
     const btnProximo = document.getElementById('btnProximo');
-    
-    if (!btnVoltar || !btnProximo) return;
-    
-    btnVoltar.style.display = currentTab === 0 ? 'none' : 'inline-flex';
-    
+
+    if (currentTab === 0) {
+        btnVoltar.style.display = 'none';
+    } else {
+        btnVoltar.style.display = 'inline-flex';
+    }
+
     if (currentTab === tabs.length - 1) {
         btnProximo.textContent = editingId ? 'Atualizar Ordem' : 'Registrar Ordem';
         btnProximo.classList.remove('secondary');
-        btnProximo.classList.add('save');
+        btnProximo.classList.add('primary');
     } else {
         btnProximo.textContent = 'Próximo';
         btnProximo.classList.add('secondary');
-        btnProximo.classList.remove('save');
+        btnProximo.classList.remove('primary');
     }
 }
 
 function switchInfoTab(tabId) {
-    const modal = document.getElementById('infoModal');
-    if (!modal) return;
-    
-    modal.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    modal.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    const clickedBtn = window.event?.target?.closest('.tab-btn');
-    if (clickedBtn) clickedBtn.classList.add('active');
-    
-    const targetContent = document.getElementById(tabId);
-    if (targetContent) targetContent.classList.add('active');
+    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelectorAll('#infoModal .tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    const clickedBtn = event.target.closest('.tab-btn');
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
+    document.getElementById(tabId).classList.add('active');
 }
 
 // ============================================
@@ -173,210 +167,30 @@ function switchInfoTab(tabId) {
 function openFormModal() {
     editingId = null;
     currentTab = 0;
+    document.getElementById('formTitle').textContent = 'Nova Ordem de Compra';
+    document.getElementById('ordemForm').reset();
+    document.getElementById('editId').value = '';
+
+    document.getElementById('itemsBody').innerHTML = '';
     itemCounter = 0;
-    
-    const nextNumber = getNextOrderNumber();
-    const today = new Date().toISOString().split('T')[0];
-    
-    const modalHTML = createFormModalHTML(nextNumber, today, null);
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
     addItem();
-    updateNavigationButtons();
-    
-    setTimeout(() => {
-        const input = document.getElementById('numeroOrdem');
-        if (input) input.focus();
-    }, 100);
+
+    const nextNumber = getNextOrderNumber();
+    document.getElementById('numeroOrdem').value = nextNumber;
+
+    setTodayDate();
+    showTab(0);
+
+    document.getElementById('formModal').classList.add('show');
 }
 
-function createFormModalHTML(nextNumber, today, ordem) {
-    const isEdit = ordem !== null;
-    const title = isEdit ? 'Editar Ordem de Compra' : 'Nova Ordem de Compra';
-    
-    return `
-        <div class="modal-overlay" id="formModal" style="display: flex;">
-            <div class="modal-content" style="max-width: 1200px;">
-                <div class="modal-header">
-                    <h3 class="modal-title">${title}</h3>
-                </div>
-                
-                <div class="tabs-container">
-                    <div class="tabs-nav">
-                        <button type="button" class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
-                        <button type="button" class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
-                        <button type="button" class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
-                        <button type="button" class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
-                        <button type="button" class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
-                    </div>
-
-                    <form id="ordemForm" onsubmit="return false;">
-                        <input type="hidden" id="editId" value="${isEdit ? ordem.id : ''}">
-                        
-                        ${createTabGeral(nextNumber, today, ordem)}
-                        ${createTabFornecedor(ordem)}
-                        ${createTabPedido(ordem)}
-                        ${createTabEntrega(ordem)}
-                        ${createTabPagamento(ordem)}
-
-                        <div class="modal-actions">
-                            <button type="button" id="btnVoltar" onclick="previousTab()" class="secondary" style="display: none;">Voltar</button>
-                            <button type="button" id="btnProximo" onclick="nextTab()" class="secondary">Próximo</button>
-                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
+function closeFormModal() {
+    document.getElementById('formModal').classList.remove('show');
 }
 
-function createTabGeral(nextNumber, today, ordem) {
-    return `
-        <div class="tab-content active" id="tab-geral">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="numeroOrdem">Número da Ordem *</label>
-                    <input type="text" id="numeroOrdem" value="${ordem ? ordem.numeroOrdem : nextNumber}" required>
-                </div>
-                <div class="form-group">
-                    <label for="responsavel">Responsável *</label>
-                    <input type="text" id="responsavel" value="${ordem ? ordem.responsavel : ''}" required>
-                </div>
-                <div class="form-group">
-                    <label for="dataOrdem">Data da Ordem *</label>
-                    <input type="date" id="dataOrdem" value="${ordem ? ordem.dataOrdem : today}" required>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function createTabFornecedor(ordem) {
-    return `
-        <div class="tab-content" id="tab-fornecedor">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="razaoSocial">Razão Social *</label>
-                    <input type="text" id="razaoSocial" value="${ordem ? ordem.razaoSocial : ''}" required>
-                </div>
-                <div class="form-group">
-                    <label for="nomeFantasia">Nome Fantasia</label>
-                    <input type="text" id="nomeFantasia" value="${ordem ? (ordem.nomeFantasia || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="cnpj">CNPJ *</label>
-                    <input type="text" id="cnpj" value="${ordem ? ordem.cnpj : ''}" required>
-                </div>
-                <div class="form-group">
-                    <label for="enderecoFornecedor">Endereço</label>
-                    <input type="text" id="enderecoFornecedor" value="${ordem ? (ordem.enderecoFornecedor || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="site">Site</label>
-                    <input type="text" id="site" value="${ordem ? (ordem.site || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="contato">Contato</label>
-                    <input type="text" id="contato" value="${ordem ? (ordem.contato || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="telefone">Telefone</label>
-                    <input type="text" id="telefone" value="${ordem ? (ordem.telefone || '') : ''}">
-                </div>
-                <div class="form-group">
-                    <label for="email">E-mail</label>
-                    <input type="email" id="email" value="${ordem ? (ordem.email || '') : ''}">
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function createTabPedido(ordem) {
-    return `
-        <div class="tab-content" id="tab-pedido">
-            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
-            <div style="overflow-x: auto;">
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;">Item</th>
-                            <th style="min-width: 200px;">Especificação</th>
-                            <th style="width: 80px;">QTD</th>
-                            <th style="width: 80px;">Unid</th>
-                            <th style="width: 100px;">Valor UN</th>
-                            <th style="width: 100px;">IPI</th>
-                            <th style="width: 100px;">ST</th>
-                            <th style="width: 120px;">Total</th>
-                            <th style="width: 80px;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody"></tbody>
-                </table>
-            </div>
-            <div class="form-group" style="margin-top: 1rem;">
-                <label for="valorTotalOrdem">Valor Total da Ordem</label>
-                <input type="text" id="valorTotalOrdem" readonly value="${ordem ? ordem.valorTotal : 'R$ 0,00'}">
-            </div>
-            <div class="form-group">
-                <label for="frete">Frete</label>
-                <input type="text" id="frete" value="${ordem ? (ordem.frete || '') : ''}" placeholder="Ex: CIF, FOB">
-            </div>
-        </div>
-    `;
-}
-
-function createTabEntrega(ordem) {
-    return `
-        <div class="tab-content" id="tab-entrega">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="localEntrega">Local de Entrega</label>
-                    <input type="text" id="localEntrega" value="${ordem ? (ordem.localEntrega || '') : ''}" placeholder="Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318">
-                </div>
-                <div class="form-group">
-                    <label for="prazoEntrega">Prazo de Entrega</label>
-                    <input type="text" id="prazoEntrega" value="${ordem ? (ordem.prazoEntrega || '') : ''}" placeholder="Ex: 10 dias úteis">
-                </div>
-                <div class="form-group">
-                    <label for="transporte">Transporte</label>
-                    <input type="text" id="transporte" value="${ordem ? (ordem.transporte || '') : ''}" placeholder="Ex: Por conta do fornecedor">
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function createTabPagamento(ordem) {
-    return `
-        <div class="tab-content" id="tab-pagamento">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="formaPagamento">Forma de Pagamento *</label>
-                    <input type="text" id="formaPagamento" value="${ordem ? ordem.formaPagamento : ''}" required placeholder="Ex: Boleto, PIX, Cartão">
-                </div>
-                <div class="form-group">
-                    <label for="prazoPagamento">Prazo de Pagamento *</label>
-                    <input type="text" id="prazoPagamento" value="${ordem ? ordem.prazoPagamento : ''}" required placeholder="Ex: 30 dias">
-                </div>
-                <div class="form-group">
-                    <label for="dadosBancarios">Dados Bancários</label>
-                    <textarea id="dadosBancarios" rows="3">${ordem ? (ordem.dadosBancarios || '') : ''}</textarea>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function closeFormModal(showCancelMessage = false) {
-    const modal = document.getElementById('formModal');
-    if (modal) {
-        if (showCancelMessage) {
-            showToast(editingId ? 'Atualização cancelada' : 'Registro cancelado', 'error');
-        }
-        modal.remove();
-    }
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dataOrdem').value = today;
 }
 
 // ============================================
@@ -385,8 +199,6 @@ function closeFormModal(showCancelMessage = false) {
 function addItem() {
     itemCounter++;
     const tbody = document.getElementById('itemsBody');
-    if (!tbody) return;
-    
     const row = document.createElement('tr');
     row.innerHTML = `
         <td style="text-align: center;">${itemCounter}</td>
@@ -420,128 +232,100 @@ function addItem() {
 
 function removeItem(btn) {
     const row = btn.closest('tr');
-    if (row) {
-        row.remove();
-        recalculateOrderTotal();
-        renumberItems();
-    }
+    row.remove();
+    recalculateOrderTotal();
+    renumberItems();
 }
 
 function renumberItems() {
     const rows = document.querySelectorAll('#itemsBody tr');
     rows.forEach((row, index) => {
-        if (row.cells[0]) {
-            row.cells[0].textContent = index + 1;
-        }
+        row.cells[0].textContent = index + 1;
     });
     itemCounter = rows.length;
 }
 
 function calculateItemTotal(input) {
     const row = input.closest('tr');
-    if (!row) return;
-    
-    const qtd = parseFloat(row.querySelector('.item-qtd')?.value) || 0;
-    const valor = parseFloat(row.querySelector('.item-valor')?.value) || 0;
+    const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
+    const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
     const total = qtd * valor;
-    
-    const totalInput = row.querySelector('.item-total');
-    if (totalInput) {
-        totalInput.value = formatCurrency(total);
-    }
-    
+    row.querySelector('.item-total').value = formatCurrency(total);
     recalculateOrderTotal();
 }
 
 function recalculateOrderTotal() {
     const totals = document.querySelectorAll('.item-total');
     let sum = 0;
-    
     totals.forEach(input => {
         const value = input.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
         sum += parseFloat(value) || 0;
     });
-    
-    const totalInput = document.getElementById('valorTotalOrdem');
-    if (totalInput) {
-        totalInput.value = formatCurrency(sum);
-    }
+    document.getElementById('valorTotalOrdem').value = formatCurrency(sum);
 }
 
 // ============================================
 // SUBMIT DO FORMULÁRIO
 // ============================================
 function handleSubmit(event) {
-    if (event) event.preventDefault();
-    
-    const form = document.getElementById('ordemForm');
-    if (!form || !form.checkValidity()) {
-        showToast('Preencha todos os campos obrigatórios', 'error');
-        return false;
-    }
-    
+    event.preventDefault();
+
     const items = [];
     const rows = document.querySelectorAll('#itemsBody tr');
-    
     rows.forEach((row, index) => {
         items.push({
             item: index + 1,
-            especificacao: row.querySelector('.item-especificacao')?.value || '',
-            quantidade: parseFloat(row.querySelector('.item-qtd')?.value) || 0,
-            unidade: row.querySelector('.item-unid')?.value || 'UN',
-            valorUnitario: parseFloat(row.querySelector('.item-valor')?.value) || 0,
-            ipi: row.querySelector('.item-ipi')?.value || '',
-            st: row.querySelector('.item-st')?.value || '',
-            valorTotal: row.querySelector('.item-total')?.value || 'R$ 0,00'
+            especificacao: row.querySelector('.item-especificacao').value,
+            quantidade: parseFloat(row.querySelector('.item-qtd').value) || 0,
+            unidade: row.querySelector('.item-unid').value,
+            valorUnitario: parseFloat(row.querySelector('.item-valor').value) || 0,
+            ipi: row.querySelector('.item-ipi').value || '',
+            st: row.querySelector('.item-st').value || '',
+            valorTotal: row.querySelector('.item-total').value
         });
     });
-    
+
     const timestamp = Date.now();
-    const editId = document.getElementById('editId')?.value;
-    
+
     const formData = {
-        id: editId || timestamp.toString(),
-        numeroOrdem: document.getElementById('numeroOrdem')?.value || '',
-        responsavel: document.getElementById('responsavel')?.value || '',
-        dataOrdem: document.getElementById('dataOrdem')?.value || '',
-        razaoSocial: document.getElementById('razaoSocial')?.value || '',
-        nomeFantasia: document.getElementById('nomeFantasia')?.value || '',
-        cnpj: document.getElementById('cnpj')?.value || '',
-        enderecoFornecedor: document.getElementById('enderecoFornecedor')?.value || '',
-        site: document.getElementById('site')?.value || '',
-        contato: document.getElementById('contato')?.value || '',
-        telefone: document.getElementById('telefone')?.value || '',
-        email: document.getElementById('email')?.value || '',
+        id: editingId || timestamp.toString(),
+        numeroOrdem: document.getElementById('numeroOrdem').value,
+        responsavel: document.getElementById('responsavel').value,
+        dataOrdem: document.getElementById('dataOrdem').value,
+        razaoSocial: document.getElementById('razaoSocial').value,
+        nomeFantasia: document.getElementById('nomeFantasia').value,
+        cnpj: document.getElementById('cnpj').value,
+        enderecoFornecedor: document.getElementById('enderecoFornecedor').value,
+        site: document.getElementById('site').value,
+        contato: document.getElementById('contato').value,
+        telefone: document.getElementById('telefone').value,
+        email: document.getElementById('email').value,
         items: items,
-        valorTotal: document.getElementById('valorTotalOrdem')?.value || 'R$ 0,00',
-        frete: document.getElementById('frete')?.value || '',
-        localEntrega: document.getElementById('localEntrega')?.value || '',
-        prazoEntrega: document.getElementById('prazoEntrega')?.value || '',
-        transporte: document.getElementById('transporte')?.value || '',
-        formaPagamento: document.getElementById('formaPagamento')?.value || '',
-        prazoPagamento: document.getElementById('prazoPagamento')?.value || '',
-        dadosBancarios: document.getElementById('dadosBancarios')?.value || '',
+        valorTotal: document.getElementById('valorTotalOrdem').value,
+        frete: document.getElementById('frete').value,
+        localEntrega: document.getElementById('localEntrega').value,
+        prazoEntrega: document.getElementById('prazoEntrega').value,
+        transporte: document.getElementById('transporte').value,
+        formaPagamento: document.getElementById('formaPagamento').value,
+        prazoPagamento: document.getElementById('prazoPagamento').value,
+        dadosBancarios: document.getElementById('dadosBancarios').value,
         status: 'aberta',
         timestamp: timestamp
     };
-    
-    if (editId) {
-        const index = ordens.findIndex(o => o.id === editId);
-        if (index !== -1) {
-            formData.timestamp = ordens[index].timestamp;
-            ordens[index] = formData;
-            showToast('Ordem atualizada com sucesso!', 'success');
-        }
+
+    if (editingId) {
+        const index = ordens.findIndex(o => o.id === editingId);
+        formData.timestamp = ordens[index].timestamp;
+        ordens[index] = formData;
+        showToast('Ordem atualizada com sucesso!', 'success');
     } else {
         ordens.push(formData);
         showToast('Ordem criada com sucesso!', 'success');
     }
-    
+
     saveToLocalStorage();
     updateDisplay();
     closeFormModal();
-    
-    return false;
 }
 
 // ============================================
@@ -549,99 +333,62 @@ function handleSubmit(event) {
 // ============================================
 function editOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
-    if (!ordem) {
-        showToast('Ordem não encontrada!', 'error');
-        return;
-    }
-    
+    if (!ordem) return;
+
     editingId = id;
     currentTab = 0;
+    document.getElementById('formTitle').textContent = 'Editar Ordem de Compra';
+
+    document.getElementById('editId').value = ordem.id;
+    document.getElementById('numeroOrdem').value = ordem.numeroOrdem;
+    document.getElementById('responsavel').value = ordem.responsavel;
+    document.getElementById('dataOrdem').value = ordem.dataOrdem;
+    document.getElementById('razaoSocial').value = ordem.razaoSocial;
+    document.getElementById('nomeFantasia').value = ordem.nomeFantasia || '';
+    document.getElementById('cnpj').value = ordem.cnpj;
+    document.getElementById('enderecoFornecedor').value = ordem.enderecoFornecedor || '';
+    document.getElementById('site').value = ordem.site || '';
+    document.getElementById('contato').value = ordem.contato || '';
+    document.getElementById('telefone').value = ordem.telefone || '';
+    document.getElementById('email').value = ordem.email || '';
+    document.getElementById('frete').value = ordem.frete || '';
+    document.getElementById('localEntrega').value = ordem.localEntrega || '';
+    document.getElementById('prazoEntrega').value = ordem.prazoEntrega || '';
+    document.getElementById('transporte').value = ordem.transporte || '';
+    document.getElementById('formaPagamento').value = ordem.formaPagamento;
+    document.getElementById('prazoPagamento').value = ordem.prazoPagamento;
+    document.getElementById('dadosBancarios').value = ordem.dadosBancarios || '';
+
+    document.getElementById('itemsBody').innerHTML = '';
     itemCounter = 0;
-    
-    const today = new Date().toISOString().split('T')[0];
-    const modalHTML = createFormModalHTML('', today, ordem);
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
-    if (ordem.items && ordem.items.length > 0) {
-        ordem.items.forEach(item => {
-            addItem();
-            const row = document.querySelector('#itemsBody tr:last-child');
-            if (row) {
-                const esp = row.querySelector('.item-especificacao');
-                const qtd = row.querySelector('.item-qtd');
-                const unid = row.querySelector('.item-unid');
-                const valor = row.querySelector('.item-valor');
-                const ipi = row.querySelector('.item-ipi');
-                const st = row.querySelector('.item-st');
-                const total = row.querySelector('.item-total');
-                
-                if (esp) esp.value = item.especificacao || '';
-                if (qtd) qtd.value = item.quantidade || 1;
-                if (unid) unid.value = item.unidade || 'UN';
-                if (valor) valor.value = item.valorUnitario || 0;
-                if (ipi) ipi.value = item.ipi || '';
-                if (st) st.value = item.st || '';
-                if (total) total.value = item.valorTotal || 'R$ 0,00';
-            }
-        });
-    } else {
+    ordem.items.forEach(item => {
         addItem();
-    }
-    
-    updateNavigationButtons();
+        const row = document.querySelector('#itemsBody tr:last-child');
+        row.querySelector('.item-especificacao').value = item.especificacao;
+        row.querySelector('.item-qtd').value = item.quantidade;
+        row.querySelector('.item-unid').value = item.unidade;
+        row.querySelector('.item-valor').value = item.valorUnitario;
+        row.querySelector('.item-ipi').value = item.ipi || '';
+        row.querySelector('.item-st').value = item.st || '';
+        row.querySelector('.item-total').value = item.valorTotal;
+    });
+
+    recalculateOrderTotal();
+    showTab(0);
+
+    document.getElementById('formModal').classList.add('show');
 }
 
 // ============================================
 // EXCLUSÃO
 // ============================================
-async function deleteOrdem(id) {
-    const confirmed = await showConfirm('Tem certeza que deseja excluir esta ordem?', {
-        title: 'Excluir Ordem',
-        confirmText: 'Excluir',
-        cancelText: 'Cancelar',
-        type: 'warning'
-    });
-
-    if (!confirmed) return;
-
-    ordens = ordens.filter(o => o.id !== id);
-    saveToLocalStorage();
-    updateDisplay();
-    showToast('Ordem excluída com sucesso!', 'success');
-}
-
-function showConfirm(message, options = {}) {
-    return new Promise((resolve) => {
-        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
-
-        const modalHTML = `
-            <div class="modal-overlay" id="confirmModal" style="z-index: 10001; display: flex;">
-                <div class="modal-content" style="max-width: 450px;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                    </div>
-                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
-                    <div class="modal-actions">
-                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
-                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        const modal = document.getElementById('confirmModal');
-        const confirmBtn = document.getElementById('modalConfirmBtn');
-        const cancelBtn = document.getElementById('modalCancelBtn');
-
-        const closeModal = (result) => {
-            if (modal) modal.remove();
-            resolve(result);
-        };
-
-        if (confirmBtn) confirmBtn.addEventListener('click', () => closeModal(true));
-        if (cancelBtn) cancelBtn.addEventListener('click', () => closeModal(false));
-    });
+function deleteOrdem(id) {
+    if (confirm('Tem certeza que deseja excluir esta ordem?')) {
+        ordens = ordens.filter(o => o.id !== id);
+        saveToLocalStorage();
+        updateDisplay();
+        showToast('Ordem excluída com sucesso!', 'success');
+    }
 }
 
 // ============================================
@@ -663,141 +410,111 @@ function toggleStatus(id) {
 function viewOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
     if (!ordem) return;
-    
-    const modalNumero = document.getElementById('modalNumero');
-    if (modalNumero) modalNumero.textContent = ordem.numeroOrdem;
-    
-    const geralTab = document.getElementById('info-tab-geral');
-    if (geralTab) {
-        geralTab.innerHTML = `
-            <div class="info-section">
-                <h4>Informações Gerais</h4>
-                <p><strong>Responsável:</strong> ${ordem.responsavel}</p>
-                <p><strong>Data:</strong> ${formatDate(ordem.dataOrdem)}</p>
-                <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
-            </div>
-        `;
-    }
-    
-    const fornecedorTab = document.getElementById('info-tab-fornecedor');
-    if (fornecedorTab) {
-        fornecedorTab.innerHTML = `
-            <div class="info-section">
-                <h4>Dados do Fornecedor</h4>
-                <p><strong>Razão Social:</strong> ${ordem.razaoSocial}</p>
-                ${ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${ordem.nomeFantasia}</p>` : ''}
-                <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
-                ${ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${ordem.enderecoFornecedor}</p>` : ''}
-                ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
-                ${ordem.contato ? `<p><strong>Contato:</strong> ${ordem.contato}</p>` : ''}
-                ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
-                ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
-            </div>
-        `;
-    }
-    
-    const pedidoTab = document.getElementById('info-tab-pedido');
-    if (pedidoTab && ordem.items) {
-        pedidoTab.innerHTML = `
-            <div class="info-section">
-                <h4>Itens do Pedido</h4>
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; margin-top: 0.5rem;">
-                        <thead>
+
+    document.getElementById('modalNumero').textContent = ordem.numeroOrdem;
+
+    document.getElementById('info-tab-geral').innerHTML = `
+        <div class="info-section">
+            <h4>Informações Gerais</h4>
+            <p><strong>Responsável:</strong> ${ordem.responsavel}</p>
+            <p><strong>Data:</strong> ${formatDate(ordem.dataOrdem)}</p>
+            <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
+        </div>
+    `;
+
+    document.getElementById('info-tab-fornecedor').innerHTML = `
+        <div class="info-section">
+            <h4>Dados do Fornecedor</h4>
+            <p><strong>Razão Social:</strong> ${ordem.razaoSocial}</p>
+            ${ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${ordem.nomeFantasia}</p>` : ''}
+            <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
+            ${ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${ordem.enderecoFornecedor}</p>` : ''}
+            ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
+            ${ordem.contato ? `<p><strong>Contato:</strong> ${ordem.contato}</p>` : ''}
+            ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
+            ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
+        </div>
+    `;
+
+    document.getElementById('info-tab-pedido').innerHTML = `
+        <div class="info-section">
+            <h4>Itens do Pedido</h4>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; margin-top: 0.5rem;">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Especificação</th>
+                            <th>QTD</th>
+                            <th>Unid</th>
+                            <th>Valor UN</th>
+                            <th>IPI</th>
+                            <th>ST</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ordem.items.map(item => `
                             <tr>
-                                <th>Item</th>
-                                <th>Especificação</th>
-                                <th>QTD</th>
-                                <th>Unid</th>
-                                <th>Valor UN</th>
-                                <th>IPI</th>
-                                <th>ST</th>
-                                <th>Total</th>
+                                <td>${item.item}</td>
+                                <td>${item.especificacao}</td>
+                                <td>${item.quantidade}</td>
+                                <td>${item.unidade}</td>
+                                <td>R$ ${item.valorUnitario.toFixed(2)}</td>
+                                <td>${item.ipi || '-'}</td>
+                                <td>${item.st || '-'}</td>
+                                <td>${item.valorTotal}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${ordem.items.map(item => `
-                                <tr>
-                                    <td>${item.item}</td>
-                                    <td>${item.especificacao}</td>
-                                    <td>${item.quantidade}</td>
-                                    <td>${item.unidade}</td>
-                                    <td>R$ ${item.valorUnitario.toFixed(2)}</td>
-                                    <td>${item.ipi || '-'}</td>
-                                    <td>${item.st || '-'}</td>
-                                    <td>${item.valorTotal}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valorTotal}</p>
-                ${ordem.frete ? `<p><strong>Frete:</strong> ${ordem.frete}</p>` : ''}
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
-        `;
-    }
-    
-    const entregaTab = document.getElementById('info-tab-entrega');
-    if (entregaTab) {
-        entregaTab.innerHTML = `
-            <div class="info-section">
-                <h4>Informações de Entrega</h4>
-                ${ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${ordem.localEntrega}</p>` : ''}
-                ${ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${ordem.prazoEntrega}</p>` : ''}
-                ${ordem.transporte ? `<p><strong>Transporte:</strong> ${ordem.transporte}</p>` : ''}
-            </div>
-        `;
-    }
-    
-    const pagamentoTab = document.getElementById('info-tab-pagamento');
-    if (pagamentoTab) {
-        pagamentoTab.innerHTML = `
-            <div class="info-section">
-                <h4>Dados de Pagamento</h4>
-                <p><strong>Forma de Pagamento:</strong> ${ordem.formaPagamento}</p>
-                <p><strong>Prazo de Pagamento:</strong> ${ordem.prazoPagamento}</p>
-                ${ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${ordem.dadosBancarios}</p>` : ''}
-            </div>
-        `;
-    }
-    
-    const modal = document.getElementById('infoModal');
-    if (modal) {
-        modal.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        modal.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        
-        const firstBtn = modal.querySelector('.tab-btn');
-        if (firstBtn) firstBtn.classList.add('active');
-        
-        if (geralTab) geralTab.classList.add('active');
-        
-        modal.classList.add('show');
-    }
+            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valorTotal}</p>
+            ${ordem.frete ? `<p><strong>Frete:</strong> ${ordem.frete}</p>` : ''}
+        </div>
+    `;
+
+    document.getElementById('info-tab-entrega').innerHTML = `
+        <div class="info-section">
+            <h4>Informações de Entrega</h4>
+            ${ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${ordem.localEntrega}</p>` : ''}
+            ${ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${ordem.prazoEntrega}</p>` : ''}
+            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${ordem.transporte}</p>` : ''}
+        </div>
+    `;
+
+    document.getElementById('info-tab-pagamento').innerHTML = `
+        <div class="info-section">
+            <h4>Dados de Pagamento</h4>
+            <p><strong>Forma de Pagamento:</strong> ${ordem.formaPagamento}</p>
+            <p><strong>Prazo de Pagamento:</strong> ${ordem.prazoPagamento}</p>
+            ${ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${ordem.dadosBancarios}</p>` : ''}
+        </div>
+    `;
+
+    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('#infoModal .tab-btn')[0].classList.add('active');
+    document.getElementById('info-tab-geral').classList.add('active');
+
+    document.getElementById('infoModal').classList.add('show');
 }
 
 function closeInfoModal() {
-    const modal = document.getElementById('infoModal');
-    if (modal) {
-        modal.classList.remove('show');
-    }
+    document.getElementById('infoModal').classList.remove('show');
 }
 
 // ============================================
 // FILTROS
 // ============================================
 function filterOrdens() {
-    updateTable();
+    updateDisplay();
 }
 
 function clearFilters() {
-    const search = document.getElementById('search');
-    const filterResp = document.getElementById('filterResponsavel');
-    const filterStatus = document.getElementById('filterStatus');
-    
-    if (search) search.value = '';
-    if (filterResp) filterResp.value = '';
-    if (filterStatus) filterStatus.value = '';
-    
+    document.getElementById('search').value = '';
+    document.getElementById('filterResponsavel').value = '';
+    document.getElementById('filterStatus').value = '';
     updateDisplay();
 }
 
@@ -808,75 +525,42 @@ function updateDisplay() {
     updateMonthDisplay();
     updateDashboard();
     updateTable();
-    updateResponsaveisFilter();
 }
 
 function updateDashboard() {
     const monthOrdens = getOrdensForCurrentMonth();
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
     const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
-    
-    const totalElem = document.getElementById('totalOrdens');
-    const fechadasElem = document.getElementById('totalFechadas');
-    const abertasElem = document.getElementById('totalAbertas');
-    
-    if (totalElem) totalElem.textContent = monthOrdens.length;
-    if (fechadasElem) fechadasElem.textContent = totalFechadas;
-    if (abertasElem) abertasElem.textContent = totalAbertas;
-    
-    const cardAbertas = document.getElementById('cardAbertas');
-    if (!cardAbertas) return;
-    
-    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
-    
-    if (totalAbertas > 0) {
-        cardAbertas.classList.add('has-alert');
-        
-        if (!pulseBadge) {
-            pulseBadge = document.createElement('div');
-            pulseBadge.className = 'pulse-badge';
-            cardAbertas.appendChild(pulseBadge);
-        }
-        pulseBadge.textContent = totalAbertas;
-        pulseBadge.style.display = 'flex';
-    } else {
-        cardAbertas.classList.remove('has-alert');
-        if (pulseBadge) {
-            pulseBadge.style.display = 'none';
-        }
-    }
+
+    document.getElementById('totalOrdens').textContent = 1249 + ordens.length;
+    document.getElementById('totalFechadas').textContent = totalFechadas;
+    document.getElementById('totalAbertas').textContent = totalAbertas;
 }
 
 function updateTable() {
     const container = document.getElementById('ordensContainer');
-    if (!container) return;
-    
     let filteredOrdens = getOrdensForCurrentMonth();
-    
-    const searchElem = document.getElementById('search');
-    const filterRespElem = document.getElementById('filterResponsavel');
-    const filterStatusElem = document.getElementById('filterStatus');
-    
-    const search = searchElem ? searchElem.value.toLowerCase() : '';
-    const filterResp = filterRespElem ? filterRespElem.value : '';
-    const filterStatus = filterStatusElem ? filterStatusElem.value : '';
-    
+
+    const search = document.getElementById('search').value.toLowerCase();
+    const filterResp = document.getElementById('filterResponsavel').value;
+    const filterStatus = document.getElementById('filterStatus').value;
+
     if (search) {
         filteredOrdens = filteredOrdens.filter(o => 
-            (o.numeroOrdem && o.numeroOrdem.toLowerCase().includes(search)) ||
-            (o.razaoSocial && o.razaoSocial.toLowerCase().includes(search)) ||
-            (o.responsavel && o.responsavel.toLowerCase().includes(search))
+            o.numeroOrdem.toLowerCase().includes(search) ||
+            o.razaoSocial.toLowerCase().includes(search) ||
+            o.responsavel.toLowerCase().includes(search)
         );
     }
-    
+
     if (filterResp) {
         filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
     }
-    
+
     if (filterStatus) {
         filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
     }
-    
+
     if (filteredOrdens.length === 0) {
         container.innerHTML = `
             <tr>
@@ -887,65 +571,48 @@ function updateTable() {
         `;
         return;
     }
-    
+
     filteredOrdens.sort((a, b) => {
-        const numA = parseInt(a.numeroOrdem) || 0;
-        const numB = parseInt(b.numeroOrdem) || 0;
+        const numA = parseInt(a.numeroOrdem);
+        const numB = parseInt(b.numeroOrdem);
         return numA - numB;
     });
-    
+
     container.innerHTML = filteredOrdens.map(ordem => `
-        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
-            <td style="text-align: center; padding: 8px;">
-                <div class="checkbox-wrapper">
-                    <input 
-                        type="checkbox" 
-                        id="check-${ordem.id}"
-                        ${ordem.status === 'fechada' ? 'checked' : ''}
-                        onchange="toggleStatus('${ordem.id}')"
-                        class="styled-checkbox"
-                    >
-                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
-                </div>
+        <tr class="${ordem.status}">
+            <td style="text-align: center;">
+                <button class="check-btn ${ordem.status === 'fechada' ? 'checked' : ''}" 
+                        onclick="toggleStatus('${ordem.id}')" 
+                        title="${ordem.status === 'fechada' ? 'Marcar como aberta' : 'Marcar como fechada'}">
+                    ${ordem.status === 'fechada' ? '✓' : '✓'}
+                </button>
             </td>
             <td><strong>${ordem.numeroOrdem}</strong></td>
             <td>${ordem.responsavel}</td>
             <td>${ordem.razaoSocial}</td>
-            <td style="white-space: nowrap;">${formatDate(ordem.dataOrdem)}</td>
+            <td>${formatDate(ordem.dataOrdem)}</td>
             <td><strong>${ordem.valorTotal}</strong></td>
             <td>
                 <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
             </td>
-            <td class="actions-cell" style="text-align: center; white-space: nowrap;">
-                <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
-                <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
-                <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
+            <td>
+                <div class="actions">
+                    <button class="small" onclick="viewOrdem('${ordem.id}')" title="Ver detalhes">
+                        Ver
+                    </button>
+                    <button class="small secondary" onclick="editOrdem('${ordem.id}')" title="Editar">
+                        Editar
+                    </button>
+                    <button class="small success" onclick="generatePDFFromTable('${ordem.id}')" title="Gerar PDF">
+                        PDF
+                    </button>
+                    <button class="small danger" onclick="deleteOrdem('${ordem.id}')" title="Excluir">
+                        Excluir
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('');
-}
-
-function updateResponsaveisFilter() {
-    const responsaveis = new Set();
-    ordens.forEach(o => {
-        if (o.responsavel && o.responsavel.trim()) {
-            responsaveis.add(o.responsavel.trim());
-        }
-    });
-
-    const select = document.getElementById('filterResponsavel');
-    if (select) {
-        const currentValue = select.value;
-        select.innerHTML = '<option value="">Todos</option>';
-        Array.from(responsaveis).sort().forEach(r => {
-            const option = document.createElement('option');
-            option.value = r;
-            option.textContent = r;
-            select.appendChild(option);
-        });
-        select.value = currentValue;
-    }
 }
 
 // ============================================
@@ -953,8 +620,7 @@ function updateResponsaveisFilter() {
 // ============================================
 function getOrdensForCurrentMonth() {
     return ordens.filter(ordem => {
-        if (!ordem.dataOrdem) return false;
-        const ordemDate = new Date(ordem.dataOrdem + 'T00:00:00');
+        const ordemDate = new Date(ordem.dataOrdem);
         return ordemDate.getMonth() === currentMonth.getMonth() &&
                ordemDate.getFullYear() === currentMonth.getFullYear();
     });
@@ -964,39 +630,33 @@ function getNextOrderNumber() {
     const existingNumbers = ordens
         .map(o => parseInt(o.numeroOrdem))
         .filter(n => !isNaN(n));
-    
+
     const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
     return nextNum.toString();
 }
 
 function formatDate(dateString) {
-    if (!dateString) return '';
     const date = new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('pt-BR');
 }
 
 function formatCurrency(value) {
-    const num = parseFloat(value) || 0;
-    return `R$ ${num.toFixed(2).replace('.', ',')}`;
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
 }
 
 function showToast(message, type = 'success') {
-    const oldMessages = document.querySelectorAll('.floating-message');
-    oldMessages.forEach(msg => msg.remove());
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `floating-message ${type}`;
-    messageDiv.textContent = message;
-    
-    document.body.appendChild(messageDiv);
-    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
     setTimeout(() => {
-        messageDiv.remove();
+        toast.remove();
     }, 3000);
 }
 
 // ============================================
-// GERAÇÃO DE PDF COMPLETA
+// GERAÇÃO DE PDF
 // ============================================
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => o.id === id);
@@ -1008,11 +668,9 @@ function generatePDFFromTable(id) {
 }
 
 function generatePDF() {
-    const modalNumero = document.getElementById('modalNumero');
-    if (!modalNumero) return;
-    
-    const ordem = ordens.find(o => o.numeroOrdem === modalNumero.textContent);
-    
+    const modalNumero = document.getElementById('modalNumero').textContent;
+    const ordem = ordens.find(o => o.numeroOrdem === modalNumero);
+
     if (!ordem) {
         showToast('Ordem não encontrada!', 'error');
         return;
@@ -1020,225 +678,215 @@ function generatePDF() {
     generatePDFForOrdem(ordem);
 }
 
-// SUBSTITUIR APENAS A FUNÇÃO generatePDFForOrdem NO SEU SCRIPT.JS
-
 function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
+
     let y = 20;
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const lineHeight = 5;
-    
+
     // LOGO NO CANTO SUPERIOR ESQUERDO
     try {
         const logo = new Image();
         logo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA.png';
-        doc.addImage(logo, 'PNG', margin, y, 40, 15);
-        y += 18;
+        doc.addImage(logo, 'PNG', margin, y, 40, 15); // x, y, largura, altura
+        y += 18; // Ajusta posição após a logo
     } catch (error) {
         console.log('Logo não encontrada');
     }
-    
+
     // CABEÇALHO
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
-    
+
     y += 8;
     doc.setFontSize(14);
     doc.text(`Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-    
+
     y += 12;
-    
+
     // DADOS PARA FATURAMENTO (FIXO)
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS PARA FATURAMENTO', margin, y);
-    
+
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
-    
-    y += lineHeight + 1;
+
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
-    
-    y += lineHeight + 1;
+
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
-    
-    y += lineHeight + 1;
+
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
-    
-    y += lineHeight + 1;
+
+     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
-    
+
     y += 10;
-    
+
     // DADOS DO FORNECEDOR
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
-    
+
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(`${ordem.razaoSocial}`, margin, y);
 
-    if (ordem.nomeFantasia) {
-        y += lineHeight + 1;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.nomeFantasia}`, margin, y);
-    }
+    y += lineHeight + 1;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.nomeFantasia}`, margin, y);
 
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text(`${ordem.cnpj}`, margin, y);
 
-    if (ordem.enderecoFornecedor) {
-        y += lineHeight + 1;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.enderecoFornecedor}`, margin, y);
-    }
+    y += lineHeight + 1;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.enderecoFornecedor}`, margin, y);
 
-    if (ordem.contato) {
-        y += lineHeight + 1;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.contato}`, margin, y);
-    }
+    y += lineHeight + 1;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.contato}`, margin, y);
 
-    if (ordem.telefone) {
-        y += lineHeight;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.telefone}`, margin, y);
-    }
+    y += lineHeight;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.telefone}`, margin, y);
 
-    if (ordem.email) {
-        y += lineHeight + 1;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.email}`, margin, y);
-    }
-    
+    y += lineHeight + 1;
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.email}`, margin, y);
+
     y += 10;
-    
+
     // ITENS DO PEDIDO
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('ITENS DO PEDIDO', margin, y);
-    
+
     y += 6;
-    
+
     // Configuração da tabela de itens
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
-        item: tableWidth * 0.05,
-        especificacao: tableWidth * 0.35,
-        qtd: tableWidth * 0.08,
-        unid: tableWidth * 0.08,
-        valorUn: tableWidth * 0.12,
-        ipi: tableWidth * 0.10,
-        st: tableWidth * 0.10,
-        total: tableWidth * 0.12
+        item: tableWidth * 0.05,          // 5%
+        especificacao: tableWidth * 0.35,    // 35%
+        qtd: tableWidth * 0.08,              // 8%
+        unid: tableWidth * 0.08,             // 8%
+        valorUn: tableWidth * 0.12,          // 12%
+        ipi: tableWidth * 0.10,              // 10%
+        st: tableWidth * 0.10,               // 10%
+        total: tableWidth * 0.12             // 12%
     };
-    
+
     const itemRowHeight = 10;
-    
+
     // Cabeçalho da tabela com fundo cinza escuro
     doc.setFillColor(108, 117, 125);
     doc.setDrawColor(180, 180, 180);
     doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-    
+
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
-    
+
     let xPos = margin;
-    
+
     // Desenha bordas verticais do cabeçalho
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // ITEM
     doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.item;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // ESPECIFICAÇÃO
     doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.especificacao;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // QTD
     doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.qtd;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // UNID
     doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.unid;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // VALOR UN
     doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.valorUn;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // IPI
     doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.ipi;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // ST
     doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.st;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     // TOTAL
     doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.total;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-    
+
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
-    
+
     // Linhas dos itens
     doc.setFont(undefined, 'normal');
     doc.setFontSize(8);
-    
+
     ordem.items.forEach((item, index) => {
-        const maxWidth = colWidths.especificacao - 6;
+        // Calcula altura necessária para a especificação
+        const maxWidth = colWidths.especificacao - 6; // margem interna
         const especLines = doc.splitTextToSize(item.especificacao, maxWidth);
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
-        
-        if (y + necessaryHeight > doc.internal.pageSize.height - 70) {
+
+        // Verifica se precisa de nova página (deixa margem de 30 na parte inferior)
+        if (y + necessaryHeight > doc.internal.pageSize.height - 40) {
             doc.addPage();
             y = 20;
-            
+
             // Redesenha cabeçalho na nova página
             doc.setFillColor(108, 117, 125);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');
             doc.setFontSize(9);
-            
+
             xPos = margin;
             doc.line(xPos, y, xPos, y + itemRowHeight);
             doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
@@ -1265,77 +913,88 @@ function generatePDFForOrdem(ordem) {
             doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.total;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-            
+
             y += itemRowHeight;
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
             doc.setFontSize(8);
         }
-        
+
+        // Linha zebrada
         if (index % 2 !== 0) {
             doc.setFillColor(240, 240, 240);
             doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
         }
-        
+
         xPos = margin;
-        
+
+        // Bordas verticais
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // ITEM - centralizado verticalmente
         doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.item;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // ESPECIFICAÇÃO - com quebra de linha
         doc.text(especLines, xPos + 3, y + 4);
         xPos += colWidths.especificacao;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // QTD - centralizado
         doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.qtd;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // UNID - centralizado
         doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.unid;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // VALOR UN - centralizado
         const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
         doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.valorUn;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // IPI - centralizado
         doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.ipi;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // ST - centralizado
         doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.st;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // TOTAL - centralizado
         doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.total;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-        
+
+        // Borda horizontal inferior
         doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
-        
+
         y += necessaryHeight;
     });
-    
+
     y += 8;
-    
-    // VALOR TOTAL
-    if (y > doc.internal.pageSize.height - 90) {
+
+    // VALOR TOTAL E FRETE
+    if (y > doc.internal.pageSize.height - 80) {
         doc.addPage();
         y = 20;
     }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
-    
+
     y += 10;
-    
-    // LOCAL DE ENTREGA
-    if (y > doc.internal.pageSize.height - 80) {
+
+    // LOCAL DE ENTREGA (FIXO)
+    if (y > doc.internal.pageSize.height - 70) {
         doc.addPage();
         y = 20;
     }
@@ -1345,12 +1004,12 @@ function generatePDFForOrdem(ordem) {
     y += 5;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text(ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
-    
+    doc.text('Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
+
     y += 10;
-    
+
     // PRAZO E FRETE
-    if (y > doc.internal.pageSize.height - 70) {
+    if (y > doc.internal.pageSize.height - 60) {
         doc.addPage();
         y = 20;
     }
@@ -1359,107 +1018,110 @@ function generatePDFForOrdem(ordem) {
     doc.text('PRAZO DE ENTREGA:', margin, y);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(11);
-    doc.text(ordem.prazoEntrega || '-', margin + 42, y);
-    
+    doc.text(ordem.prazoEntrega, margin + 42, y);
+
     doc.setFont(undefined, 'bold');
     doc.setFontSize(11);
     doc.text('FRETE:', pageWidth - margin - 35, y);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(11);
-    doc.text(ordem.frete || '-', pageWidth - margin - 20, y);
-    
+    doc.text(ordem.frete, pageWidth - margin - 20, y);
+
     y += 10;
 
-    // CONDIÇÕES DE PAGAMENTO
-    if (y > doc.internal.pageSize.height - 60) {
+    // DADOS DO PAGAMENTO
+    if (y > doc.internal.pageSize.height - 50) {
         doc.addPage();
         y = 20;
     }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
-    y += 5;
+    doc.text('DADOS DO PAGAMENTO', margin, y);
+
+    y += 6;
+    doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text(`Forma: ${ordem.formaPagamento}`, margin, y);
+    doc.text(`Forma de Pagamento: ${ordem.formaPagamento}`, margin, y);
+
     y += 5;
-    doc.text(`Prazo: ${ordem.prazoPagamento}`, margin, y);
-    
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Prazo de Pagamento: ${ordem.prazoPagamento}`, margin, y);
+
     if (ordem.dadosBancarios) {
         y += 5;
-        doc.setFont(undefined, 'bold');
-        doc.text('Dados Bancários:', margin, y);
-        y += 5;
-        doc.setFont(undefined, 'normal');
-        const bancarioLines = doc.splitTextToSize(ordem.dadosBancarios, pageWidth - (2 * margin));
-        doc.text(bancarioLines, margin, y);
-        y += (bancarioLines.length * 5);
+        doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+        doc.text(`Dados Bancários: ${ordem.dadosBancarios}`, margin, y);
     }
-    
-    y += 10;
-    
-    // ============================================
-    // AVISO AO FORNECEDOR
-    // ============================================
-    const avisoY = doc.internal.pageSize.height - 70;
-    
-    if (y > avisoY - 30) {
+
+    y += 12;
+
+    // DATA E ASSINATURA
+    if (y > doc.internal.pageSize.height - 40) {
         doc.addPage();
+        y = 20;
     }
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, avisoY - 25, pageWidth - (2 * margin), 20, 'S');
-    
+    const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
+    const dia = dataOrdem.getDate();
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const mes = meses[dataOrdem.getMonth()];
+    const ano = dataOrdem.getFullYear();
+
     doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('ATENÇÃO SR. FORNECEDOR:', pageWidth / 2, avisoY - 18, { align: 'center' });
+    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, pageWidth / 2, y, { align: 'center' });
+
+    y += 15;
     
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(9);
-    doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº  ${ordem.numeroOrdem}`, margin + 5, avisoY - 12);
-    doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, avisoY - 6);
-    
-    // ============================================
-    // ASSINATURAS
-    // ============================================
-    const assinaturaBaseY = doc.internal.pageSize.height - 45;
-    const col1X = margin + 20;
-    const col2X = pageWidth / 2 + 20;
-    
-    // DATA
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(0, 0, 0);
-    const dataAtual = new Date();
-    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const dataTexto = `Serra/ES, ${dataAtual.getDate()} de ${meses[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}.`;
-    doc.text(dataTexto, col1X + 20, assinaturaBaseY - 30, { align: 'center' });
-    
-    // IMAGEM DA ASSINATURA
+    // Linha de assinatura
+    y += 15;
+    y += 10;
+
+    // ASSINATURA (IMAGEM)
     try {
         const assinatura = new Image();
-        assinatura.src = 'assinatura.png';
-        const imgWidth = 50;
-        const imgHeight = 15;
-        doc.addImage(assinatura, 'PNG', col1X - 5, assinaturaBaseY - 22, imgWidth, imgHeight);
-    } catch (e) {
-        console.log('Erro assinatura:', e);
+        assinatura.src = 'assinatura.png.png'; // ou o nome correto do arquivo
+        doc.addImage(assinatura, 'PNG', pageWidth / 2 - 25, y - 10, 50, 15); // centralizada
+        y += 10;
+    } catch (error) {
+        console.log('Assinatura não encontrada');
+        // Linha de assinatura (fallback se não encontrar a imagem)
+        doc.setLineWidth(0.5);
+        doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+        y += 5;
     }
-    
-    // LINHA E DADOS DA DIRETORA
-    doc.setLineWidth(0.3);
-    doc.line(col1X - 10, assinaturaBaseY, col1X + 50, assinaturaBaseY);
+
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, y, { align: 'center' });
+
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    doc.text('Diretora', pageWidth / 2, y, { align: 'center' });
+
+    y += 12;
+
+    // ATENÇÃO SR. FORNECEDOR
+    if (y > doc.internal.pageSize.height - 30) {
+        doc.addPage();
+        y = 20;
+    }
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
-    doc.text('Rosemeire Bicalho de Lima Gravino', col1X + 20, assinaturaBaseY + 5, { align: 'center' });
+    doc.setTextColor(204, 112, 0);
+    doc.text('ATENÇÃO SR. FORNECEDOR', pageWidth / 2, y, { align: 'center' });
+
+    y += 6;
     doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'normal');
-    doc.text('MG-10.078.568 / CPF: 045.160.616-78', col1X + 20, assinaturaBaseY + 10, { align: 'center' });
-    doc.text('Diretora', col1X + 20, assinaturaBaseY + 15, { align: 'center' });
-    
-    // SALVAR COM NOME CORRETO: [RazaoSocial]-[NumeroOrdem].pdf
-    const nomeArquivo = `${ordem.razaoSocial}-${ordem.numeroOrdem}.pdf`;
-    doc.save(nomeArquivo);
+    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
+
+    y += 5;
+    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', pageWidth / 2, y, { align: 'center' });
+
+    // Salvar PDF
+    doc.save(`Ordem_${ordem.numeroOrdem}.pdf`);
     showToast('PDF gerado com sucesso!', 'success');
 }

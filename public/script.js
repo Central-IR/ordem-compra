@@ -1481,7 +1481,7 @@ function generatePDFForOrdem(ordem) {
     // ASSINATURA (IMAGEM) - CENTRALIZADA
     const assinatura = new Image();
     assinatura.crossOrigin = 'anonymous';
-    assinatura.src = 'assinatura.png';
+    assinatura.src = 'assinatura.png.png';
     
     assinatura.onload = function() {
         try {

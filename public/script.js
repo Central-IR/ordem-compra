@@ -1,3 +1,6 @@
+// ============================================
+// CONFIGURAÇÃO
+// ============================================
 let ordens = [];
 let currentMonth = new Date();
 let editingId = null;
@@ -40,15 +43,9 @@ async function checkServerStatus() {
 }
 
 function updateConnectionStatus() {
-    const statusDiv = document.getElementById('connectionStatus');
-    if (!statusDiv) return;
-
-    if (isOnline) {
-        statusDiv.className = 'connection-status online';
-        statusDiv.querySelector('span:last-child').textContent = 'Online';
-    } else {
-        statusDiv.className = 'connection-status offline';
-        statusDiv.querySelector('span:last-child').textContent = 'Offline';
+    const statusElement = document.getElementById('connectionStatus');
+    if (statusElement) {
+        statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
     }
 }
 
@@ -91,21 +88,18 @@ function switchTab(tabId) {
         currentTab = tabIndex;
         showTab(currentTab);
     }
-
-    event.preventDefault();
 }
 
 function showTab(index) {
-    document.querySelectorAll('#formModal .tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelectorAll('#formModal .tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-
-    document.querySelectorAll('#formModal .tab-btn')[index].classList.add('active');
-    document.getElementById(tabs[index]).classList.add('active');
-
+    const tabButtons = document.querySelectorAll('#formModal .tab-btn');
+    const tabContents = document.querySelectorAll('#formModal .tab-content');
+    
+    tabButtons.forEach(btn => btn.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
+    
+    if (tabButtons[index]) tabButtons[index].classList.add('active');
+    if (tabContents[index]) tabContents[index].classList.add('active');
+    
     updateNavigationButtons();
 }
 
@@ -114,7 +108,10 @@ function nextTab() {
         currentTab++;
         showTab(currentTab);
     } else {
-        document.getElementById('ordemForm').dispatchEvent(new Event('submit'));
+        const form = document.getElementById('ordemForm');
+        if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
     }
 }
 
@@ -128,21 +125,23 @@ function previousTab() {
 function updateNavigationButtons() {
     const btnVoltar = document.getElementById('btnVoltar');
     const btnProximo = document.getElementById('btnProximo');
-
+    
+    if (!btnVoltar || !btnProximo) return;
+    
     if (currentTab === 0) {
         btnVoltar.style.display = 'none';
     } else {
         btnVoltar.style.display = 'inline-flex';
     }
-
+    
     if (currentTab === tabs.length - 1) {
         btnProximo.textContent = editingId ? 'Atualizar Ordem' : 'Registrar Ordem';
         btnProximo.classList.remove('secondary');
-        btnProximo.classList.add('primary');
+        btnProximo.classList.add('save');
     } else {
         btnProximo.textContent = 'Próximo';
         btnProximo.classList.add('secondary');
-        btnProximo.classList.remove('primary');
+        btnProximo.classList.remove('save');
     }
 }
 
@@ -153,7 +152,7 @@ function switchInfoTab(tabId) {
     document.querySelectorAll('#infoModal .tab-content').forEach(content => {
         content.classList.remove('active');
     });
-
+    
     const clickedBtn = event.target.closest('.tab-btn');
     if (clickedBtn) {
         clickedBtn.classList.add('active');
@@ -162,37 +161,189 @@ function switchInfoTab(tabId) {
 }
 
 // ============================================
-// MODAL DE FORMULÁRIO
+// MODAL DE FORMULÁRIO - CORRIGIDO
 // ============================================
 function openFormModal() {
     editingId = null;
     currentTab = 0;
-    document.getElementById('formTitle').textContent = 'Nova Ordem de Compra';
-    document.getElementById('ordemForm').reset();
-    document.getElementById('editId').value = '';
-
-    document.getElementById('itemsBody').innerHTML = '';
-    itemCounter = 0;
-    addItem();
-
+    itemCounter = 0; // ✅ CORRIGIDO
+    
     const nextNumber = getNextOrderNumber();
-    document.getElementById('numeroOrdem').value = nextNumber;
-
-    setTodayDate();
-    showTab(0);
-
-    document.getElementById('formModal').classList.add('show');
-}
-
-function closeFormModal() {
-    document.getElementById('formModal').classList.remove('show');
-}
-
-function setTodayDate() {
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('dataOrdem').value = today;
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="formModal">
+            <div class="modal-content" style="max-width: 1200px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Nova Ordem de Compra</h3>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
+                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
+                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
+                    </div>
+
+                    <form id="ordemForm" onsubmit="handleSubmit(event)">
+                        <input type="hidden" id="editId" value="">
+                        
+                        <!-- ABA GERAL -->
+                        <div class="tab-content active" id="tab-geral">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="numeroOrdem">Número da Ordem *</label>
+                                    <input type="text" id="numeroOrdem" value="${nextNumber}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="responsavel">Responsável *</label>
+                                    <input type="text" id="responsavel" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dataOrdem">Data da Ordem *</label>
+                                    <input type="date" id="dataOrdem" value="${today}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA FORNECEDOR -->
+                        <div class="tab-content" id="tab-fornecedor">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="razaoSocial">Razão Social *</label>
+                                    <input type="text" id="razaoSocial" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nomeFantasia">Nome Fantasia</label>
+                                    <input type="text" id="nomeFantasia">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cnpj">CNPJ *</label>
+                                    <input type="text" id="cnpj" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="enderecoFornecedor">Endereço</label>
+                                    <input type="text" id="enderecoFornecedor">
+                                </div>
+                                <div class="form-group">
+                                    <label for="site">Site</label>
+                                    <input type="text" id="site">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contato">Contato</label>
+                                    <input type="text" id="contato">
+                                </div>
+                                <div class="form-group">
+                                    <label for="telefone">Telefone</label>
+                                    <input type="text" id="telefone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-mail</label>
+                                    <input type="email" id="email">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA PEDIDO -->
+                        <div class="tab-content" id="tab-pedido">
+                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
+                            <div style="overflow-x: auto;">
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">Item</th>
+                                            <th style="min-width: 200px;">Especificação</th>
+                                            <th style="width: 80px;">QTD</th>
+                                            <th style="width: 80px;">Unid</th>
+                                            <th style="width: 100px;">Valor UN</th>
+                                            <th style="width: 100px;">IPI</th>
+                                            <th style="width: 100px;">ST</th>
+                                            <th style="width: 120px;">Total</th>
+                                            <th style="width: 80px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="itemsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
+                                <input type="text" id="valorTotalOrdem" readonly value="R$ 0,00">
+                            </div>
+                            <div class="form-group">
+                                <label for="frete">Frete</label>
+                                <input type="text" id="frete" placeholder="Ex: CIF, FOB">
+                            </div>
+                        </div>
+
+                        <!-- ABA ENTREGA -->
+                        <div class="tab-content" id="tab-entrega">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="localEntrega">Local de Entrega</label>
+                                    <input type="text" id="localEntrega" placeholder="Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoEntrega">Prazo de Entrega</label>
+                                    <input type="text" id="prazoEntrega" placeholder="Ex: 10 dias úteis">
+                                </div>
+                                <div class="form-group">
+                                    <label for="transporte">Transporte</label>
+                                    <input type="text" id="transporte" placeholder="Ex: Por conta do fornecedor">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA PAGAMENTO -->
+                        <div class="tab-content" id="tab-pagamento">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="formaPagamento">Forma de Pagamento *</label>
+                                    <input type="text" id="formaPagamento" required placeholder="Ex: Boleto, PIX, Cartão">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
+                                    <input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dadosBancarios">Dados Bancários</label>
+                                    <textarea id="dadosBancarios" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" id="btnVoltar" onclick="previousTab()" class="secondary" style="display: none;">Voltar</button>
+                            <button type="button" id="btnProximo" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    addItem();
+    updateNavigationButtons(); // ✅ CORRIGIDO
+    setTimeout(() => document.getElementById('numeroOrdem')?.focus(), 100);
 }
 
+function closeFormModal(showCancelMessage = false) {
+    const modal = document.getElementById('formModal');
+    if (modal) {
+        const editId = document.getElementById('editId')?.value;
+        const isEditing = editId && editId !== '';
+        
+        if (showCancelMessage) {
+            showToast(isEditing ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+        }
+        
+        modal.style.animation = 'fadeOut 0.2s ease forwards';
+        setTimeout(() => modal.remove(), 200);
+    }
+}
 // ============================================
 // GESTÃO DE ITENS
 // ============================================
@@ -261,7 +412,10 @@ function recalculateOrderTotal() {
         const value = input.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
         sum += parseFloat(value) || 0;
     });
-    document.getElementById('valorTotalOrdem').value = formatCurrency(sum);
+    const totalInput = document.getElementById('valorTotalOrdem');
+    if (totalInput) {
+        totalInput.value = formatCurrency(sum);
+    }
 }
 
 // ============================================
@@ -269,7 +423,7 @@ function recalculateOrderTotal() {
 // ============================================
 function handleSubmit(event) {
     event.preventDefault();
-
+    
     const items = [];
     const rows = document.querySelectorAll('#itemsBody tr');
     rows.forEach((row, index) => {
@@ -284,9 +438,9 @@ function handleSubmit(event) {
             valorTotal: row.querySelector('.item-total').value
         });
     });
-
+    
     const timestamp = Date.now();
-
+    
     const formData = {
         id: editingId || timestamp.toString(),
         numeroOrdem: document.getElementById('numeroOrdem').value,
@@ -312,7 +466,7 @@ function handleSubmit(event) {
         status: 'aberta',
         timestamp: timestamp
     };
-
+    
     if (editingId) {
         const index = ordens.findIndex(o => o.id === editingId);
         formData.timestamp = ordens[index].timestamp;
@@ -322,73 +476,260 @@ function handleSubmit(event) {
         ordens.push(formData);
         showToast('Ordem criada com sucesso!', 'success');
     }
-
+    
     saveToLocalStorage();
     updateDisplay();
     closeFormModal();
 }
 
 // ============================================
-// EDIÇÃO
+// EDIÇÃO - CORRIGIDO
 // ============================================
 function editOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
-    if (!ordem) return;
-
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    
     editingId = id;
     currentTab = 0;
-    document.getElementById('formTitle').textContent = 'Editar Ordem de Compra';
+    itemCounter = 0; // ✅ CORRIGIDO
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="formModal">
+            <div class="modal-content" style="max-width: 1200px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Editar Ordem de Compra</h3>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
+                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
+                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
+                    </div>
 
-    document.getElementById('editId').value = ordem.id;
-    document.getElementById('numeroOrdem').value = ordem.numeroOrdem;
-    document.getElementById('responsavel').value = ordem.responsavel;
-    document.getElementById('dataOrdem').value = ordem.dataOrdem;
-    document.getElementById('razaoSocial').value = ordem.razaoSocial;
-    document.getElementById('nomeFantasia').value = ordem.nomeFantasia || '';
-    document.getElementById('cnpj').value = ordem.cnpj;
-    document.getElementById('enderecoFornecedor').value = ordem.enderecoFornecedor || '';
-    document.getElementById('site').value = ordem.site || '';
-    document.getElementById('contato').value = ordem.contato || '';
-    document.getElementById('telefone').value = ordem.telefone || '';
-    document.getElementById('email').value = ordem.email || '';
-    document.getElementById('frete').value = ordem.frete || '';
-    document.getElementById('localEntrega').value = ordem.localEntrega || '';
-    document.getElementById('prazoEntrega').value = ordem.prazoEntrega || '';
-    document.getElementById('transporte').value = ordem.transporte || '';
-    document.getElementById('formaPagamento').value = ordem.formaPagamento;
-    document.getElementById('prazoPagamento').value = ordem.prazoPagamento;
-    document.getElementById('dadosBancarios').value = ordem.dadosBancarios || '';
+                    <form id="ordemForm" onsubmit="handleSubmit(event)">
+                        <input type="hidden" id="editId" value="${ordem.id}">
+                        
+                        <!-- ABA GERAL -->
+                        <div class="tab-content active" id="tab-geral">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="numeroOrdem">Número da Ordem *</label>
+                                    <input type="text" id="numeroOrdem" value="${ordem.numeroOrdem}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="responsavel">Responsável *</label>
+                                    <input type="text" id="responsavel" value="${ordem.responsavel}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dataOrdem">Data da Ordem *</label>
+                                    <input type="date" id="dataOrdem" value="${ordem.dataOrdem}" required>
+                                </div>
+                            </div>
+                        </div>
 
-    document.getElementById('itemsBody').innerHTML = '';
-    itemCounter = 0;
-    ordem.items.forEach(item => {
+                        <!-- ABA FORNECEDOR -->
+                        <div class="tab-content" id="tab-fornecedor">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="razaoSocial">Razão Social *</label>
+                                    <input type="text" id="razaoSocial" value="${ordem.razaoSocial}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nomeFantasia">Nome Fantasia</label>
+                                    <input type="text" id="nomeFantasia" value="${ordem.nomeFantasia || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cnpj">CNPJ *</label>
+                                    <input type="text" id="cnpj" value="${ordem.cnpj}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="enderecoFornecedor">Endereço</label>
+                                    <input type="text" id="enderecoFornecedor" value="${ordem.enderecoFornecedor || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="site">Site</label>
+                                    <input type="text" id="site" value="${ordem.site || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contato">Contato</label>
+                                    <input type="text" id="contato" value="${ordem.contato || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="telefone">Telefone</label>
+                                    <input type="text" id="telefone" value="${ordem.telefone || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-mail</label>
+                                    <input type="email" id="email" value="${ordem.email || ''}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA PEDIDO -->
+                        <div class="tab-content" id="tab-pedido">
+                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
+                            <div style="overflow-x: auto;">
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">Item</th>
+                                            <th style="min-width: 200px;">Especificação</th>
+                                            <th style="width: 80px;">QTD</th>
+                                            <th style="width: 80px;">Unid</th>
+                                            <th style="width: 100px;">Valor UN</th>
+                                            <th style="width: 100px;">IPI</th>
+                                            <th style="width: 100px;">ST</th>
+                                            <th style="width: 120px;">Total</th>
+                                            <th style="width: 80px;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="itemsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
+                                <input type="text" id="valorTotalOrdem" readonly value="${ordem.valorTotal}">
+                            </div>
+                            <div class="form-group">
+                                <label for="frete">Frete</label>
+                                <input type="text" id="frete" value="${ordem.frete || ''}" placeholder="Ex: CIF, FOB">
+                            </div>
+                        </div>
+
+                        <!-- ABA ENTREGA -->
+                        <div class="tab-content" id="tab-entrega">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="localEntrega">Local de Entrega</label>
+                                    <input type="text" id="localEntrega" value="${ordem.localEntrega || ''}" placeholder="Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoEntrega">Prazo de Entrega</label>
+                                    <input type="text" id="prazoEntrega" value="${ordem.prazoEntrega || ''}" placeholder="Ex: 10 dias úteis">
+                                </div>
+                                <div class="form-group">
+                                    <label for="transporte">Transporte</label>
+                                    <input type="text" id="transporte" value="${ordem.transporte || ''}" placeholder="Ex: Por conta do fornecedor">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ABA PAGAMENTO -->
+                        <div class="tab-content" id="tab-pagamento">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="formaPagamento">Forma de Pagamento *</label>
+                                    <input type="text" id="formaPagamento" value="${ordem.formaPagamento}" required placeholder="Ex: Boleto, PIX, Cartão">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
+                                    <input type="text" id="prazoPagamento" value="${ordem.prazoPagamento}" required placeholder="Ex: 30 dias">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dadosBancarios">Dados Bancários</label>
+                                    <textarea id="dadosBancarios" rows="3">${ordem.dadosBancarios || ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" id="btnVoltar" onclick="previousTab()" class="secondary" style="display: none;">Voltar</button>
+                            <button type="button" id="btnProximo" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // ✅ CORRIGIDO - Carregar itens existentes
+    if (ordem.items && ordem.items.length > 0) {
+        ordem.items.forEach(item => {
+            addItem();
+            const row = document.querySelector('#itemsBody tr:last-child');
+            if (row) {
+                row.querySelector('.item-especificacao').value = item.especificacao || '';
+                row.querySelector('.item-qtd').value = item.quantidade || 1;
+                row.querySelector('.item-unid').value = item.unidade || 'UN';
+                row.querySelector('.item-valor').value = item.valorUnitario || 0;
+                row.querySelector('.item-ipi').value = item.ipi || '';
+                row.querySelector('.item-st').value = item.st || '';
+                row.querySelector('.item-total').value = item.valorTotal || 'R$ 0,00';
+            }
+        });
+    } else {
         addItem();
-        const row = document.querySelector('#itemsBody tr:last-child');
-        row.querySelector('.item-especificacao').value = item.especificacao;
-        row.querySelector('.item-qtd').value = item.quantidade;
-        row.querySelector('.item-unid').value = item.unidade;
-        row.querySelector('.item-valor').value = item.valorUnitario;
-        row.querySelector('.item-ipi').value = item.ipi || '';
-        row.querySelector('.item-st').value = item.st || '';
-        row.querySelector('.item-total').value = item.valorTotal;
-    });
-
-    recalculateOrderTotal();
-    showTab(0);
-
-    document.getElementById('formModal').classList.add('show');
+    }
+    
+    updateNavigationButtons(); // ✅ CORRIGIDO
 }
 
 // ============================================
 // EXCLUSÃO
 // ============================================
-function deleteOrdem(id) {
-    if (confirm('Tem certeza que deseja excluir esta ordem?')) {
-        ordens = ordens.filter(o => o.id !== id);
-        saveToLocalStorage();
-        updateDisplay();
-        showToast('Ordem excluída com sucesso!', 'success');
-    }
+async function deleteOrdem(id) {
+    const confirmed = await showConfirm(
+        'Tem certeza que deseja excluir esta ordem?',
+        {
+            title: 'Excluir Ordem',
+            confirmText: 'Excluir',
+            cancelText: 'Cancelar',
+            type: 'warning'
+        }
+    );
+
+    if (!confirmed) return;
+
+    ordens = ordens.filter(o => o.id !== id);
+    saveToLocalStorage();
+    updateDisplay();
+    showToast('Ordem excluída com sucesso!', 'success');
+}
+
+function showConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
+
+        const modalHTML = `
+            <div class="modal-overlay" id="confirmModal" style="z-index: 10001; display: flex;">
+                <div class="modal-content" style="max-width: 450px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                    </div>
+                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
+                    <div class="modal-actions">
+                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
+                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = document.getElementById('confirmModal');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+
+        const closeModal = (result) => {
+            modal.style.animation = 'fadeOut 0.2s ease forwards';
+            setTimeout(() => { 
+                modal.remove(); 
+                resolve(result); 
+            }, 200);
+        };
+
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+    });
 }
 
 // ============================================
@@ -403,16 +744,15 @@ function toggleStatus(id) {
         showToast(`Ordem marcada como ${ordem.status}!`, 'success');
     }
 }
-
 // ============================================
 // VISUALIZAÇÃO
 // ============================================
 function viewOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
     if (!ordem) return;
-
+    
     document.getElementById('modalNumero').textContent = ordem.numeroOrdem;
-
+    
     document.getElementById('info-tab-geral').innerHTML = `
         <div class="info-section">
             <h4>Informações Gerais</h4>
@@ -421,7 +761,7 @@ function viewOrdem(id) {
             <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
         </div>
     `;
-
+    
     document.getElementById('info-tab-fornecedor').innerHTML = `
         <div class="info-section">
             <h4>Dados do Fornecedor</h4>
@@ -435,7 +775,7 @@ function viewOrdem(id) {
             ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
         </div>
     `;
-
+    
     document.getElementById('info-tab-pedido').innerHTML = `
         <div class="info-section">
             <h4>Itens do Pedido</h4>
@@ -473,7 +813,7 @@ function viewOrdem(id) {
             ${ordem.frete ? `<p><strong>Frete:</strong> ${ordem.frete}</p>` : ''}
         </div>
     `;
-
+    
     document.getElementById('info-tab-entrega').innerHTML = `
         <div class="info-section">
             <h4>Informações de Entrega</h4>
@@ -482,7 +822,7 @@ function viewOrdem(id) {
             ${ordem.transporte ? `<p><strong>Transporte:</strong> ${ordem.transporte}</p>` : ''}
         </div>
     `;
-
+    
     document.getElementById('info-tab-pagamento').innerHTML = `
         <div class="info-section">
             <h4>Dados de Pagamento</h4>
@@ -491,24 +831,27 @@ function viewOrdem(id) {
             ${ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${ordem.dadosBancarios}</p>` : ''}
         </div>
     `;
-
+    
     document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
     document.querySelectorAll('#infoModal .tab-btn')[0].classList.add('active');
     document.getElementById('info-tab-geral').classList.add('active');
-
+    
     document.getElementById('infoModal').classList.add('show');
 }
 
 function closeInfoModal() {
-    document.getElementById('infoModal').classList.remove('show');
+    const modal = document.getElementById('infoModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
 }
 
 // ============================================
 // FILTROS
 // ============================================
 function filterOrdens() {
-    updateDisplay();
+    updateTable();
 }
 
 function clearFilters() {
@@ -525,26 +868,53 @@ function updateDisplay() {
     updateMonthDisplay();
     updateDashboard();
     updateTable();
+    updateResponsaveisFilter();
 }
 
+// ============================================
+// DASHBOARD COM ALERTA - CORRIGIDO
+// ============================================
 function updateDashboard() {
     const monthOrdens = getOrdensForCurrentMonth();
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
     const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
-
-    document.getElementById('totalOrdens').textContent = 1249 + ordens.length;
+    
+    document.getElementById('totalOrdens').textContent = monthOrdens.length;
     document.getElementById('totalFechadas').textContent = totalFechadas;
     document.getElementById('totalAbertas').textContent = totalAbertas;
+    
+    // ✅ ALERTA VISUAL - Ordens Abertas
+    const cardAbertas = document.getElementById('cardAbertas');
+    if (!cardAbertas) return;
+    
+    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
+    
+    if (totalAbertas > 0) {
+        cardAbertas.classList.add('has-alert');
+        
+        if (!pulseBadge) {
+            pulseBadge = document.createElement('div');
+            pulseBadge.className = 'pulse-badge';
+            cardAbertas.appendChild(pulseBadge);
+        }
+        pulseBadge.textContent = totalAbertas;
+        pulseBadge.style.display = 'flex';
+    } else {
+        cardAbertas.classList.remove('has-alert');
+        if (pulseBadge) {
+            pulseBadge.style.display = 'none';
+        }
+    }
 }
 
 function updateTable() {
     const container = document.getElementById('ordensContainer');
     let filteredOrdens = getOrdensForCurrentMonth();
-
+    
     const search = document.getElementById('search').value.toLowerCase();
     const filterResp = document.getElementById('filterResponsavel').value;
     const filterStatus = document.getElementById('filterStatus').value;
-
+    
     if (search) {
         filteredOrdens = filteredOrdens.filter(o => 
             o.numeroOrdem.toLowerCase().includes(search) ||
@@ -552,15 +922,15 @@ function updateTable() {
             o.responsavel.toLowerCase().includes(search)
         );
     }
-
+    
     if (filterResp) {
         filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
     }
-
+    
     if (filterStatus) {
         filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
     }
-
+    
     if (filteredOrdens.length === 0) {
         container.innerHTML = `
             <tr>
@@ -571,48 +941,65 @@ function updateTable() {
         `;
         return;
     }
-
+    
     filteredOrdens.sort((a, b) => {
         const numA = parseInt(a.numeroOrdem);
         const numB = parseInt(b.numeroOrdem);
         return numA - numB;
     });
-
+    
     container.innerHTML = filteredOrdens.map(ordem => `
-        <tr class="${ordem.status}">
-            <td style="text-align: center;">
-                <button class="check-btn ${ordem.status === 'fechada' ? 'checked' : ''}" 
-                        onclick="toggleStatus('${ordem.id}')" 
-                        title="${ordem.status === 'fechada' ? 'Marcar como aberta' : 'Marcar como fechada'}">
-                    ${ordem.status === 'fechada' ? '✓' : '✓'}
-                </button>
+        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
+            <td style="text-align: center; padding: 8px;">
+                <div class="checkbox-wrapper">
+                    <input 
+                        type="checkbox" 
+                        id="check-${ordem.id}"
+                        ${ordem.status === 'fechada' ? 'checked' : ''}
+                        onchange="toggleStatus('${ordem.id}')"
+                        class="styled-checkbox"
+                    >
+                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
+                </div>
             </td>
             <td><strong>${ordem.numeroOrdem}</strong></td>
             <td>${ordem.responsavel}</td>
             <td>${ordem.razaoSocial}</td>
-            <td>${formatDate(ordem.dataOrdem)}</td>
+            <td style="white-space: nowrap;">${formatDate(ordem.dataOrdem)}</td>
             <td><strong>${ordem.valorTotal}</strong></td>
             <td>
                 <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
             </td>
-            <td>
-                <div class="actions">
-                    <button class="small" onclick="viewOrdem('${ordem.id}')" title="Ver detalhes">
-                        Ver
-                    </button>
-                    <button class="small secondary" onclick="editOrdem('${ordem.id}')" title="Editar">
-                        Editar
-                    </button>
-                    <button class="small success" onclick="generatePDFFromTable('${ordem.id}')" title="Gerar PDF">
-                        PDF
-                    </button>
-                    <button class="small danger" onclick="deleteOrdem('${ordem.id}')" title="Excluir">
-                        Excluir
-                    </button>
-                </div>
+            <td class="actions-cell" style="text-align: center; white-space: nowrap;">
+                <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
+                <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
+                <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
+                <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
             </td>
         </tr>
     `).join('');
+}
+
+function updateResponsaveisFilter() {
+    const responsaveis = new Set();
+    ordens.forEach(o => {
+        if (o.responsavel?.trim()) {
+            responsaveis.add(o.responsavel.trim());
+        }
+    });
+
+    const select = document.getElementById('filterResponsavel');
+    if (select) {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Todos</option>';
+        Array.from(responsaveis).sort().forEach(r => {
+            const option = document.createElement('option');
+            option.value = r;
+            option.textContent = r;
+            select.appendChild(option);
+        });
+        select.value = currentValue;
+    }
 }
 
 // ============================================
@@ -630,7 +1017,7 @@ function getNextOrderNumber() {
     const existingNumbers = ordens
         .map(o => parseInt(o.numeroOrdem))
         .filter(n => !isNaN(n));
-
+    
     const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
     return nextNum.toString();
 }
@@ -645,18 +1032,23 @@ function formatCurrency(value) {
 }
 
 function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
+    const oldMessages = document.querySelectorAll('.floating-message');
+    oldMessages.forEach(msg => msg.remove());
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
     setTimeout(() => {
-        toast.remove();
+        messageDiv.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => messageDiv.remove(), 300);
     }, 3000);
 }
 
 // ============================================
-// GERAÇÃO DE PDF
+// GERAÇÃO DE PDF - PARTE 1
 // ============================================
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => o.id === id);
@@ -670,7 +1062,18 @@ function generatePDFFromTable(id) {
 function generatePDF() {
     const modalNumero = document.getElementById('modalNumero').textContent;
     const ordem = ordens.find(o => o.numeroOrdem === modalNumero);
-
+    
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    generatePDFForOrdem(ordem);
+}
+// ============================================
+// GERAÇÃO DE PDF COMPLETA - CORRIGIDO
+// ============================================
+function generatePDFFromTable(id) {
+    const ordem = ordens.find(o => o.id === id);
     if (!ordem) {
         showToast('Ordem não encontrada!', 'error');
         return;
@@ -678,122 +1081,149 @@ function generatePDF() {
     generatePDFForOrdem(ordem);
 }
 
-// SUBSTITUA APENAS A FUNÇÃO generatePDFForOrdem NO SEU SCRIPT.JS
+function generatePDF() {
+    const modalNumero = document.getElementById('modalNumero').textContent;
+    const ordem = ordens.find(o => o.numeroOrdem === modalNumero);
+    
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    generatePDFForOrdem(ordem);
+}
 
 function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-
+    
     let y = 20;
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const lineHeight = 5;
-
-    // LOGO NO CANTO SUPERIOR ESQUERDO
-    try {
-        const logo = new Image();
-        logo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA.png';
-        doc.addImage(logo, 'PNG', margin, y, 40, 15);
-        y += 18;
-    } catch (error) {
-        console.log('Logo não encontrada');
-    }
-
+    
+    // ✅ LOGO NO CANTO SUPERIOR ESQUERDO - CORRIGIDO
+    const logo = new Image();
+    logo.crossOrigin = 'anonymous';
+    logo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA.png';
+    
+    logo.onload = function() {
+        try {
+            const imgWidth = 50;
+            const imgHeight = (logo.height / logo.width) * imgWidth;
+            doc.addImage(logo, 'PNG', margin, 20, imgWidth, imgHeight);
+        } catch (e) {
+            console.log('Erro ao adicionar logo:', e);
+        }
+    };
+    
+    y = 40;
+    
     // CABEÇALHO
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
-
+    
     y += 8;
     doc.setFontSize(14);
     doc.text(`Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-
+    
     y += 12;
-
+    
     // DADOS PARA FATURAMENTO (FIXO)
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS PARA FATURAMENTO', margin, y);
-
+    
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
-
-     y += lineHeight + 1;
+    
+    y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
-
-     y += lineHeight + 1;
+    
+    y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
-
-     y += lineHeight + 1;
+    
+    y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
-
-     y += lineHeight + 1;
+    
+    y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
-
+    
     y += 10;
-
+    
     // DADOS DO FORNECEDOR
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
-
+    
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(`${ordem.razaoSocial}`, margin, y);
 
-    y += lineHeight + 1;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.nomeFantasia}`, margin, y);
+    if (ordem.nomeFantasia) {
+        y += lineHeight + 1;
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.nomeFantasia}`, margin, y);
+    }
 
     y += lineHeight + 1;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text(`${ordem.cnpj}`, margin, y);
 
-    y += lineHeight + 1;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.enderecoFornecedor}`, margin, y);
+    if (ordem.enderecoFornecedor) {
+        y += lineHeight + 1;
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.enderecoFornecedor}`, margin, y);
+    }
 
-    y += lineHeight + 1;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.contato}`, margin, y);
+    if (ordem.contato) {
+        y += lineHeight + 1;
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.contato}`, margin, y);
+    }
 
-    y += lineHeight;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.telefone}`, margin, y);
+    if (ordem.telefone) {
+        y += lineHeight;
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.telefone}`, margin, y);
+    }
 
-    y += lineHeight + 1;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.email}`, margin, y);
-
+    if (ordem.email) {
+        y += lineHeight + 1;
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.email}`, margin, y);
+    }
+    
     y += 10;
-
+    
     // ITENS DO PEDIDO
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('ITENS DO PEDIDO', margin, y);
-
+    
     y += 6;
-
+    
+    // Configuração da tabela de itens
     const tableWidth = pageWidth - (2 * margin);
     const colWidths = {
         item: tableWidth * 0.05,
@@ -805,76 +1235,87 @@ function generatePDFForOrdem(ordem) {
         st: tableWidth * 0.10,
         total: tableWidth * 0.12
     };
-
+    
     const itemRowHeight = 10;
-
-    // Cabeçalho da tabela
+    
+    // Cabeçalho da tabela com fundo cinza escuro
     doc.setFillColor(108, 117, 125);
     doc.setDrawColor(180, 180, 180);
     doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-
+    
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
-
+    
     let xPos = margin;
-
+    
+    // Desenha bordas verticais do cabeçalho
     doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    // ITEM
     doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.item;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // ESPECIFICAÇÃO
     doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.especificacao;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // QTD
     doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.qtd;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // UNID
     doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.unid;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // VALOR UN
     doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.valorUn;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // IPI
     doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.ipi;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // ST
     doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.st;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
+    // TOTAL
     doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
     xPos += colWidths.total;
     doc.line(xPos, y, xPos, y + itemRowHeight);
-
+    
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
-
+    
     // Linhas dos itens
     doc.setFont(undefined, 'normal');
     doc.setFontSize(8);
-
+    
     ordem.items.forEach((item, index) => {
         const maxWidth = colWidths.especificacao - 6;
         const especLines = doc.splitTextToSize(item.especificacao, maxWidth);
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
-
+        
         if (y + necessaryHeight > doc.internal.pageSize.height - 40) {
             doc.addPage();
             y = 20;
-
+            
+            // Redesenha cabeçalho na nova página
             doc.setFillColor(108, 117, 125);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');
             doc.setFontSize(9);
-
+            
             xPos = margin;
             doc.line(xPos, y, xPos, y + itemRowHeight);
             doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
@@ -901,65 +1342,65 @@ function generatePDFForOrdem(ordem) {
             doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
             xPos += colWidths.total;
             doc.line(xPos, y, xPos, y + itemRowHeight);
-
+            
             y += itemRowHeight;
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
             doc.setFontSize(8);
         }
-
+        
         if (index % 2 !== 0) {
             doc.setFillColor(240, 240, 240);
             doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
         }
-
+        
         xPos = margin;
-
+        
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.item;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(especLines, xPos + 3, y + 4);
         xPos += colWidths.especificacao;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.qtd;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.unid;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
         doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.valorUn;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.ipi;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.st;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.total;
         doc.line(xPos, y, xPos, y + necessaryHeight);
-
+        
         doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
-
+        
         y += necessaryHeight;
     });
-
+    
     y += 8;
-
-    // VALOR TOTAL
+    
+    // VALOR TOTAL E FRETE
     if (y > doc.internal.pageSize.height - 80) {
         doc.addPage();
         y = 20;
@@ -967,10 +1408,10 @@ function generatePDFForOrdem(ordem) {
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
-
+    
     y += 10;
-
-    // LOCAL DE ENTREGA (FIXO)
+    
+    // ✅ LOCAL DE ENTREGA - EDITÁVEL
     if (y > doc.internal.pageSize.height - 70) {
         doc.addPage();
         y = 20;
@@ -981,10 +1422,16 @@ function generatePDFForOrdem(ordem) {
     y += 5;
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text('Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318', margin, y);
-
+    
+    const localPadrao = 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318';
+    const localEntregaPDF = ordem.localEntrega && ordem.localEntrega.trim() !== '' 
+        ? ordem.localEntrega 
+        : localPadrao;
+    
+    doc.text(localEntregaPDF, margin, y);
+    
     y += 10;
-
+    
     // PRAZO E FRETE
     if (y > doc.internal.pageSize.height - 60) {
         doc.addPage();
@@ -995,107 +1442,107 @@ function generatePDFForOrdem(ordem) {
     doc.text('PRAZO DE ENTREGA:', margin, y);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(11);
-    doc.text(ordem.prazoEntrega, margin + 42, y);
-
+    doc.text(ordem.prazoEntrega || '-', margin + 42, y);
+    
     doc.setFont(undefined, 'bold');
     doc.setFontSize(11);
     doc.text('FRETE:', pageWidth - margin - 35, y);
     doc.setFont(undefined, 'normal');
     doc.setFontSize(11);
-    doc.text(ordem.frete, pageWidth - margin - 20, y);
-
+    doc.text(ordem.frete || '-', pageWidth - margin - 20, y);
+    
     y += 10;
 
-    // DADOS DO PAGAMENTO
+    // CONDIÇÕES DE PAGAMENTO E ENTREGA
     if (y > doc.internal.pageSize.height - 50) {
         doc.addPage();
         y = 20;
     }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text('DADOS DO PAGAMENTO', margin, y);
-
-    y += 6;
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Forma de Pagamento: ${ordem.formaPagamento}`, margin, y);
-
+    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
     y += 5;
-    doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
-    doc.text(`Prazo de Pagamento: ${ordem.prazoPagamento}`, margin, y);
-
+    doc.text(`Forma: ${ordem.formaPagamento}`, margin, y);
+    y += 5;
+    doc.text(`Prazo: ${ordem.prazoPagamento}`, margin, y);
+    
     if (ordem.dadosBancarios) {
         y += 5;
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'normal');
-        doc.text(`Dados Bancários: ${ordem.dadosBancarios}`, margin, y);
-    }
-
-    y += 12;
-
-    // DATA E ASSINATURA
-    if (y > doc.internal.pageSize.height - 40) {
-        doc.addPage();
-        y = 20;
-    }
-    const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
-    const dia = dataOrdem.getDate();
-    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const mes = meses[dataOrdem.getMonth()];
-    const ano = dataOrdem.getFullYear();
-
-    doc.setFontSize(10);
-    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, pageWidth / 2, y, { align: 'center' });
-
-    y += 15;
-    y += 15;
-    y += 10;
-
-    // ASSINATURA (IMAGEM) - CORRIGIDO
-    try {
-        const assinatura = new Image();
-        assinatura.src = 'assinatura.png';
-        doc.addImage(assinatura, 'PNG', pageWidth / 2 - 25, y - 10, 50, 15);
-        y += 10;
-    } catch (error) {
-        console.log('Assinatura não encontrada');
-        doc.setLineWidth(0.5);
-        doc.line(pageWidth / 2 - 30, y, pageWidth / 2 + 30, y);
+        doc.setFont(undefined, 'bold');
+        doc.text('Dados Bancários:', margin, y);
         y += 5;
+        doc.setFont(undefined, 'normal');
+        const bancarioLines = doc.splitTextToSize(ordem.dadosBancarios, pageWidth - (2 * margin));
+        doc.text(bancarioLines, margin, y);
+        y += (bancarioLines.length * 5);
     }
-
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, y, { align: 'center' });
-
-    y += 5;
-    doc.setFont(undefined, 'normal');
-    doc.text('Diretora', pageWidth / 2, y, { align: 'center' });
-
-    y += 12;
-
-    // ATENÇÃO SR. FORNECEDOR
-    if (y > doc.internal.pageSize.height - 30) {
+    
+    y += 10;
+    
+    // ✅ AVISO FINAL - ANTES DAS ASSINATURAS
+    const avisoY = doc.internal.pageSize.height - 70;
+    
+    if (y > avisoY - 30) {
         doc.addPage();
         y = 20;
     }
+    
+    // Caixa de aviso
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, avisoY - 25, pageWidth - (2 * margin), 20, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(margin, avisoY - 25, pageWidth - (2 * margin), 20, 'S');
+    
     doc.setFontSize(10);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(204, 112, 0);
-    doc.text('ATENÇÃO SR. FORNECEDOR', pageWidth / 2, y, { align: 'center' });
-
-    y += 6;
-    doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
+    doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, avisoY - 18);
+    
     doc.setFont(undefined, 'normal');
-    doc.text(`1. GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-
-    y += 5;
-    doc.text('2. FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (.XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', pageWidth / 2, y, { align: 'center' });
-
-    // SALVAR COM NOME CORRETO: [RazaoSocial]-[NumeroOrdem].pdf
-    doc.save(`${ordem.razaoSocial}-${ordem.numeroOrdem}.pdf`);
+    doc.setFontSize(9);
+    doc.text('1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº 907/08/2024', margin + 5, avisoY - 12);
+    doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, avisoY - 6);
+    
+    // ✅ ASSINATURAS - CORRIGIDAS
+    const assinaturaY = doc.internal.pageSize.height - 40;
+    const col1X = margin;
+    const col2X = pageWidth / 2 + 10;
+    
+    // Adicionar imagem da assinatura
+    const assinatura = new Image();
+    assinatura.crossOrigin = 'anonymous';
+    assinatura.src = 'assinatura.png'; // ✅ Nome correto
+    
+    assinatura.onload = function() {
+        try {
+            const imgWidth = 70;
+            const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
+            doc.addImage(assinatura, 'PNG', col1X, assinaturaY - imgHeight - 10, imgWidth, imgHeight);
+        } catch (e) {
+            console.log('Erro ao adicionar assinatura:', e);
+        }
+    };
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    // Linha de assinatura 1 (Comprador)
+    doc.line(col1X, assinaturaY, col1X + 80, assinaturaY);
+    doc.setFont(undefined, 'bold');
+    doc.text('Rosemeire Bicalho de L. Gravino', col1X + 2, assinaturaY + 5);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    doc.text('MG-10.078.568 / CPF: 045.160.616-78', col1X + 2, assinaturaY + 10);
+    doc.text('Diretora', col1X + 2, assinaturaY + 14);
+    
+    // Linha de assinatura 2 (Fornecedor)
+    doc.setFontSize(10);
+    doc.line(col2X, assinaturaY, col2X + 80, assinaturaY);
+    doc.text('Fornecedor', col2X + 25, assinaturaY + 6);
+    
+    // Salvar PDF
+    doc.save(`Ordem_Compra_${ordem.numeroOrdem}.pdf`);
     showToast('PDF gerado com sucesso!', 'success');
 }

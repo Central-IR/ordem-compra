@@ -1312,7 +1312,7 @@ function generatePDFForOrdem(ordem) {
     y += 5;
     doc.setFont(undefined, 'normal');
     
-    const localPadrao = 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318';
+    const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
     const localEntregaPDF = ordem.localEntrega && ordem.localEntrega.trim() !== '' 
         ? ordem.localEntrega 
         : localPadrao;
@@ -1386,7 +1386,7 @@ function generatePDFForOrdem(ordem) {
     // AJUSTE 6: ASSINATURA (IMAGEM assinatura.png) - CENTRALIZADA
     const assinatura = new Image();
     assinatura.crossOrigin = 'anonymous';
-    assinatura.src = 'assinatura.png';
+    assinatura.src = 'ASSINATURA.png';
     
     assinatura.onload = function() {
         try {

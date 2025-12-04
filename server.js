@@ -1,250 +1,407 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
-
 const app = express();
-const PORT = process.env.PORT || 10000;
 
-// Supabase Client
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
-
-// Session Token Middleware
-const SESSION_TOKEN = process.env.SESSION_TOKEN;
-
-function verifySession(req, res, next) {
-    const token = req.headers['x-session-token'];
-    
-    if (!token || token !== SESSION_TOKEN) {
-        return res.status(401).json({ error: 'Não autorizado' });
-    }
-    
-    next();
+if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
+    process.exit(1);
 }
 
-// ============================================
-// ROTAS DA API
-// ============================================
+const supabase = createClient(supabaseUrl, supabaseKey);
+console.log('✅ Supabase configurado:', supabaseUrl);
 
-// GET - Buscar todas as ordens
-app.get('/api/ordens', verifySession, async (req, res) => {
+// MIDDLEWARES
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filepath) => {
+        if (filepath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+        else if (filepath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+        else if (filepath.endsWith('.html')) res.setHeader('Content-Type', 'text/html');
+    }
+}));
+
+app.use((req, res, next) => {
+    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+        console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+    }
+    next();
+});
+
+// AUTENTICAÇÃO
+const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
+
+async function verificarAutenticacao(req, res, next) {
+    const publicPaths = ['/', '/health'];
+    if (publicPaths.includes(req.path)) return next();
+
+    const sessionToken = req.headers['x-session-token'];
+    if (!sessionToken) {
+        console.log('❌ Token não fornecido');
+        return res.status(401).json({ error: 'Não autenticado' });
+    }
+
     try {
+        const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+        });
+
+        if (!verifyResponse.ok) {
+            console.log('❌ Sessão inválida - Status:', verifyResponse.status);
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+
+        const sessionData = await verifyResponse.json();
+        if (!sessionData.valid) {
+            console.log('❌ Sessão não válida');
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+
+        req.user = sessionData.session;
+        req.sessionToken = sessionToken;
+        console.log('✅ Autenticação OK');
+        next();
+    } catch (error) {
+        console.error('❌ Erro ao verificar autenticação:', error.message);
+        return res.status(500).json({ error: 'Erro ao verificar autenticação', details: error.message });
+    }
+}
+
+// =====================================================
+// ROTAS DA API - ORDEM DE COMPRA
+// =====================================================
+
+// GET /api/ordens - Buscar todas as ordens
+app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
+    try {
+        console.log('📋 Listando ordens...');
         const { data, error } = await supabase
             .from('ordens_compra')
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
-
+        if (error) {
+            console.error('❌ Erro Supabase ao listar:', error);
+            throw error;
+        }
+        
+        console.log(`✅ ${data?.length || 0} ordens encontradas`);
         res.json(data || []);
     } catch (error) {
-        console.error('Erro ao buscar ordens:', error);
+        console.error('❌ Erro ao listar ordens:', error.message);
         res.status(500).json({ 
-            error: 'Erro ao buscar ordens',
-            details: error.message 
+            success: false, 
+            error: 'Erro ao listar ordens',
+            message: error.message,
+            details: error.details || error.hint
         });
     }
 });
 
-// GET - Buscar ordem por ID
-app.get('/api/ordens/:id', verifySession, async (req, res) => {
+// GET /api/ordens/:id - Buscar ordem por ID
+app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const { id } = req.params;
-
+        console.log(`🔍 Buscando ordem ID: ${req.params.id}`);
         const { data, error } = await supabase
             .from('ordens_compra')
             .select('*')
-            .eq('id', id)
+            .eq('id', req.params.id)
             .single();
 
-        if (error) throw error;
-
-        if (!data) {
-            return res.status(404).json({ error: 'Ordem não encontrada' });
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('❌ Ordem não encontrada');
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            console.error('❌ Erro Supabase:', error);
+            throw error;
         }
 
+        console.log('✅ Ordem encontrada');
         res.json(data);
     } catch (error) {
-        console.error('Erro ao buscar ordem:', error);
+        console.error('❌ Erro ao buscar ordem:', error.message);
         res.status(500).json({ 
+            success: false, 
             error: 'Erro ao buscar ordem',
-            details: error.message 
+            message: error.message
         });
     }
 });
 
-// POST - Criar nova ordem
-app.post('/api/ordens', verifySession, async (req, res) => {
+// POST /api/ordens - Criar nova ordem
+app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
-        const ordemData = {
-            numero_ordem: req.body.numeroOrdem,
-            responsavel: req.body.responsavel,
-            data_ordem: req.body.dataOrdem,
-            razao_social: req.body.razaoSocial,
-            nome_fantasia: req.body.nomeFantasia || null,
-            cnpj: req.body.cnpj,
-            endereco_fornecedor: req.body.enderecoFornecedor || null,
-            site: req.body.site || null,
-            contato: req.body.contato || null,
-            telefone: req.body.telefone || null,
-            email: req.body.email || null,
-            items: req.body.items,
-            valor_total: req.body.valorTotal,
-            frete: req.body.frete || null,
-            local_entrega: req.body.localEntrega || null,
-            prazo_entrega: req.body.prazoEntrega || null,
-            transporte: req.body.transporte || null,
-            forma_pagamento: req.body.formaPagamento,
-            prazo_pagamento: req.body.prazoPagamento,
-            dados_bancarios: req.body.dadosBancarios || null,
-            status: 'aberta'
+        console.log('➕ Criando nova ordem...');
+        
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
+
+        // Validação
+        const camposObrigatorios = { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, 
+            cnpj, formaPagamento, prazoPagamento 
         };
+        const camposFaltando = Object.entries(camposObrigatorios)
+            .filter(([key, value]) => !value)
+            .map(([key]) => key);
+
+        if (camposFaltando.length > 0) {
+            console.log('❌ Campos obrigatórios faltando:', camposFaltando);
+            return res.status(400).json({
+                success: false,
+                error: 'Campos obrigatórios faltando',
+                campos_faltando: camposFaltando
+            });
+        }
+
+        const novaOrdem = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta'
+        };
+
+        console.log('📤 Dados a inserir:', JSON.stringify(novaOrdem, null, 2));
 
         const { data, error } = await supabase
             .from('ordens_compra')
-            .insert([ordemData])
+            .insert([novaOrdem])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Erro Supabase ao inserir:', error);
+            console.error('Detalhes:', error.details);
+            console.error('Hint:', error.hint);
+            console.error('Message:', error.message);
+            throw error;
+        }
 
+        console.log('✅ Ordem criada com sucesso! ID:', data.id);
         res.status(201).json(data);
     } catch (error) {
-        console.error('Erro ao criar ordem:', error);
+        console.error('❌ Erro ao criar ordem:', error);
         res.status(500).json({ 
+            success: false, 
             error: 'Erro ao criar ordem',
-            details: error.message 
+            message: error.message,
+            details: error.details || error.hint,
+            code: error.code
         });
     }
 });
 
-// PUT - Atualizar ordem
-app.put('/api/ordens/:id', verifySession, async (req, res) => {
+// PUT /api/ordens/:id - Atualizar ordem
+app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const { id } = req.params;
+        console.log(`✏️ Atualizando ordem ID: ${req.params.id}`);
+        
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
 
-        const ordemData = {
-            numero_ordem: req.body.numeroOrdem,
-            responsavel: req.body.responsavel,
-            data_ordem: req.body.dataOrdem,
-            razao_social: req.body.razaoSocial,
-            nome_fantasia: req.body.nomeFantasia || null,
-            cnpj: req.body.cnpj,
-            endereco_fornecedor: req.body.enderecoFornecedor || null,
-            site: req.body.site || null,
-            contato: req.body.contato || null,
-            telefone: req.body.telefone || null,
-            email: req.body.email || null,
-            items: req.body.items,
-            valor_total: req.body.valorTotal,
-            frete: req.body.frete || null,
-            local_entrega: req.body.localEntrega || null,
-            prazo_entrega: req.body.prazoEntrega || null,
-            transporte: req.body.transporte || null,
-            forma_pagamento: req.body.formaPagamento,
-            prazo_pagamento: req.body.prazoPagamento,
-            dados_bancarios: req.body.dadosBancarios || null,
-            status: req.body.status || 'aberta',
+        const ordemAtualizada = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta',
             updated_at: new Date().toISOString()
         };
 
+        console.log('📤 Dados a atualizar:', JSON.stringify(ordemAtualizada, null, 2));
+
         const { data, error } = await supabase
             .from('ordens_compra')
-            .update(ordemData)
-            .eq('id', id)
+            .update(ordemAtualizada)
+            .eq('id', req.params.id)
             .select()
             .single();
 
-        if (error) throw error;
-
-        if (!data) {
-            return res.status(404).json({ error: 'Ordem não encontrada' });
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('❌ Ordem não encontrada');
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            console.error('❌ Erro Supabase:', error);
+            throw error;
         }
 
+        console.log('✅ Ordem atualizada com sucesso!');
         res.json(data);
     } catch (error) {
-        console.error('Erro ao atualizar ordem:', error);
+        console.error('❌ Erro ao atualizar ordem:', error.message);
         res.status(500).json({ 
+            success: false, 
             error: 'Erro ao atualizar ordem',
-            details: error.message 
+            message: error.message
         });
     }
 });
 
-// PATCH - Atualizar apenas status
-app.patch('/api/ordens/:id/status', verifySession, async (req, res) => {
+// PATCH /api/ordens/:id/status - Atualizar apenas status
+app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status } = req.body;
+        console.log(`🔄 Atualizando status da ordem ID: ${req.params.id}`);
+        const updates = {
+            status: req.body.status,
+            updated_at: new Date().toISOString()
+        };
+
+        console.log('📤 Updates:', JSON.stringify(updates, null, 2));
 
         const { data, error } = await supabase
             .from('ordens_compra')
-            .update({ 
-                status: status,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
+            .update(updates)
+            .eq('id', req.params.id)
             .select()
             .single();
 
-        if (error) throw error;
-
-        if (!data) {
-            return res.status(404).json({ error: 'Ordem não encontrada' });
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('❌ Ordem não encontrada');
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            console.error('❌ Erro Supabase:', error);
+            throw error;
         }
 
+        console.log('✅ Status atualizado com sucesso!');
         res.json(data);
     } catch (error) {
-        console.error('Erro ao atualizar status:', error);
+        console.error('❌ Erro ao atualizar status:', error.message);
         res.status(500).json({ 
+            success: false, 
             error: 'Erro ao atualizar status',
-            details: error.message 
+            message: error.message
         });
     }
 });
 
-// DELETE - Excluir ordem
-app.delete('/api/ordens/:id', verifySession, async (req, res) => {
+// DELETE /api/ordens/:id - Excluir ordem
+app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const { id } = req.params;
-
+        console.log(`🗑️ Deletando ordem ID: ${req.params.id}`);
         const { error } = await supabase
             .from('ordens_compra')
             .delete()
-            .eq('id', id);
+            .eq('id', req.params.id);
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Erro Supabase:', error);
+            throw error;
+        }
 
-        res.json({ message: 'Ordem excluída com sucesso' });
+        console.log('✅ Ordem deletada com sucesso!');
+        res.json({ success: true, message: 'Ordem removida com sucesso' });
     } catch (error) {
-        console.error('Erro ao excluir ordem:', error);
+        console.error('❌ Erro ao deletar ordem:', error.message);
         res.status(500).json({ 
-            error: 'Erro ao excluir ordem',
-            details: error.message 
+            success: false, 
+            error: 'Erro ao deletar ordem',
+            message: error.message
         });
     }
 });
 
-// Health Check
+// ROTAS DE SAÚDE
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        service: 'Ordem de Compra API'
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// TRATAMENTO GLOBAL DE ERROS
+app.use((err, req, res, next) => {
+    console.error('❌ Erro não tratado:', err);
+    res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
 });
 
-// Iniciar servidor
+// INICIAR SERVIDOR
+const PORT = process.env.PORT || 10000;
+
 app.listen(PORT, () => {
-    console.log(`✅ Servidor rodando na porta ${PORT}`);
-    console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📊 Supabase URL: ${process.env.SUPABASE_URL ? 'Configurado' : 'NÃO CONFIGURADO'}`);
+    console.log('');
+    console.log('===============================================');
+    console.log('🚀 ORDEM DE COMPRA');
+    console.log('===============================================');
+    console.log(`✅ Porta: ${PORT}`);
+    console.log(`✅ Supabase: ${supabaseUrl}`);
+    console.log(`✅ Portal: ${PORTAL_URL}`);
+    console.log('===============================================');
 });
+
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    process.exit(1);
+});
+
+module.exports = app;

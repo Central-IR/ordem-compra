@@ -9,12 +9,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <!-- Splash Screen -->
     <div class="splash-screen" id="splashScreen">
         <h1 class="splash-title">Ordem de Compra</h1>
     </div>
 
-    <!-- Conteúdo Principal -->
     <div class="app-content">
         <div class="container">
             <div class="header">
@@ -24,7 +22,6 @@
                 </div>
             </div>
 
-            <!-- NAVEGAÇÃO POR MESES -->
             <div class="card">
                 <div class="month-navigation">
                     <button onclick="changeMonth(-1)" class="month-nav-btn">Anterior</button>
@@ -33,7 +30,6 @@
                 </div>
             </div>
 
-            <!-- Dashboard -->
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total de Ordens</div>
@@ -49,7 +45,6 @@
                 </div>
             </div>
 
-            <!-- FILTROS -->
             <div class="card">
                 <div class="filter-section">
                     <div class="form-group">
@@ -76,7 +71,6 @@
                 </div>
             </div>
 
-            <!-- LISTA DE ORDENS -->
             <div class="card">
                 <div style="overflow-x: auto;">
                     <table>
@@ -101,10 +95,8 @@
         </div>
     </div>
 
-    <!-- Botão FAB Circular Azul -->
     <button class="fab-button" onclick="openFormModal()" title="Registrar Ordem"></button>
 
-    <!-- MODAL VER (SEM BOTÃO PDF) -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <div class="modal-header">

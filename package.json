@@ -1,14 +1,18 @@
 {
-  "name": "ordem-compra",
+  "name": "ordem-de-compra",
   "version": "1.0.0",
-  "description": "Sistema de Ordem de Compra",
+  "description": "Sistema de Ordem de Compra com Supabase",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["ordem", "compra"],
-  "author": "",
+  "keywords": [
+    "ordem",
+    "compra",
+    "supabase"
+  ],
+  "author": "I.R. Comércio",
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

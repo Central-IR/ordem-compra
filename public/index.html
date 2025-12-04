@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordem de Compra</title>
+    <link rel="icon" type="image/png" href="I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -15,130 +16,126 @@
 
     <!-- Conteúdo Principal -->
     <div class="app-content">
-        <!-- Indicador de Conexão -->
-        <div class="connection-status offline" id="connectionStatus">
-            <span class="status-dot"></span>
-            <span id="statusText">Offline</span>
-        </div>
-
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1>📦 Ordem de Compra</h1>
-                <button onclick="openFormModal()" class="register-btn">
-                    ➕ Registrar Ordem
-                </button>
-            </div>
-        </header>
-
-        <!-- Main Container -->
         <div class="container">
-            <!-- Navegação de Mês -->
-            <div class="month-navigation">
-                <button onclick="changeMonth(-1)" class="month-btn">◀ Anterior</button>
-                <h2 id="currentMonth">Dezembro 2025</h2>
-                <button onclick="changeMonth(1)" class="month-btn">Próximo ▶</button>
-            </div>
-
-            <!-- Dashboard Cards -->
-            <div class="dashboard">
-                <div class="card">
-                    <h3>Total de Ordens</h3>
-                    <p class="card-number" id="totalOrdens">0</p>
-                </div>
-                <div class="card success-card">
-                    <h3>Ordens Fechadas</h3>
-                    <p class="card-number" id="totalFechadas">0</p>
-                </div>
-                <div class="card warning-card" id="cardAbertas">
-                    <h3>Ordens Abertas</h3>
-                    <p class="card-number" id="totalAbertas">0</p>
+            <div class="header">
+                <h1>Ordem de Compra</h1>
+                <div id="connectionStatus" class="connection-status offline">
+                    <span class="status-dot"></span>
                 </div>
             </div>
 
-            <!-- Filtros -->
-            <div class="filters">
-                <input 
-                    type="text" 
-                    id="search" 
-                    placeholder="🔍 Pesquisar por número, fornecedor ou responsável..." 
-                    oninput="filterOrdens()"
-                    class="search-input"
-                >
-                
-                <select id="filterResponsavel" onchange="filterOrdens()" class="filter-select">
-                    <option value="">Todos os Responsáveis</option>
-                </select>
-                
-                <select id="filterStatus" onchange="filterOrdens()" class="filter-select">
-                    <option value="">Todos os Status</option>
-                    <option value="aberta">Abertas</option>
-                    <option value="fechada">Fechadas</option>
-                </select>
-                
-                <button onclick="clearFilters()" class="clear-filters-btn">🗑️ Limpar Filtros</button>
+            <div class="button-wrapper">
+                <button onclick="openFormModal()" class="register">Registrar Ordem</button>
             </div>
 
-            <!-- Tabela de Ordens -->
-            <div class="table-wrapper">
-                <table class="orders-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px; text-align: center;">✓</th>
-                            <th>Nº Ordem</th>
-                            <th>Responsável</th>
-                            <th>Fornecedor</th>
-                            <th>Data</th>
-                            <th>Valor Total</th>
-                            <th>Status</th>
-                            <th style="min-width: 280px;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordensContainer">
-                        <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem;">
-                                Nenhuma ordem encontrada
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Modal de Visualização -->
-        <div class="modal-overlay" id="infoModal">
-            <div class="modal-content" style="max-width: 900px;">
-                <div class="modal-header">
-                    <h3 class="modal-title">Ordem Nº <span id="modalNumero"></span></h3>
-                    <button onclick="closeInfoModal()" class="close-modal">✕</button>
+            <!-- NAVEGAÇÃO POR MESES -->
+            <div class="card">
+                <div class="month-navigation">
+                    <button onclick="changeMonth(-1)" class="month-nav-btn">Anterior</button>
+                    <h3 id="currentMonth" class="month-display">Carregando...</h3>
+                    <button onclick="changeMonth(1)" class="month-nav-btn">Próximo</button>
                 </div>
-                
-                <div class="tabs-container">
-                    <div class="tabs-nav">
-                        <button class="tab-btn active" onclick="switchInfoTab('info-tab-geral')">Geral</button>
-                        <button class="tab-btn" onclick="switchInfoTab('info-tab-fornecedor')">Fornecedor</button>
-                        <button class="tab-btn" onclick="switchInfoTab('info-tab-pedido')">Pedido</button>
-                        <button class="tab-btn" onclick="switchInfoTab('info-tab-entrega')">Entrega</button>
-                        <button class="tab-btn" onclick="switchInfoTab('info-tab-pagamento')">Pagamento</button>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total de Ordens</div>
+                    <div class="stat-value" id="totalOrdens">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Ordens Fechadas</div>
+                    <div class="stat-value stat-success" id="totalFechadas">0</div>
+                </div>
+                <div class="stat-card" id="cardAbertas">
+                    <div class="stat-label">Ordens Abertas</div>
+                    <div class="stat-value stat-danger" id="totalAbertas">0</div>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <div class="card">
+                <div class="filter-section">
+                    <div class="form-group">
+                        <label for="search">Pesquisar</label>
+                        <input type="text" id="search" placeholder="Número, fornecedor, responsável..." oninput="filterOrdens()">
                     </div>
-
-                    <div class="tab-content active" id="info-tab-geral"></div>
-                    <div class="tab-content" id="info-tab-fornecedor"></div>
-                    <div class="tab-content" id="info-tab-pedido"></div>
-                    <div class="tab-content" id="info-tab-entrega"></div>
-                    <div class="tab-content" id="info-tab-pagamento"></div>
+                    <div class="form-group">
+                        <label for="filterResponsavel">Responsável</label>
+                        <select id="filterResponsavel" onchange="filterOrdens()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filterStatus">Status</label>
+                        <select id="filterStatus" onchange="filterOrdens()">
+                            <option value="">Todos</option>
+                            <option value="aberta">Aberta</option>
+                            <option value="fechada">Fechada</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button onclick="clearFilters()" class="secondary" style="margin-top: 1.8rem;">Limpar Filtros</button>
+                    </div>
                 </div>
+            </div>
 
-                <div class="modal-actions">
-                    <button onclick="generatePDFFromModal()" class="success">📄 Gerar PDF</button>
-                    <button onclick="closeInfoModal()" class="secondary">Fechar</button>
+            <!-- LISTA DE ORDENS -->
+            <div class="card">
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">
+                                    <span style="font-size: 1.1rem;">✓</span>
+                                </th>
+                                <th>Nº Ordem</th>
+                                <th>Responsável</th>
+                                <th>Fornecedor</th>
+                                <th>Data</th>
+                                <th>Valor Total</th>
+                                <th>Status</th>
+                                <th style="text-align: center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordensContainer"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- MODAL VER (SEM BOTÃO PDF) -->
+    <div class="modal-overlay" id="infoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Ordem Nº <span id="modalNumero"></span></h3>
+                <button class="close-modal" onclick="closeInfoModal()">✕</button>
+            </div>
+            
+            <div class="tabs-container">
+                <div class="tabs-nav">
+                    <button class="tab-btn active" onclick="switchInfoTab('info-tab-geral')">Geral</button>
+                    <button class="tab-btn" onclick="switchInfoTab('info-tab-fornecedor')">Fornecedor</button>
+                    <button class="tab-btn" onclick="switchInfoTab('info-tab-pedido')">Pedido</button>
+                    <button class="tab-btn" onclick="switchInfoTab('info-tab-entrega')">Entrega</button>
+                    <button class="tab-btn" onclick="switchInfoTab('info-tab-pagamento')">Pagamento</button>
+                </div>
+
+                <div class="tab-content active" id="info-tab-geral"></div>
+                <div class="tab-content" id="info-tab-fornecedor"></div>
+                <div class="tab-content" id="info-tab-pedido"></div>
+                <div class="tab-content" id="info-tab-entrega"></div>
+                <div class="tab-content" id="info-tab-pagamento"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="closeInfoModal()" class="secondary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Esconder splash após 3 segundos
         setTimeout(() => {
             const splash = document.getElementById('splashScreen');
             if (splash) splash.style.display = 'none';

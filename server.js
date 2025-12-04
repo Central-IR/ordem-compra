@@ -1,147 +1,89 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
 const app = express();
+const PORT = process.env.PORT || 10000;
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Supabase Client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
-    process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-console.log('✅ Supabase configurado:', supabaseUrl);
-
-// MIDDLEWARES
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
-}));
-
+// Middleware
+app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-// Servir arquivos estáticos
-app.use(express.static(path.join(__dirname, 'public'), {
-    setHeaders: (res, filepath) => {
-        if (filepath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
-        else if (filepath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
-        else if (filepath.endsWith('.html')) res.setHeader('Content-Type', 'text/html');
+// Session Token Middleware
+const SESSION_TOKEN = process.env.SESSION_TOKEN;
+
+function verifySession(req, res, next) {
+    const token = req.headers['x-session-token'];
+    
+    if (!token || token !== SESSION_TOKEN) {
+        return res.status(401).json({ error: 'Não autorizado' });
     }
-}));
-
-app.use((req, res, next) => {
-    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    
     next();
-});
-
-// AUTENTICAÇÃO
-const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
-
-async function verificarAutenticacao(req, res, next) {
-    const publicPaths = ['/', '/health'];
-    if (publicPaths.includes(req.path)) return next();
-
-    const sessionToken = req.headers['x-session-token'];
-    if (!sessionToken) {
-        console.log('❌ Token não fornecido');
-        return res.status(401).json({ error: 'Não autenticado' });
-    }
-
-    try {
-        const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionToken })
-        });
-
-        if (!verifyResponse.ok) {
-            console.log('❌ Sessão inválida - Status:', verifyResponse.status);
-            return res.status(401).json({ error: 'Sessão inválida' });
-        }
-
-        const sessionData = await verifyResponse.json();
-        if (!sessionData.valid) {
-            console.log('❌ Sessão não válida');
-            return res.status(401).json({ error: 'Sessão inválida' });
-        }
-
-        req.user = sessionData.session;
-        req.sessionToken = sessionToken;
-        console.log('✅ Autenticação OK');
-        next();
-    } catch (error) {
-        console.error('❌ Erro ao verificar autenticação:', error.message);
-        return res.status(500).json({ error: 'Erro ao verificar autenticação', details: error.message });
-    }
 }
 
-// GET /api/ordens
-app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
+// ============================================
+// ROTAS DA API
+// ============================================
+
+// GET - Buscar todas as ordens
+app.get('/api/ordens', verifySession, async (req, res) => {
     try {
-        console.log('📋 Listando ordens...');
         const { data, error } = await supabase
             .from('ordens_compra')
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('❌ Erro Supabase ao listar:', error);
-            throw error;
-        }
-        
-        console.log(`✅ ${data?.length || 0} ordens encontradas`);
+        if (error) throw error;
+
         res.json(data || []);
     } catch (error) {
-        console.error('❌ Erro ao listar ordens:', error.message);
+        console.error('Erro ao buscar ordens:', error);
         res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao listar ordens',
-            message: error.message
+            error: 'Erro ao buscar ordens',
+            details: error.message 
         });
     }
 });
 
-// GET /api/ordens/:id
-app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+// GET - Buscar ordem por ID
+app.get('/api/ordens/:id', verifySession, async (req, res) => {
     try {
-        console.log(`🔍 Buscando ordem ID: ${req.params.id}`);
+        const { id } = req.params;
+
         const { data, error } = await supabase
             .from('ordens_compra')
             .select('*')
-            .eq('id', req.params.id)
+            .eq('id', id)
             .single();
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                console.log('❌ Ordem não encontrada');
-                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
-            }
-            console.error('❌ Erro Supabase:', error);
-            throw error;
+        if (error) throw error;
+
+        if (!data) {
+            return res.status(404).json({ error: 'Ordem não encontrada' });
         }
 
-        console.log('✅ Ordem encontrada');
         res.json(data);
     } catch (error) {
-        console.error('❌ Erro ao buscar ordem:', error.message);
+        console.error('Erro ao buscar ordem:', error);
         res.status(500).json({ 
-            success: false, 
             error: 'Erro ao buscar ordem',
-            message: error.message
+            details: error.message 
         });
     }
 });
 
-// POST /api/ordens
-app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
+// POST - Criar nova ordem
+app.post('/api/ordens', verifySession, async (req, res) => {
     try {
-        console.log('➕ Criando nova ordem...');
-        
         const ordemData = {
             numero_ordem: req.body.numeroOrdem,
             responsavel: req.body.responsavel,
@@ -166,36 +108,29 @@ app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
             status: 'aberta'
         };
 
-        console.log('📤 Dados a inserir:', JSON.stringify(ordemData, null, 2));
-
         const { data, error } = await supabase
             .from('ordens_compra')
             .insert([ordemData])
             .select()
             .single();
 
-        if (error) {
-            console.error('❌ Erro Supabase ao inserir:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        console.log('✅ Ordem criada com sucesso! ID:', data.id);
         res.status(201).json(data);
     } catch (error) {
-        console.error('❌ Erro ao criar ordem:', error);
+        console.error('Erro ao criar ordem:', error);
         res.status(500).json({ 
-            success: false, 
             error: 'Erro ao criar ordem',
-            message: error.message
+            details: error.message 
         });
     }
 });
 
-// PUT /api/ordens/:id
-app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+// PUT - Atualizar ordem
+app.put('/api/ordens/:id', verifySession, async (req, res) => {
     try {
-        console.log(`✏️ Atualizando ordem ID: ${req.params.id}`);
-        
+        const { id } = req.params;
+
         const ordemData = {
             numero_ordem: req.body.numeroOrdem,
             responsavel: req.body.responsavel,
@@ -217,143 +152,99 @@ app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
             forma_pagamento: req.body.formaPagamento,
             prazo_pagamento: req.body.prazoPagamento,
             dados_bancarios: req.body.dadosBancarios || null,
-            status: req.body.status || 'aberta'
+            status: req.body.status || 'aberta',
+            updated_at: new Date().toISOString()
         };
-
-        console.log('📤 Dados a atualizar:', JSON.stringify(ordemData, null, 2));
 
         const { data, error } = await supabase
             .from('ordens_compra')
             .update(ordemData)
-            .eq('id', req.params.id)
+            .eq('id', id)
             .select()
             .single();
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                console.log('❌ Ordem não encontrada');
-                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
-            }
-            console.error('❌ Erro Supabase:', error);
-            throw error;
+        if (error) throw error;
+
+        if (!data) {
+            return res.status(404).json({ error: 'Ordem não encontrada' });
         }
 
-        console.log('✅ Ordem atualizada com sucesso!');
         res.json(data);
     } catch (error) {
-        console.error('❌ Erro ao atualizar ordem:', error.message);
+        console.error('Erro ao atualizar ordem:', error);
         res.status(500).json({ 
-            success: false, 
             error: 'Erro ao atualizar ordem',
-            message: error.message
+            details: error.message 
         });
     }
 });
 
-// PATCH /api/ordens/:id/status
-app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
+// PATCH - Atualizar apenas status
+app.patch('/api/ordens/:id/status', verifySession, async (req, res) => {
     try {
-        console.log(`🔄 Atualizando status da ordem ID: ${req.params.id}`);
+        const { id } = req.params;
         const { status } = req.body;
-
-        if (!['aberta', 'fechada'].includes(status)) {
-            return res.status(400).json({ error: 'Status inválido' });
-        }
 
         const { data, error } = await supabase
             .from('ordens_compra')
-            .update({ status: status })
-            .eq('id', req.params.id)
+            .update({ 
+                status: status,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
             .select()
             .single();
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                console.log('❌ Ordem não encontrada');
-                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
-            }
-            console.error('❌ Erro Supabase:', error);
-            throw error;
+        if (error) throw error;
+
+        if (!data) {
+            return res.status(404).json({ error: 'Ordem não encontrada' });
         }
 
-        console.log('✅ Status atualizado com sucesso!');
         res.json(data);
     } catch (error) {
-        console.error('❌ Erro ao atualizar status:', error.message);
+        console.error('Erro ao atualizar status:', error);
         res.status(500).json({ 
-            success: false, 
             error: 'Erro ao atualizar status',
-            message: error.message
+            details: error.message 
         });
     }
 });
 
-// DELETE /api/ordens/:id
-app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+// DELETE - Excluir ordem
+app.delete('/api/ordens/:id', verifySession, async (req, res) => {
     try {
-        console.log(`🗑️ Deletando ordem ID: ${req.params.id}`);
+        const { id } = req.params;
+
         const { error } = await supabase
             .from('ordens_compra')
             .delete()
-            .eq('id', req.params.id);
+            .eq('id', id);
 
-        if (error) {
-            console.error('❌ Erro Supabase:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        console.log('✅ Ordem deletada com sucesso!');
-        res.json({ success: true, message: 'Ordem removida com sucesso' });
+        res.json({ message: 'Ordem excluída com sucesso' });
     } catch (error) {
-        console.error('❌ Erro ao deletar ordem:', error.message);
+        console.error('Erro ao excluir ordem:', error);
         res.status(500).json({ 
-            success: false, 
-            error: 'Erro ao deletar ordem',
-            message: error.message
+            error: 'Erro ao excluir ordem',
+            details: error.message 
         });
     }
 });
 
-// ROTAS DE SAÚDE
+// Health Check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// TRATAMENTO GLOBAL DE ERROS
-app.use((err, req, res, next) => {
-    console.error('❌ Erro não tratado:', err);
-    res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor',
-        message: err.message
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'Ordem de Compra API'
     });
 });
 
-// INICIAR SERVIDOR
-const PORT = process.env.PORT || 10000;
-
+// Iniciar servidor
 app.listen(PORT, () => {
-    console.log('');
-    console.log('===============================================');
-    console.log('🚀 ORDEM DE COMPRA');
-    console.log('===============================================');
-    console.log(`✅ Porta: ${PORT}`);
-    console.log(`✅ Supabase: ${supabaseUrl}`);
-    console.log(`✅ Portal: ${PORTAL_URL}`);
-    console.log('===============================================');
+    console.log(`✅ Servidor rodando na porta ${PORT}`);
+    console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📊 Supabase URL: ${process.env.SUPABASE_URL ? 'Configurado' : 'NÃO CONFIGURADO'}`);
 });
-
-process.on('unhandledRejection', (reason) => {
-    console.error('❌ Unhandled Rejection:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
-    process.exit(1);
-});
-
-module.exports = app;

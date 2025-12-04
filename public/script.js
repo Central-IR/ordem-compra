@@ -4,185 +4,69 @@
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
 const API_URL = 'https://ordem-de-compra.onrender.com/api'; // ALTERE AQUI PARA SEU URL
 
+// ============================================
+// CONFIGURAÇÃO
+// ============================================
 let ordens = [];
-let isOnline = false;
-let lastDataHash = '';
-let sessionToken = null;
 let currentMonth = new Date();
 let editingId = null;
 let itemCounter = 0;
 let currentTab = 0;
+let isOnline = false;
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
-console.log('🚀 Ordem de Compra iniciada');
-
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    verificarAutenticacao();
-});
-
-// ============================================
-// AUTENTICAÇÃO
-// ============================================
-function verificarAutenticacao() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('sessionToken');
-
-    if (tokenFromUrl) {
-        sessionToken = tokenFromUrl;
-        sessionStorage.setItem('ordemCompraSession', tokenFromUrl);
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-        sessionToken = sessionStorage.getItem('ordemCompraSession');
-    }
-
-    if (!sessionToken) {
-        mostrarTelaAcessoNegado();
-        return;
-    }
-
-    inicializarApp();
-}
-
-function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    document.body.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
-        </div>
-    `;
-}
-
-function inicializarApp() {
+    loadFromLocalStorage();
     updateDisplay();
     checkServerStatus();
-    setInterval(checkServerStatus, 15000);
-    startPolling();
-}
+    startRealtimeSync();
+});
 
 // ============================================
 // CONEXÃO E STATUS
 // ============================================
+function startRealtimeSync() {
+    setInterval(async () => {
+        await checkServerStatus();
+    }, 3000);
+}
+
 async function checkServerStatus() {
     try {
-        const response = await fetch(`${API_URL}/ordens`, {
-            method: 'GET',
-            headers: { 
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
-            mode: 'cors'
+        const response = await fetch(window.location.origin, { 
+            method: 'HEAD',
+            cache: 'no-cache'
         });
-
-        if (response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return false;
-        }
-
-        const wasOffline = !isOnline;
         isOnline = response.ok;
-        
-        if (wasOffline && isOnline) {
-            console.log('✅ SERVIDOR ONLINE');
-            await loadOrdens();
-        }
-        
-        updateConnectionStatus();
-        return isOnline;
     } catch (error) {
         isOnline = false;
-        updateConnectionStatus();
-        return false;
     }
+    updateConnectionStatus();
 }
 
 function updateConnectionStatus() {
     const statusElement = document.getElementById('connectionStatus');
-    const statusText = document.getElementById('statusText');
     if (statusElement) {
         statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
-        if (statusText) {
-            statusText.textContent = isOnline ? 'Online' : 'Offline';
-        }
     }
 }
 
 // ============================================
-// MAPEAMENTO DE DADOS
+// LOCAL STORAGE
 // ============================================
-function mapearOrdem(ordem) {
-    return {
-        id: ordem.id,
-        numeroOrdem: ordem.numero_ordem,
-        responsavel: ordem.responsavel,
-        dataOrdem: ordem.data_ordem,
-        razaoSocial: ordem.razao_social,
-        nomeFantasia: ordem.nome_fantasia,
-        cnpj: ordem.cnpj,
-        enderecoFornecedor: ordem.endereco_fornecedor,
-        site: ordem.site,
-        contato: ordem.contato,
-        telefone: ordem.telefone,
-        email: ordem.email,
-        items: ordem.items,
-        valorTotal: ordem.valor_total,
-        frete: ordem.frete,
-        localEntrega: ordem.local_entrega,
-        prazoEntrega: ordem.prazo_entrega,
-        transporte: ordem.transporte,
-        formaPagamento: ordem.forma_pagamento,
-        prazoPagamento: ordem.prazo_pagamento,
-        dadosBancarios: ordem.dados_bancarios,
-        status: ordem.status,
-        timestamp: new Date(ordem.created_at).getTime()
-    };
-}
-
-// ============================================
-// CARREGAMENTO DE DADOS
-// ============================================
-async function loadOrdens() {
-    if (!isOnline) return;
-
-    try {
-        const response = await fetch(`${API_URL}/ordens`, {
-            method: 'GET',
-            headers: { 
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
-            mode: 'cors'
-        });
-
-        if (response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        ordens = data.map(mapearOrdem);
-        
-        const newHash = JSON.stringify(ordens.map(o => o.id));
-        if (newHash !== lastDataHash) {
-            lastDataHash = newHash;
-            console.log(`${ordens.length} ordens carregadas`);
-            updateDisplay();
-        }
-    } catch (error) {
-        console.error('Erro ao carregar:', error);
+function loadFromLocalStorage() {
+    const stored = localStorage.getItem('ordens');
+    if (stored) {
+        ordens = JSON.parse(stored);
     }
 }
 
-function startPolling() {
-    loadOrdens();
-    setInterval(() => {
-        if (isOnline) loadOrdens();
-    }, 10000);
+function saveToLocalStorage() {
+    localStorage.setItem('ordens', JSON.stringify(ordens));
 }
 
 // ============================================
@@ -238,55 +122,9 @@ function switchInfoTab(tabId) {
     document.getElementById(tabId).classList.add('active');
 }
 
-// ============================================
-// MODAL DE CONFIRMAÇÃO
-// ============================================
-function showConfirm(message, options = {}) {
-    return new Promise((resolve) => {
-        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
-
-        const modalHTML = `
-            <div class="modal-overlay" id="confirmModal" style="z-index: 10001; display: flex;">
-                <div class="modal-content" style="max-width: 450px;">
-                    <div class="modal-header">
-                        <h3 class="modal-title">${title}</h3>
-                    </div>
-                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
-                    <div class="modal-actions">
-                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
-                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        const modal = document.getElementById('confirmModal');
-        const confirmBtn = document.getElementById('modalConfirmBtn');
-        const cancelBtn = document.getElementById('modalCancelBtn');
-
-        const closeModal = (result) => {
-            modal.style.animation = 'fadeOut 0.2s ease forwards';
-            setTimeout(() => { 
-                modal.remove(); 
-                resolve(result); 
-            }, 200);
-        };
-
-        confirmBtn.addEventListener('click', () => closeModal(true));
-        cancelBtn.addEventListener('click', () => closeModal(false));
-
-        if (!document.querySelector('#modalAnimations')) {
-            const style = document.createElement('style');
-            style.id = 'modalAnimations';
-            style.textContent = `@keyframes fadeOut { to { opacity: 0; } }`;
-            document.head.appendChild(style);
-        }
-    });
-}
 
 // ============================================
-// MODAL DE FORMULÁRIO
+// MODAL DE FORMULÁRIO - AJUSTE 3: SEM VOLTAR/PRÓXIMO
 // ============================================
 function openFormModal() {
     editingId = null;
@@ -463,6 +301,7 @@ function closeFormModal(showCancelMessage = false) {
     }
 }
 
+
 // ============================================
 // GESTÃO DE ITENS
 // ============================================
@@ -540,8 +379,8 @@ function recalculateOrderTotal() {
 // ============================================
 // SUBMIT DO FORMULÁRIO
 // ============================================
-async function handleSubmit(event) {
-    if (event) event.preventDefault();
+function handleSubmit(event) {
+    event.preventDefault();
     
     const items = [];
     const rows = document.querySelectorAll('#itemsBody tr');
@@ -558,7 +397,10 @@ async function handleSubmit(event) {
         });
     });
     
+    const timestamp = Date.now();
+    
     const formData = {
+        id: editingId || timestamp.toString(),
         numeroOrdem: document.getElementById('numeroOrdem').value,
         responsavel: document.getElementById('responsavel').value,
         dataOrdem: document.getElementById('dataOrdem').value,
@@ -579,68 +421,28 @@ async function handleSubmit(event) {
         formaPagamento: document.getElementById('formaPagamento').value,
         prazoPagamento: document.getElementById('prazoPagamento').value,
         dadosBancarios: document.getElementById('dadosBancarios').value,
-        status: 'aberta'
+        status: 'aberta',
+        timestamp: timestamp
     };
     
-    const editId = document.getElementById('editId').value;
-
-    if (!isOnline) {
-        showToast('Sistema offline. Dados não foram salvos.', 'error');
-        closeFormModal();
-        return;
+    if (editingId) {
+        const index = ordens.findIndex(o => o.id === editingId);
+        formData.timestamp = ordens[index].timestamp;
+        ordens[index] = formData;
+        showToast('Ordem atualizada com sucesso!', 'success');
+    } else {
+        ordens.push(formData);
+        showToast('Ordem criada com sucesso!', 'success');
     }
-
-    try {
-        const url = editId ? `${API_URL}/ordens/${editId}` : `${API_URL}/ordens`;
-        const method = editId ? 'PUT' : 'POST';
-
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(formData),
-            mode: 'cors'
-        });
-
-        if (response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || 'Erro ao salvar');
-        }
-
-        const savedData = await response.json();
-        const mappedData = mapearOrdem(savedData);
-
-        if (editId) {
-            const index = ordens.findIndex(o => String(o.id) === String(editId));
-            if (index !== -1) ordens[index] = mappedData;
-            showToast('Ordem atualizada!', 'success');
-        } else {
-            ordens.push(mappedData);
-            showToast('Ordem criada!', 'success');
-        }
-
-        lastDataHash = JSON.stringify(ordens.map(o => o.id));
-        updateDisplay();
-        closeFormModal();
-
-    } catch (error) {
-        console.error('Erro:', error);
-        showToast(`Erro: ${error.message}`, 'error');
-        closeFormModal();
-    }
+    
+    saveToLocalStorage();
+    updateDisplay();
+    closeFormModal();
 }
 
+
 // ============================================
-// EDIÇÃO
+// EDIÇÃO - SEM VOLTAR/PRÓXIMO
 // ============================================
 function editOrdem(id) {
     const ordem = ordens.find(o => o.id === id);
@@ -821,6 +623,7 @@ function editOrdem(id) {
     }
 }
 
+
 // ============================================
 // EXCLUSÃO
 // ============================================
@@ -837,68 +640,59 @@ async function deleteOrdem(id) {
 
     if (!confirmed) return;
 
-    const deletedOrdem = ordens.find(o => o.id === id);
     ordens = ordens.filter(o => o.id !== id);
+    saveToLocalStorage();
     updateDisplay();
-    showToast('Ordem excluída!', 'success');
+    showToast('Ordem excluída com sucesso!', 'success');
+}
 
-    if (isOnline) {
-        try {
-            const response = await fetch(`${API_URL}/ordens/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                },
-                mode: 'cors'
-            });
+function showConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const { title = 'Confirmação', confirmText = 'Confirmar', cancelText = 'Cancelar', type = 'warning' } = options;
 
-            if (!response.ok) throw new Error('Erro ao deletar');
-        } catch (error) {
-            if (deletedOrdem) {
-                ordens.push(deletedOrdem);
-                updateDisplay();
-                showToast('Erro ao excluir', 'error');
-            }
-        }
-    }
+        const modalHTML = `
+            <div class="modal-overlay" id="confirmModal" style="z-index: 10001; display: flex;">
+                <div class="modal-content" style="max-width: 450px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                    </div>
+                    <p style="margin: 1.5rem 0; color: var(--text-primary); font-size: 1rem; line-height: 1.6;">${message}</p>
+                    <div class="modal-actions">
+                        <button class="secondary" id="modalCancelBtn">${cancelText}</button>
+                        <button class="${type === 'warning' ? 'danger' : 'success'}" id="modalConfirmBtn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        const modal = document.getElementById('confirmModal');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+
+        const closeModal = (result) => {
+            modal.style.animation = 'fadeOut 0.2s ease forwards';
+            setTimeout(() => { 
+                modal.remove(); 
+                resolve(result); 
+            }, 200);
+        };
+
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+    });
 }
 
 // ============================================
 // TOGGLE STATUS
 // ============================================
-async function toggleStatus(id) {
+function toggleStatus(id) {
     const ordem = ordens.find(o => o.id === id);
-    if (!ordem) return;
-    
-    const novoStatus = ordem.status === 'aberta' ? 'fechada' : 'aberta';
-    ordem.status = novoStatus;
-    updateDisplay();
-    showToast(`Ordem marcada como ${novoStatus}!`, 'success');
-
-    if (isOnline) {
-        try {
-            const response = await fetch(`${API_URL}/ordens/${id}/status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ status: novoStatus }),
-                mode: 'cors'
-            });
-
-            if (!response.ok) throw new Error('Erro ao atualizar');
-
-            const savedData = await response.json();
-            const index = ordens.findIndex(o => o.id === id);
-            if (index !== -1) ordens[index] = mapearOrdem(savedData);
-        } catch (error) {
-            ordem.status = ordem.status === 'aberta' ? 'fechada' : 'aberta';
-            updateDisplay();
-            showToast('Erro ao atualizar status', 'error');
-        }
+    if (ordem) {
+        ordem.status = ordem.status === 'aberta' ? 'fechada' : 'aberta';
+        saveToLocalStorage();
+        updateDisplay();
+        showToast(`Ordem marcada como ${ordem.status}!`, 'success');
     }
 }
 
@@ -1061,6 +855,7 @@ function updateDashboard() {
     }
 }
 
+
 function updateTable() {
     const container = document.getElementById('ordensContainer');
     let filteredOrdens = getOrdensForCurrentMonth();
@@ -1203,7 +998,460 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+
 // ============================================
-// GERAÇÃO DE PDF
-// [MANTÉM O CÓDIGO EXISTENTE DE GERAÇÃO DE PDF]
+// GERAÇÃO DE PDF - AJUSTE 6: assinatura.png
 // ============================================
+function generatePDFFromTable(id) {
+    const ordem = ordens.find(o => o.id === id);
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    generatePDFForOrdem(ordem);
+}
+
+function generatePDF() {
+    const modalNumero = document.getElementById('modalNumero').textContent;
+    const ordem = ordens.find(o => o.numeroOrdem === modalNumero);
+    
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    generatePDFForOrdem(ordem);
+}
+
+function generatePDFForOrdem(ordem) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    let y = 15;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.width;
+    const lineHeight = 5;
+    
+    // LOGO
+    const logo = new Image();
+    logo.crossOrigin = 'anonymous';
+    logo.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA.png';
+    
+    logo.onload = function() {
+        try {
+            const imgWidth = 50;
+            const imgHeight = (logo.height / logo.width) * imgWidth;
+            doc.addImage(logo, 'PNG', margin, 15, imgWidth, imgHeight);
+        } catch (e) {
+            console.log('Erro ao adicionar logo:', e);
+        }
+    };
+    
+    y = 35;
+    
+    // CABEÇALHO
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
+    
+    y += 8;
+    doc.setFontSize(14);
+    doc.text(`Nº ${ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
+    
+    y += 12;
+    
+    // DADOS PARA FATURAMENTO
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'bold');
+    doc.text('DADOS PARA FATURAMENTO', margin, y);
+    
+    y += lineHeight + 1;
+    doc.setFont(undefined, 'bold');
+    doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
+    
+    y += lineHeight + 1;
+    doc.setFont(undefined, 'normal');
+    doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
+    
+    y += lineHeight + 1;
+    doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
+    
+    y += lineHeight + 1;
+    doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
+    
+    y += lineHeight + 1;
+    doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
+    
+    y += 10;
+    
+    // DADOS DO FORNECEDOR
+    doc.setFont(undefined, 'bold');
+    doc.text('DADOS DO FORNECEDOR', margin, y);
+    
+    y += lineHeight + 1;
+    doc.setFont(undefined, 'bold');
+    doc.text(`${ordem.razaoSocial}`, margin, y);
+
+    if (ordem.nomeFantasia) {
+        y += lineHeight + 1;
+        doc.setFont(undefined, 'normal');
+        doc.text(`${ordem.nomeFantasia}`, margin, y);
+    }
+
+    y += lineHeight + 1;
+    doc.setFont(undefined, 'normal');
+    doc.text(`${ordem.cnpj}`, margin, y);
+
+    if (ordem.enderecoFornecedor) {
+        y += lineHeight + 1;
+        doc.text(`${ordem.enderecoFornecedor}`, margin, y);
+    }
+
+    if (ordem.contato) {
+        y += lineHeight + 1;
+        doc.text(`${ordem.contato}`, margin, y);
+    }
+
+    if (ordem.telefone) {
+        y += lineHeight;
+        doc.text(`${ordem.telefone}`, margin, y);
+    }
+
+    if (ordem.email) {
+        y += lineHeight + 1;
+        doc.text(`${ordem.email}`, margin, y);
+    }
+    
+    y += 10;
+    
+    // ITENS DO PEDIDO
+    doc.setFont(undefined, 'bold');
+    doc.text('ITENS DO PEDIDO', margin, y);
+    
+    y += 6;
+    
+    const tableWidth = pageWidth - (2 * margin);
+    const colWidths = {
+        item: tableWidth * 0.05,
+        especificacao: tableWidth * 0.35,
+        qtd: tableWidth * 0.08,
+        unid: tableWidth * 0.08,
+        valorUn: tableWidth * 0.12,
+        ipi: tableWidth * 0.10,
+        st: tableWidth * 0.10,
+        total: tableWidth * 0.12
+    };
+    
+    const itemRowHeight = 10;
+    
+    // Cabeçalho da tabela
+    doc.setFillColor(108, 117, 125);
+    doc.setDrawColor(180, 180, 180);
+    doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    
+    let xPos = margin;
+    
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.item;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.especificacao;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.qtd;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.unid;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.valorUn;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.ipi;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.st;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+    xPos += colWidths.total;
+    doc.line(xPos, y, xPos, y + itemRowHeight);
+    
+    y += itemRowHeight;
+    doc.setTextColor(0, 0, 0);
+    
+    // Linhas dos itens
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(8);
+    
+    ordem.items.forEach((item, index) => {
+        const maxWidth = colWidths.especificacao - 6;
+        const especLines = doc.splitTextToSize(item.especificacao, maxWidth);
+        const lineCount = especLines.length;
+        const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
+        
+        if (y + necessaryHeight > doc.internal.pageSize.height - 70) {
+            doc.addPage();
+            y = 20;
+            
+            doc.setFillColor(108, 117, 125);
+            doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(9);
+            
+            xPos = margin;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.item;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.especificacao;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.qtd;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.unid;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.valorUn;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.ipi;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.st;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+            xPos += colWidths.total;
+            doc.line(xPos, y, xPos, y + itemRowHeight);
+            
+            y += itemRowHeight;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(8);
+        }
+        
+        if (index % 2 !== 0) {
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
+        }
+        
+        xPos = margin;
+        
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.item;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(especLines, xPos + 3, y + 4);
+        xPos += colWidths.especificacao;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.qtd;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.unid;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        const valorUnFormatted = 'R$ ' + item.valorUnitario.toFixed(2).replace('.', ',');
+        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.valorUn;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.ipi;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.st;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.text(item.valorTotal, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        xPos += colWidths.total;
+        doc.line(xPos, y, xPos, y + necessaryHeight);
+        
+        doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
+        
+        y += necessaryHeight;
+    });
+    
+    y += 8;
+    
+    
+    // VALOR TOTAL
+    if (y > doc.internal.pageSize.height - 80) {
+        doc.addPage();
+        y = 20;
+    }
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(`VALOR TOTAL: ${ordem.valorTotal}`, margin, y);
+    
+    y += 10;
+    
+    // LOCAL DE ENTREGA
+    if (y > doc.internal.pageSize.height - 70) {
+        doc.addPage();
+        y = 20;
+    }
+    doc.setFont(undefined, 'bold');
+    doc.text('LOCAL DE ENTREGA:', margin, y);
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    
+    const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
+    const localEntregaPDF = ordem.localEntrega && ordem.localEntrega.trim() !== '' 
+        ? ordem.localEntrega 
+        : localPadrao;
+    
+    doc.text(localEntregaPDF, margin, y);
+    
+    y += 10;
+    
+    // PRAZO E FRETE
+    if (y > doc.internal.pageSize.height - 60) {
+        doc.addPage();
+        y = 20;
+    }
+    doc.setFont(undefined, 'bold');
+    doc.text('PRAZO DE ENTREGA:', margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(ordem.prazoEntrega || '-', margin + 42, y);
+    
+    doc.setFont(undefined, 'bold');
+    doc.text('FRETE:', pageWidth - margin - 35, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(ordem.frete || '-', pageWidth - margin - 20, y);
+    
+    y += 10;
+    
+    // CONDIÇÕES DE PAGAMENTO
+    if (y > doc.internal.pageSize.height - 50) {
+        doc.addPage();
+        y = 20;
+    }
+    doc.setFont(undefined, 'bold');
+    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    doc.text(`Forma: ${ordem.formaPagamento}`, margin, y);
+    y += 5;
+    doc.text(`Prazo: ${ordem.prazoPagamento}`, margin, y);
+    
+    if (ordem.dadosBancarios) {
+        y += 5;
+        doc.setFont(undefined, 'bold');
+        doc.text('Dados Bancários:', margin, y);
+        y += 5;
+        doc.setFont(undefined, 'normal');
+        const bancarioLines = doc.splitTextToSize(ordem.dadosBancarios, pageWidth - (2 * margin));
+        doc.text(bancarioLines, margin, y);
+        y += (bancarioLines.length * 5);
+    }
+    
+    y += 15;
+    
+    // DATA E ASSINATURA CENTRALIZADA
+    if (y > doc.internal.pageSize.height - 60) {
+        doc.addPage();
+        y = 20;
+    }
+    
+    const dataOrdem = new Date(ordem.dataOrdem + 'T00:00:00');
+    const dia = dataOrdem.getDate();
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const mes = meses[dataOrdem.getMonth()];
+    const ano = dataOrdem.getFullYear();
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, pageWidth / 2, y, { align: 'center' });
+    
+    y += 5;
+    
+    // AJUSTE 6: ASSINATURA (IMAGEM assinatura.png) - CENTRALIZADA
+    const assinatura = new Image();
+    assinatura.crossOrigin = 'anonymous';
+    assinatura.src = 'ASSINATURA.png';
+    
+    assinatura.onload = function() {
+        try {
+            const imgWidth = 50;
+            const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
+            doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y, imgWidth, imgHeight);
+        } catch (e) {
+            console.log('Erro ao adicionar assinatura:', e);
+        }
+    };
+    
+    y += 20;
+    
+    // LINHA E DADOS DA DIRETORA - CENTRALIZADOS
+    doc.setLineWidth(0.5);
+    doc.line(pageWidth / 2 - 35, y, pageWidth / 2 + 35, y);
+    
+    y += 5;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, y, { align: 'center' });
+    
+    y += 5;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, y, { align: 'center' });
+    
+    y += 5;
+    doc.text('Diretora', pageWidth / 2, y, { align: 'center' });
+    
+    y += 12;
+    
+    // ATENÇÃO SR. FORNECEDOR
+    if (y > doc.internal.pageSize.height - 30) {
+        doc.addPage();
+        y = 20;
+    }
+    
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, y, pageWidth - (2 * margin), 22, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(margin, y, pageWidth - (2 * margin), 22, 'S');
+    
+    y += 6;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(204, 112, 0);
+    doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, y);
+    
+    y += 5;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numeroOrdem}`, margin + 5, y);
+    
+    y += 5;
+    doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, y);
+    
+    // SALVAR PDF - NOME: RazaoSocial-NumeroOrdem.pdf
+    doc.save(`${ordem.razaoSocial}-${ordem.numeroOrdem}.pdf`);
+    showToast('PDF gerado com sucesso!', 'success');
+}

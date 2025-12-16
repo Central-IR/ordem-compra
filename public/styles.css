@@ -353,6 +353,7 @@ button {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    text-transform: uppercase;
 }
 
 button:hover:not(:disabled) {
@@ -502,6 +503,7 @@ input[readonly], select[disabled], textarea[readonly] {
     background: var(--bg-card);
     cursor: not-allowed;
     opacity: 0.9;
+    text-transform: uppercase;
 }
 
 /* ============================================
@@ -598,6 +600,7 @@ td {
     color: var(--text-primary);
     word-wrap: break-word;
     vertical-align: middle;
+    text-transform: uppercase;
 }
 
 tbody tr {
@@ -963,6 +966,11 @@ tbody tr:nth-child(even).row-fechada {
 .info-section p {
     margin-bottom: 0.5rem;
     line-height: 1.6;
+    text-transform: uppercase;
+}
+
+.info-section table td {
+    text-transform: uppercase;
 }
 
 /* ============================================

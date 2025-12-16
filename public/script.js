@@ -15,6 +15,11 @@ const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-p
 
 console.log('Ordem de Compra iniciada');
 
+// Função auxiliar para converter texto para maiúsculas
+function toUpperCase(value) {
+    return value ? String(value).toUpperCase() : '';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     verificarAutenticacao();
 });
@@ -154,16 +159,16 @@ function atualizarCacheFornecedores(ordens) {
     fornecedoresCache = {};
     
     ordens.forEach(ordem => {
-        const razaoSocial = (ordem.razao_social || ordem.razaoSocial || '').trim().toUpperCase();
+        const razaoSocial = toUpperCase(ordem.razao_social || ordem.razaoSocial || '').trim();
         
         if (razaoSocial && !fornecedoresCache[razaoSocial]) {
             fornecedoresCache[razaoSocial] = {
-                razaoSocial: ordem.razao_social || ordem.razaoSocial,
-                nomeFantasia: ordem.nome_fantasia || ordem.nomeFantasia || '',
+                razaoSocial: toUpperCase(ordem.razao_social || ordem.razaoSocial),
+                nomeFantasia: toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || ''),
                 cnpj: ordem.cnpj || '',
-                enderecoFornecedor: ordem.endereco_fornecedor || ordem.enderecoFornecedor || '',
+                enderecoFornecedor: toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || ''),
                 site: ordem.site || '',
-                contato: ordem.contato || '',
+                contato: toUpperCase(ordem.contato || ''),
                 telefone: ordem.telefone || '',
                 email: ordem.email || ''
             };
@@ -174,13 +179,13 @@ function atualizarCacheFornecedores(ordens) {
 }
 
 function buscarFornecedoresSimilares(termo) {
-    termo = termo.trim().toUpperCase();
+    termo = toUpperCase(termo).trim();
     if (termo.length < 2) return [];
     
     return Object.keys(fornecedoresCache)
         .filter(key => key.includes(termo))
         .map(key => fornecedoresCache[key])
-        .slice(0, 5); // Máximo 5 sugestões
+        .slice(0, 5);
 }
 
 function preencherDadosFornecedor(fornecedor) {
@@ -193,7 +198,6 @@ function preencherDadosFornecedor(fornecedor) {
     document.getElementById('telefone').value = fornecedor.telefone;
     document.getElementById('email').value = fornecedor.email;
     
-    // Remover sugestões
     const suggestionsDiv = document.getElementById('fornecedorSuggestions');
     if (suggestionsDiv) suggestionsDiv.remove();
     
@@ -204,14 +208,12 @@ function setupFornecedorAutocomplete() {
     const razaoSocialInput = document.getElementById('razaoSocial');
     if (!razaoSocialInput) return;
     
-    // Remover listeners anteriores
     const newInput = razaoSocialInput.cloneNode(true);
     razaoSocialInput.parentNode.replaceChild(newInput, razaoSocialInput);
     
     newInput.addEventListener('input', function(e) {
         const termo = e.target.value;
         
-        // Remover sugestões antigas
         let suggestionsDiv = document.getElementById('fornecedorSuggestions');
         if (suggestionsDiv) suggestionsDiv.remove();
         
@@ -221,7 +223,6 @@ function setupFornecedorAutocomplete() {
         
         if (fornecedores.length === 0) return;
         
-        // Criar div de sugestões
         suggestionsDiv = document.createElement('div');
         suggestionsDiv.id = 'fornecedorSuggestions';
         suggestionsDiv.style.cssText = `
@@ -270,13 +271,11 @@ function setupFornecedorAutocomplete() {
             suggestionsDiv.appendChild(item);
         });
         
-        // Inserir depois do input
         const formGroup = newInput.closest('.form-group');
         formGroup.style.position = 'relative';
         formGroup.appendChild(suggestionsDiv);
     });
     
-    // Fechar sugestões ao clicar fora
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.form-group')) {
             const suggestionsDiv = document.getElementById('fornecedorSuggestions');
@@ -499,7 +498,6 @@ function openFormModal() {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     addItem();
     
-    // Configurar autocomplete de fornecedores
     setTimeout(() => {
         setupFornecedorAutocomplete();
         document.getElementById('numeroOrdem')?.focus();
@@ -606,12 +604,12 @@ async function handleSubmit(event) {
     rows.forEach((row, index) => {
         items.push({
             item: index + 1,
-            especificacao: row.querySelector('.item-especificacao').value,
+            especificacao: toUpperCase(row.querySelector('.item-especificacao').value),
             quantidade: parseFloat(row.querySelector('.item-qtd').value) || 0,
-            unidade: row.querySelector('.item-unid').value,
+            unidade: toUpperCase(row.querySelector('.item-unid').value),
             valorUnitario: parseFloat(row.querySelector('.item-valor').value) || 0,
-            ipi: row.querySelector('.item-ipi').value || '',
-            st: row.querySelector('.item-st').value || '',
+            ipi: toUpperCase(row.querySelector('.item-ipi').value || ''),
+            st: toUpperCase(row.querySelector('.item-st').value || ''),
             valorTotal: row.querySelector('.item-total').value
         });
     });
@@ -620,25 +618,25 @@ async function handleSubmit(event) {
     
     const formData = {
         numeroOrdem: document.getElementById('numeroOrdem').value,
-        responsavel: document.getElementById('responsavel').value,
+        responsavel: toUpperCase(document.getElementById('responsavel').value),
         dataOrdem: document.getElementById('dataOrdem').value,
-        razaoSocial: document.getElementById('razaoSocial').value,
-        nomeFantasia: document.getElementById('nomeFantasia').value,
+        razaoSocial: toUpperCase(document.getElementById('razaoSocial').value),
+        nomeFantasia: toUpperCase(document.getElementById('nomeFantasia').value),
         cnpj: document.getElementById('cnpj').value,
-        enderecoFornecedor: document.getElementById('enderecoFornecedor').value,
+        enderecoFornecedor: toUpperCase(document.getElementById('enderecoFornecedor').value),
         site: document.getElementById('site').value,
-        contato: document.getElementById('contato').value,
+        contato: toUpperCase(document.getElementById('contato').value),
         telefone: document.getElementById('telefone').value,
         email: document.getElementById('email').value,
         items: items,
         valorTotal: document.getElementById('valorTotalOrdem').value,
-        frete: document.getElementById('frete').value,
-        localEntrega: document.getElementById('localEntrega').value,
-        prazoEntrega: document.getElementById('prazoEntrega').value,
-        transporte: document.getElementById('transporte').value,
-        formaPagamento: document.getElementById('formaPagamento').value,
-        prazoPagamento: document.getElementById('prazoPagamento').value,
-        dadosBancarios: document.getElementById('dadosBancarios').value,
+        frete: toUpperCase(document.getElementById('frete').value),
+        localEntrega: toUpperCase(document.getElementById('localEntrega').value),
+        prazoEntrega: toUpperCase(document.getElementById('prazoEntrega').value),
+        transporte: toUpperCase(document.getElementById('transporte').value),
+        formaPagamento: toUpperCase(document.getElementById('formaPagamento').value),
+        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
+        dadosBancarios: toUpperCase(document.getElementById('dadosBancarios').value),
         status: 'aberta'
     };
     
@@ -741,7 +739,7 @@ async function editOrdem(id) {
                                 </div>
                                 <div class="form-group">
                                     <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" value="${ordem.responsavel}" required>
+                                    <input type="text" id="responsavel" value="${toUpperCase(ordem.responsavel)}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
@@ -754,11 +752,11 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="razaoSocial">Razão Social *</label>
-                                    <input type="text" id="razaoSocial" value="${ordem.razao_social || ordem.razaoSocial}" required>
+                                    <input type="text" id="razaoSocial" value="${toUpperCase(ordem.razao_social || ordem.razaoSocial)}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="nomeFantasia">Nome Fantasia</label>
-                                    <input type="text" id="nomeFantasia" value="${ordem.nome_fantasia || ordem.nomeFantasia || ''}">
+                                    <input type="text" id="nomeFantasia" value="${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="cnpj">CNPJ *</label>
@@ -766,7 +764,7 @@ async function editOrdem(id) {
                                 </div>
                                 <div class="form-group">
                                     <label for="enderecoFornecedor">Endereço</label>
-                                    <input type="text" id="enderecoFornecedor" value="${ordem.endereco_fornecedor || ordem.enderecoFornecedor || ''}">
+                                    <input type="text" id="enderecoFornecedor" value="${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="site">Site</label>
@@ -774,7 +772,7 @@ async function editOrdem(id) {
                                 </div>
                                 <div class="form-group">
                                     <label for="contato">Contato</label>
-                                    <input type="text" id="contato" value="${ordem.contato || ''}">
+                                    <input type="text" id="contato" value="${toUpperCase(ordem.contato || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="telefone">Telefone</label>
@@ -813,7 +811,7 @@ async function editOrdem(id) {
                             </div>
                             <div class="form-group">
                                 <label for="frete">Frete</label>
-                                <input type="text" id="frete" value="${ordem.frete || ''}" placeholder="Ex: CIF, FOB">
+                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || '')}" placeholder="Ex: CIF, FOB">
                             </div>
                         </div>
 
@@ -821,15 +819,15 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="${ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318'}">
+                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" value="${ordem.prazo_entrega || ordem.prazoEntrega || ''}" placeholder="Ex: 10 dias úteis">
+                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '')}" placeholder="Ex: 10 dias úteis">
                                 </div>
                                 <div class="form-group">
                                     <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" value="${ordem.transporte || ''}" placeholder="Ex: Por conta do fornecedor">
+                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || '')}" placeholder="Ex: Por conta do fornecedor">
                                 </div>
                             </div>
                         </div>
@@ -838,15 +836,15 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="formaPagamento">Forma de Pagamento *</label>
-                                    <input type="text" id="formaPagamento" value="${ordem.forma_pagamento || ordem.formaPagamento}" required placeholder="Ex: Boleto, PIX, Cartão">
+                                    <input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}" required placeholder="Ex: Boleto, PIX, Cartão">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoPagamento">Prazo de Pagamento *</label>
-                                    <input type="text" id="prazoPagamento" value="${ordem.prazo_pagamento || ordem.prazoPagamento}" required placeholder="Ex: 30 dias">
+                                    <input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}" required placeholder="Ex: 30 dias">
                                 </div>
                                 <div class="form-group">
                                     <label for="dadosBancarios">Dados Bancários</label>
-                                    <textarea id="dadosBancarios" rows="3">${ordem.dados_bancarios || ordem.dadosBancarios || ''}</textarea>
+                                    <textarea id="dadosBancarios" rows="3">${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -863,7 +861,6 @@ async function editOrdem(id) {
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
-    // Configurar autocomplete de fornecedores
     setTimeout(() => {
         setupFornecedorAutocomplete();
     }, 100);
@@ -873,12 +870,12 @@ async function editOrdem(id) {
             addItem();
             const row = document.querySelector('#itemsBody tr:last-child');
             if (row) {
-                row.querySelector('.item-especificacao').value = item.especificacao || '';
+                row.querySelector('.item-especificacao').value = toUpperCase(item.especificacao || '');
                 row.querySelector('.item-qtd').value = item.quantidade || 1;
-                row.querySelector('.item-unid').value = item.unidade || 'UN';
+                row.querySelector('.item-unid').value = toUpperCase(item.unidade || 'UN');
                 row.querySelector('.item-valor').value = item.valorUnitario || item.valor_unitario || 0;
-                row.querySelector('.item-ipi').value = item.ipi || '';
-                row.querySelector('.item-st').value = item.st || '';
+                row.querySelector('.item-ipi').value = toUpperCase(item.ipi || '');
+                row.querySelector('.item-st').value = toUpperCase(item.st || '');
                 row.querySelector('.item-total').value = item.valorTotal || item.valor_total || 'R$ 0,00';
             }
         });
@@ -984,7 +981,7 @@ function viewOrdem(id) {
     document.getElementById('info-tab-geral').innerHTML = `
         <div class="info-section">
             <h4>Informações Gerais</h4>
-            <p><strong>Responsável:</strong> ${ordem.responsavel}</p>
+            <p><strong>Responsável:</strong> ${toUpperCase(ordem.responsavel)}</p>
             <p><strong>Data:</strong> ${formatDate(ordem.data_ordem || ordem.dataOrdem)}</p>
             <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
         </div>
@@ -993,12 +990,12 @@ function viewOrdem(id) {
     document.getElementById('info-tab-fornecedor').innerHTML = `
         <div class="info-section">
             <h4>Dados do Fornecedor</h4>
-            <p><strong>Razão Social:</strong> ${ordem.razao_social || ordem.razaoSocial}</p>
-            ${ordem.nome_fantasia || ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${ordem.nome_fantasia || ordem.nomeFantasia}</p>` : ''}
+            <p><strong>Razão Social:</strong> ${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</p>
+            ${ordem.nome_fantasia || ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia)}</p>` : ''}
             <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
-            ${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${ordem.endereco_fornecedor || ordem.enderecoFornecedor}</p>` : ''}
+            ${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor)}</p>` : ''}
             ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
-            ${ordem.contato ? `<p><strong>Contato:</strong> ${ordem.contato}</p>` : ''}
+            ${ordem.contato ? `<p><strong>Contato:</strong> ${toUpperCase(ordem.contato)}</p>` : ''}
             ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
             ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
         </div>
@@ -1025,12 +1022,12 @@ function viewOrdem(id) {
                         ${ordem.items.map(item => `
                             <tr>
                                 <td>${item.item}</td>
-                                <td>${item.especificacao}</td>
+                                <td>${toUpperCase(item.especificacao)}</td>
                                 <td>${item.quantidade}</td>
-                                <td>${item.unidade}</td>
+                                <td>${toUpperCase(item.unidade)}</td>
                                 <td>R$ ${(item.valorUnitario || item.valor_unitario || 0).toFixed(2)}</td>
-                                <td>${item.ipi || '-'}</td>
-                                <td>${item.st || '-'}</td>
+                                <td>${toUpperCase(item.ipi || '-')}</td>
+                                <td>${toUpperCase(item.st || '-')}</td>
                                 <td>${item.valorTotal || item.valor_total}</td>
                             </tr>
                         `).join('')}
@@ -1038,25 +1035,25 @@ function viewOrdem(id) {
                 </table>
             </div>
             <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valor_total || ordem.valorTotal}</p>
-            ${ordem.frete ? `<p><strong>Frete:</strong> ${ordem.frete}</p>` : ''}
+            ${ordem.frete ? `<p><strong>Frete:</strong> ${toUpperCase(ordem.frete)}</p>` : ''}
         </div>
     `;
     
     document.getElementById('info-tab-entrega').innerHTML = `
         <div class="info-section">
             <h4>Informações de Entrega</h4>
-            ${ordem.local_entrega || ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${ordem.local_entrega || ordem.localEntrega}</p>` : ''}
-            ${ordem.prazo_entrega || ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${ordem.prazo_entrega || ordem.prazoEntrega}</p>` : ''}
-            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${ordem.transporte}</p>` : ''}
+            ${ordem.local_entrega || ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${toUpperCase(ordem.local_entrega || ordem.localEntrega)}</p>` : ''}
+            ${ordem.prazo_entrega || ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega)}</p>` : ''}
+            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${toUpperCase(ordem.transporte)}</p>` : ''}
         </div>
     `;
     
     document.getElementById('info-tab-pagamento').innerHTML = `
         <div class="info-section">
             <h4>Dados de Pagamento</h4>
-            <p><strong>Forma de Pagamento:</strong> ${ordem.forma_pagamento || ordem.formaPagamento}</p>
-            <p><strong>Prazo de Pagamento:</strong> ${ordem.prazo_pagamento || ordem.prazoPagamento}</p>
-            ${ordem.dados_bancarios || ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${ordem.dados_bancarios || ordem.dadosBancarios}</p>` : ''}
+            <p><strong>Forma de Pagamento:</strong> ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}</p>
+            <p><strong>Prazo de Pagamento:</strong> ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}</p>
+            ${ordem.dados_bancarios || ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios)}</p>` : ''}
         </div>
     `;
     
@@ -1192,8 +1189,8 @@ function updateTable() {
                 </div>
             </td>
             <td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
-            <td>${ordem.responsavel}</td>
-            <td>${ordem.razao_social || ordem.razaoSocial}</td>
+            <td>${toUpperCase(ordem.responsavel)}</td>
+            <td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
             <td style="white-space: nowrap;">${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
             <td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td>
             <td>
@@ -1226,7 +1223,7 @@ function updateResponsaveisFilter() {
         Array.from(responsaveis).sort().forEach(r => {
             const option = document.createElement('option');
             option.value = r;
-            option.textContent = r;
+            option.textContent = toUpperCase(r);
             select.appendChild(option);
         });
         select.value = currentValue;
@@ -1279,7 +1276,7 @@ function showToast(message, type = 'success') {
 }
 
 // ============================================
-// GERAÇÃO DE PDF - CORRIGIDO
+// GERAÇÃO DE PDF - CORRIGIDO COM UPPERCASE
 // ============================================
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
@@ -1294,7 +1291,7 @@ function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    let y = 25; // Começar mais abaixo sem logo
+    let y = 25;
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const lineHeight = 5;
@@ -1336,18 +1333,18 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // DADOS DO FORNECEDOR
+    // DADOS DO FORNECEDOR - COM UPPERCASE
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
     
     y += lineHeight + 1;
     doc.setFont(undefined, 'bold');
-    doc.text(`${ordem.razao_social || ordem.razaoSocial}`, margin, y);
+    doc.text(toUpperCase(ordem.razao_social || ordem.razaoSocial), margin, y);
 
     if (ordem.nome_fantasia || ordem.nomeFantasia) {
         y += lineHeight + 1;
         doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.nome_fantasia || ordem.nomeFantasia}`, margin, y);
+        doc.text(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), margin, y);
     }
 
     y += lineHeight + 1;
@@ -1356,12 +1353,12 @@ function generatePDFForOrdem(ordem) {
 
     if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
         y += lineHeight + 1;
-        doc.text(`${ordem.endereco_fornecedor || ordem.enderecoFornecedor}`, margin, y);
+        doc.text(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), margin, y);
     }
 
     if (ordem.contato) {
         y += lineHeight + 1;
-        doc.text(`${ordem.contato}`, margin, y);
+        doc.text(toUpperCase(ordem.contato), margin, y);
     }
 
     if (ordem.telefone) {
@@ -1443,13 +1440,14 @@ function generatePDFForOrdem(ordem) {
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
     
-    // Linhas dos itens
+    // Linhas dos itens - COM UPPERCASE
     doc.setFont(undefined, 'normal');
     doc.setFontSize(8);
     
     ordem.items.forEach((item, index) => {
+        const especificacaoUpper = toUpperCase(item.especificacao);
         const maxWidth = colWidths.especificacao - 6;
-        const especLines = doc.splitTextToSize(item.especificacao, maxWidth);
+        const especLines = doc.splitTextToSize(especificacaoUpper, maxWidth);
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
@@ -1519,7 +1517,7 @@ function generatePDFForOrdem(ordem) {
         xPos += colWidths.qtd;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        doc.text(item.unidade, xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.unid;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
@@ -1529,11 +1527,11 @@ function generatePDFForOrdem(ordem) {
         xPos += colWidths.valorUn;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        doc.text(item.ipi || '-', xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.ipi;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        doc.text(item.st || '-', xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+        doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.st;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
@@ -1559,7 +1557,7 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // LOCAL DE ENTREGA
+    // LOCAL DE ENTREGA - COM UPPERCASE
     if (y > doc.internal.pageSize.height - 70) {
         doc.addPage();
         y = 20;
@@ -1571,14 +1569,14 @@ function generatePDFForOrdem(ordem) {
     
     const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
     const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' 
-        ? (ordem.local_entrega || ordem.localEntrega)
+        ? toUpperCase(ordem.local_entrega || ordem.localEntrega)
         : localPadrao;
     
     doc.text(localEntregaPDF, margin, y);
     
     y += 10;
     
-    // PRAZO E FRETE
+    // PRAZO E FRETE - COM UPPERCASE
     if (y > doc.internal.pageSize.height - 60) {
         doc.addPage();
         y = 20;
@@ -1586,16 +1584,16 @@ function generatePDFForOrdem(ordem) {
     doc.setFont(undefined, 'bold');
     doc.text('PRAZO DE ENTREGA:', margin, y);
     doc.setFont(undefined, 'normal');
-    doc.text(ordem.prazo_entrega || ordem.prazoEntrega || '-', margin + 42, y);
+    doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
     
     doc.setFont(undefined, 'bold');
     doc.text('FRETE:', pageWidth - margin - 35, y);
     doc.setFont(undefined, 'normal');
-    doc.text(ordem.frete || '-', pageWidth - margin - 20, y);
+    doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
     
     y += 10;
     
-    // CONDIÇÕES DE PAGAMENTO
+    // CONDIÇÕES DE PAGAMENTO - COM UPPERCASE
     if (y > doc.internal.pageSize.height - 50) {
         doc.addPage();
         y = 20;
@@ -1604,17 +1602,18 @@ function generatePDFForOrdem(ordem) {
     doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
     y += 5;
     doc.setFont(undefined, 'normal');
-    doc.text(`Forma: ${ordem.forma_pagamento || ordem.formaPagamento}`, margin, y);
+    doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
     y += 5;
-    doc.text(`Prazo: ${ordem.prazo_pagamento || ordem.prazoPagamento}`, margin, y);
+    doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
     
     if (ordem.dados_bancarios || ordem.dadosBancarios) {
         y += 5;
         doc.setFont(undefined, 'bold');
-        doc.text('Dados Bancários:', margin, y);
+        doc.text('DADOS BANCÁRIOS:', margin, y);
         y += 5;
         doc.setFont(undefined, 'normal');
-        const bancarioLines = doc.splitTextToSize(ordem.dados_bancarios || ordem.dadosBancarios, pageWidth - (2 * margin));
+        const bancarioUpper = toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios);
+        const bancarioLines = doc.splitTextToSize(bancarioUpper, pageWidth - (2 * margin));
         doc.text(bancarioLines, margin, y);
         y += (bancarioLines.length * 5);
     }
@@ -1629,14 +1628,14 @@ function generatePDFForOrdem(ordem) {
     
     const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
     const dia = dataOrdem.getDate();
-    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
+                   'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
     const mes = meses[dataOrdem.getMonth()];
     const ano = dataOrdem.getFullYear();
     
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(`Serra/ES, ${dia} de ${mes} de ${ano}`, pageWidth / 2, y, { align: 'center' });
+    doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
     
     y += 5;
     
@@ -1650,17 +1649,14 @@ function generatePDFForOrdem(ordem) {
             const imgWidth = 50;
             const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
             
-            // Desenhar a imagem da assinatura
             doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
             
-            // Calcular Y final após a imagem
             let yFinal = y + imgHeight + 5;
             
-            // DADOS DA DIRETORA - CENTRALIZADOS (SEM LINHA)
             yFinal += 5;
             doc.setFontSize(10);
             doc.setFont(undefined, 'bold');
-            doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, yFinal, { align: 'center' });
+            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
             
             yFinal += 5;
             doc.setFontSize(9);
@@ -1668,11 +1664,10 @@ function generatePDFForOrdem(ordem) {
             doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
             
             yFinal += 5;
-            doc.text('Diretora', pageWidth / 2, yFinal, { align: 'center' });
+            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
             
             yFinal += 12;
             
-            // ATENÇÃO SR. FORNECEDOR
             if (yFinal > doc.internal.pageSize.height - 30) {
                 doc.addPage();
                 yFinal = 20;
@@ -1698,8 +1693,7 @@ function generatePDFForOrdem(ordem) {
             yFinal += 5;
             doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
             
-            // SALVAR PDF
-            doc.save(`${ordem.razao_social || ordem.razaoSocial}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
+            doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
             showToast('PDF gerado com sucesso!', 'success');
             
         } catch (e) {
@@ -1713,14 +1707,13 @@ function generatePDFForOrdem(ordem) {
         gerarPDFSemAssinatura();
     };
     
-    // Função para gerar PDF sem assinatura
     function gerarPDFSemAssinatura() {
         let yFinal = y + 5;
         
         yFinal += 5;
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
-        doc.text('Rosemeire Bicalho de Lima Gravino', pageWidth / 2, yFinal, { align: 'center' });
+        doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
         
         yFinal += 5;
         doc.setFontSize(9);
@@ -1728,7 +1721,7 @@ function generatePDFForOrdem(ordem) {
         doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
         
         yFinal += 5;
-        doc.text('Diretora', pageWidth / 2, yFinal, { align: 'center' });
+        doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
         
         yFinal += 12;
         
@@ -1757,7 +1750,7 @@ function generatePDFForOrdem(ordem) {
         yFinal += 5;
         doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
         
-        doc.save(`${ordem.razao_social || ordem.razaoSocial}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
+        doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
         showToast('PDF gerado (sem assinatura)', 'success');
     }
 }

@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ordem de Compra</title>
     <link rel="icon" type="image/png" href="I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="ordem-compra-styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <h1 class="splash-title">Ordem de Compra</h1>
+    </div>
 
+    <!-- Conteúdo Principal -->
     <div class="app-content">
         <div class="container">
             <div class="header">
@@ -19,6 +24,7 @@
                 </div>
             </div>
 
+            <!-- NAVEGAÇÃO POR MESES -->
             <div class="card">
                 <div class="month-navigation">
                     <button onclick="changeMonth(-1)" class="month-nav-btn">Anterior</button>
@@ -27,6 +33,7 @@
                 </div>
             </div>
 
+            <!-- DASHBOARD -->
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total de Ordens</div>
@@ -42,6 +49,7 @@
                 </div>
             </div>
 
+            <!-- FILTROS -->
             <div class="card">
                 <div class="filter-section">
                     <div class="form-group">
@@ -62,12 +70,10 @@
                             <option value="fechada">Fechada</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <button onclick="clearFilters()" class="secondary" style="margin-top: 1.8rem;">Limpar Filtros</button>
-                    </div>
                 </div>
             </div>
 
+            <!-- LISTA DE ORDENS -->
             <div class="card">
                 <div style="overflow-x: auto;">
                     <table>
@@ -92,8 +98,15 @@
         </div>
     </div>
 
-    <button class="fab-button" onclick="openFormModal()" title="Registrar Ordem"></button>
+    <!-- BOTÃO FLUTUANTE -->
+    <button class="floating-add-btn" onclick="openFormModal()" title="Registrar Ordem">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
 
+    <!-- MODAL DE VISUALIZAÇÃO -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -122,6 +135,13 @@
             </div>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        setTimeout(() => {
+            const splash = document.getElementById('splashScreen');
+            if (splash) splash.style.display = 'none';
+        }, 3000);
+    </script>
+    <script src="ordem-compra-script.js"></script>
 </body>
 </html>

@@ -1,1767 +1,381 @@
-// MODO DESENVOLVIMENTO - Permite funcionar sem autenticação
-const DEVELOPMENT_MODE = true; // Mude para false em produção
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
+const app = express();
 
-const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:10000/api'
-    : 'https://ordem-compra.onrender.com/api';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-let ordens = [];
-let currentMonth = new Date();
-let editingId = null;
-let itemCounter = 0;
-let currentTab = 0;
-let isOnline = false;
-let sessionToken = null;
-let lastDataHash = '';
-let fornecedoresCache = {};
-
-const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
-
-console.log('🚀 Ordem de Compra iniciada');
-console.log('📍 API URL:', API_URL);
-console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
-
-function toUpperCase(value) {
-    return value ? String(value).toUpperCase() : '';
+if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
+    process.exit(1);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+const supabase = createClient(supabaseUrl, supabaseKey);
+console.log('✅ Supabase configurado:', supabaseUrl);
+
+// CORS mais permissivo para desenvolvimento
+app.use(cors({
+    origin: function(origin, callback) {
+        // Permite requisições sem origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://ordem-compra.onrender.com',
+            'http://localhost:3000',
+            'http://localhost:10000',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:10000'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Permitir todas as origens em desenvolvimento
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filepath) => {
+        if (filepath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+        else if (filepath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+        else if (filepath.endsWith('.html')) res.setHeader('Content-Type', 'text/html');
+    }
+}));
+
+app.use((req, res, next) => {
+    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
+// AUTENTICAÇÃO
+const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
+
+async function verificarAutenticacao(req, res, next) {
+    const publicPaths = ['/', '/health', '/diagnostico.html'];
+    if (publicPaths.includes(req.path)) return next();
+
+    // MODO DESENVOLVIMENTO: Pular autenticação
+    const DEVELOPMENT_MODE = process.env.NODE_ENV !== 'production';
     if (DEVELOPMENT_MODE) {
-        console.log('⚠️ MODO DESENVOLVIMENTO ATIVADO');
-        sessionToken = 'dev-mode';
-        inicializarApp();
-    } else {
-        verificarAutenticacao();
+        console.log('⚠️ MODO DESENVOLVIMENTO - Autenticação desabilitada');
+        return next();
+    }
+
+    const sessionToken = req.headers['x-session-token'];
+    if (!sessionToken) {
+        console.log('❌ Token não fornecido');
+        return res.status(401).json({ error: 'Não autenticado' });
+    }
+
+    try {
+        const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+        });
+
+        if (!verifyResponse.ok) {
+            console.log('❌ Sessão inválida - Status:', verifyResponse.status);
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+
+        const sessionData = await verifyResponse.json();
+        if (!sessionData.valid) {
+            console.log('❌ Sessão não válida');
+            return res.status(401).json({ error: 'Sessão inválida' });
+        }
+
+        req.user = sessionData.session;
+        req.sessionToken = sessionToken;
+        console.log('✅ Autenticação OK');
+        next();
+    } catch (error) {
+        console.error('❌ Erro ao verificar autenticação:', error.message);
+        return res.status(500).json({ error: 'Erro ao verificar autenticação', details: error.message });
+    }
+}
+
+// ROTAS DA API
+app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
+    try {
+        console.log('📋 Listando ordens...');
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('❌ Erro Supabase ao listar:', error);
+            throw error;
+        }
+        
+        console.log(`✅ ${data?.length || 0} ordens encontradas`);
+        res.json(data || []);
+    } catch (error) {
+        console.error('❌ Erro ao listar ordens:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao listar ordens',
+            message: error.message
+        });
     }
 });
 
-function verificarAutenticacao() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('sessionToken');
-
-    if (tokenFromUrl) {
-        sessionToken = tokenFromUrl;
-        sessionStorage.setItem('ordemCompraSession', tokenFromUrl);
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-        sessionToken = sessionStorage.getItem('ordemCompraSession');
-    }
-
-    if (!sessionToken) {
-        mostrarTelaAcessoNegado();
-        return;
-    }
-
-    inicializarApp();
-}
-
-function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    document.body.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
-        </div>
-    `;
-}
-
-function inicializarApp() {
-    updateDisplay();
-    checkServerStatus();
-    setInterval(checkServerStatus, 15000);
-    startPolling();
-}
-
-async function checkServerStatus() {
+app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
+        console.log(`🔍 Buscando ordem ID: ${req.params.id}`);
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('*')
+            .eq('id', req.params.id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('❌ Ordem não encontrada');
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            throw error;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
-            method: 'GET',
-            headers: headers,
-            mode: 'cors'
-        });
-
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return false;
-        }
-
-        const wasOffline = !isOnline;
-        isOnline = response.ok;
-        
-        if (wasOffline && isOnline) {
-            console.log('✅ SERVIDOR ONLINE');
-            await loadOrdens();
-        }
-        
-        updateConnectionStatus();
-        return isOnline;
+        console.log('✅ Ordem encontrada');
+        res.json(data);
     } catch (error) {
-        console.error('❌ Erro ao verificar servidor:', error);
-        isOnline = false;
-        updateConnectionStatus();
-        return false;
+        console.error('❌ Erro ao buscar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao buscar ordem',
+            message: error.message
+        });
     }
-}
+});
 
-function updateConnectionStatus() {
-    const statusElement = document.getElementById('connectionStatus');
-    if (statusElement) {
-        statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
-    }
-}
-
-function startPolling() {
-    loadOrdens();
-    setInterval(() => {
-        if (isOnline) loadOrdens();
-    }, 10000);
-}
-
-async function loadOrdens() {
-    if (!isOnline && !DEVELOPMENT_MODE) return;
-
+app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
-        const headers = {
-            'Accept': 'application/json'
+        console.log('➕ Criando nova ordem...');
+        
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
+
+        const novaOrdem = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta'
         };
-        
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
+
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .insert([novaOrdem])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('❌ Erro Supabase ao inserir:', error);
+            throw error;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
-            method: 'GET',
-            headers: headers,
-            mode: 'cors'
-        });
-
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
-
-        if (!response.ok) {
-            console.error('❌ Erro ao carregar ordens:', response.status);
-            return;
-        }
-
-        const data = await response.json();
-        ordens = data;
-        
-        atualizarCacheFornecedores(data);
-        
-        const newHash = JSON.stringify(ordens.map(o => o.id));
-        if (newHash !== lastDataHash) {
-            lastDataHash = newHash;
-            updateDisplay();
-        }
+        console.log('✅ Ordem criada com sucesso! ID:', data.id);
+        res.status(201).json(data);
     } catch (error) {
-        console.error('❌ Erro ao carregar:', error);
-    }
-}
-
-function atualizarCacheFornecedores(ordens) {
-    fornecedoresCache = {};
-    
-    ordens.forEach(ordem => {
-        const razaoSocial = toUpperCase(ordem.razao_social || ordem.razaoSocial || '').trim();
-        
-        if (razaoSocial && !fornecedoresCache[razaoSocial]) {
-            fornecedoresCache[razaoSocial] = {
-                razaoSocial: toUpperCase(ordem.razao_social || ordem.razaoSocial),
-                nomeFantasia: toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || ''),
-                cnpj: ordem.cnpj || '',
-                enderecoFornecedor: toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || ''),
-                site: ordem.site || '',
-                contato: toUpperCase(ordem.contato || ''),
-                telefone: ordem.telefone || '',
-                email: ordem.email || ''
-            };
-        }
-    });
-    
-    console.log(`📋 Cache de fornecedores atualizado: ${Object.keys(fornecedoresCache).length} fornecedores`);
-}
-
-function buscarFornecedoresSimilares(termo) {
-    termo = toUpperCase(termo).trim();
-    if (termo.length < 2) return [];
-    
-    return Object.keys(fornecedoresCache)
-        .filter(key => key.includes(termo))
-        .map(key => fornecedoresCache[key])
-        .slice(0, 5);
-}
-
-function preencherDadosFornecedor(fornecedor) {
-    document.getElementById('razaoSocial').value = fornecedor.razaoSocial;
-    document.getElementById('nomeFantasia').value = fornecedor.nomeFantasia;
-    document.getElementById('cnpj').value = fornecedor.cnpj;
-    document.getElementById('enderecoFornecedor').value = fornecedor.enderecoFornecedor;
-    document.getElementById('site').value = fornecedor.site;
-    document.getElementById('contato').value = fornecedor.contato;
-    document.getElementById('telefone').value = fornecedor.telefone;
-    document.getElementById('email').value = fornecedor.email;
-    
-    const suggestionsDiv = document.getElementById('fornecedorSuggestions');
-    if (suggestionsDiv) suggestionsDiv.remove();
-    
-    showToast('Dados do fornecedor preenchidos!', 'success');
-}
-
-function setupFornecedorAutocomplete() {
-    const razaoSocialInput = document.getElementById('razaoSocial');
-    if (!razaoSocialInput) return;
-    
-    const newInput = razaoSocialInput.cloneNode(true);
-    razaoSocialInput.parentNode.replaceChild(newInput, razaoSocialInput);
-    
-    newInput.addEventListener('input', function(e) {
-        const termo = e.target.value;
-        
-        let suggestionsDiv = document.getElementById('fornecedorSuggestions');
-        if (suggestionsDiv) suggestionsDiv.remove();
-        
-        if (termo.length < 2) return;
-        
-        const fornecedores = buscarFornecedoresSimilares(termo);
-        
-        if (fornecedores.length === 0) return;
-        
-        suggestionsDiv = document.createElement('div');
-        suggestionsDiv.id = 'fornecedorSuggestions';
-        suggestionsDiv.style.cssText = `
-            position: absolute;
-            z-index: 1000;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            max-height: 300px;
-            overflow-y: auto;
-            width: 100%;
-            margin-top: 4px;
-        `;
-        
-        fornecedores.forEach(fornecedor => {
-            const item = document.createElement('div');
-            item.style.cssText = `
-                padding: 12px;
-                cursor: pointer;
-                border-bottom: 1px solid var(--border-color);
-                transition: background 0.2s;
-            `;
-            
-            item.innerHTML = `
-                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
-                    ${fornecedor.razaoSocial}
-                </div>
-                <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                    ${fornecedor.cnpj}${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}
-                </div>
-            `;
-            
-            item.addEventListener('mouseenter', () => {
-                item.style.background = 'var(--table-hover)';
-            });
-            
-            item.addEventListener('mouseleave', () => {
-                item.style.background = 'transparent';
-            });
-            
-            item.addEventListener('click', () => {
-                preencherDadosFornecedor(fornecedor);
-            });
-            
-            suggestionsDiv.appendChild(item);
+        console.error('❌ Erro ao criar ordem:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao criar ordem',
+            message: error.message
         });
-        
-        const formGroup = newInput.closest('.form-group');
-        formGroup.style.position = 'relative';
-        formGroup.appendChild(suggestionsDiv);
-    });
-    
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.form-group')) {
-            const suggestionsDiv = document.getElementById('fornecedorSuggestions');
-            if (suggestionsDiv) suggestionsDiv.remove();
-        }
-    });
-}
-
-function changeMonth(direction) {
-    currentMonth.setMonth(currentMonth.getMonth() + direction);
-    updateDisplay();
-}
-
-function updateMonthDisplay() {
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    const monthName = months[currentMonth.getMonth()];
-    const year = currentMonth.getFullYear();
-    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
-}
-
-function switchTab(tabId) {
-    const tabIndex = tabs.indexOf(tabId);
-    if (tabIndex !== -1) {
-        currentTab = tabIndex;
-        showTab(currentTab);
     }
-}
+});
 
-function showTab(index) {
-    const tabButtons = document.querySelectorAll('#formModal .tab-btn');
-    const tabContents = document.querySelectorAll('#formModal .tab-content');
-    
-    tabButtons.forEach(btn => btn.classList.remove('active'));
-    tabContents.forEach(content => content.classList.remove('active'));
-    
-    if (tabButtons[index]) tabButtons[index].classList.add('active');
-    if (tabContents[index]) tabContents[index].classList.add('active');
-}
-
-function switchInfoTab(tabId) {
-    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelectorAll('#infoModal .tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    const clickedBtn = event.target.closest('.tab-btn');
-    if (clickedBtn) {
-        clickedBtn.classList.add('active');
-    }
-    document.getElementById(tabId).classList.add('active');
-}
-
-function openFormModal() {
-    editingId = null;
-    currentTab = 0;
-    itemCounter = 0;
-    
-    const nextNumber = getNextOrderNumber();
-    const today = new Date().toISOString().split('T')[0];
-    
-    const modalHTML = `
-        <div class="modal-overlay" id="formModal" style="display: flex;">
-            <div class="modal-content" style="max-width: 1200px;">
-                <div class="modal-header">
-                    <h3 class="modal-title">Nova Ordem de Compra</h3>
-                </div>
-                
-                <div class="tabs-container">
-                    <div class="tabs-nav">
-                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
-                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
-                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
-                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
-                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
-                    </div>
-
-                    <form id="ordemForm" onsubmit="handleSubmit(event)">
-                        <input type="hidden" id="editId" value="">
-                        
-                        <div class="tab-content active" id="tab-geral">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="numeroOrdem">Número da Ordem *</label>
-                                    <input type="text" id="numeroOrdem" value="${nextNumber}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="dataOrdem">Data da Ordem *</label>
-                                    <input type="date" id="dataOrdem" value="${today}" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-fornecedor">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="razaoSocial">Razão Social *</label>
-                                    <input type="text" id="razaoSocial" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="nomeFantasia">Nome Fantasia</label>
-                                    <input type="text" id="nomeFantasia">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cnpj">CNPJ *</label>
-                                    <input type="text" id="cnpj" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="enderecoFornecedor">Endereço</label>
-                                    <input type="text" id="enderecoFornecedor">
-                                </div>
-                                <div class="form-group">
-                                    <label for="site">Site</label>
-                                    <input type="text" id="site">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contato">Contato</label>
-                                    <input type="text" id="contato">
-                                </div>
-                                <div class="form-group">
-                                    <label for="telefone">Telefone</label>
-                                    <input type="text" id="telefone">
-                                </div>
-                                <div class="form-group">
-                                    <label for="email">E-mail</label>
-                                    <input type="email" id="email">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-pedido">
-                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
-                            <div style="overflow-x: auto;">
-                                <table class="items-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 40px;">Item</th>
-                                            <th style="min-width: 200px;">Especificação</th>
-                                            <th style="width: 80px;">QTD</th>
-                                            <th style="width: 80px;">Unid</th>
-                                            <th style="width: 100px;">Valor UN</th>
-                                            <th style="width: 100px;">IPI</th>
-                                            <th style="width: 100px;">ST</th>
-                                            <th style="width: 120px;">Total</th>
-                                            <th style="width: 80px;"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="itemsBody"></tbody>
-                                </table>
-                            </div>
-                            <div class="form-group" style="margin-top: 1rem;">
-                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
-                                <input type="text" id="valorTotalOrdem" readonly value="R$ 0,00">
-                            </div>
-                            <div class="form-group">
-                                <label for="frete">Frete</label>
-                                <input type="text" id="frete" placeholder="Ex: CIF, FOB">
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-entrega">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318">
-                                </div>
-                                <div class="form-group">
-                                    <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" placeholder="Ex: 10 dias úteis">
-                                </div>
-                                <div class="form-group">
-                                    <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" placeholder="Ex: Por conta do fornecedor">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-pagamento">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="formaPagamento">Forma de Pagamento *</label>
-                                    <input type="text" id="formaPagamento" required placeholder="Ex: Boleto, PIX, Cartão">
-                                </div>
-                                <div class="form-group">
-                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
-                                    <input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias">
-                                </div>
-                                <div class="form-group">
-                                    <label for="dadosBancarios">Dados Bancários</label>
-                                    <textarea id="dadosBancarios" rows="3"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="modal-actions">
-                            <button type="submit" class="save">Salvar Ordem</button>
-                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    addItem();
-    
-    setTimeout(() => {
-        setupFornecedorAutocomplete();
-        document.getElementById('numeroOrdem')?.focus();
-    }, 100);
-}
-
-function closeFormModal(showCancelMessage = false) {
-    const modal = document.getElementById('formModal');
-    if (modal) {
-        const editId = document.getElementById('editId')?.value;
-        const isEditing = editId && editId !== '';
-        
-        if (showCancelMessage) {
-            showToast(isEditing ? 'Atualização cancelada' : 'Registro cancelado', 'error');
-        }
-        
-        modal.style.animation = 'fadeOut 0.2s ease forwards';
-        setTimeout(() => modal.remove(), 200);
-    }
-}
-
-function addItem() {
-    itemCounter++;
-    const tbody = document.getElementById('itemsBody');
-    const row = document.createElement('tr');
-    row.innerHTML = `
-        <td style="text-align: center;">${itemCounter}</td>
-        <td>
-            <textarea class="item-especificacao" placeholder="Descrição do item..." rows="2"></textarea>
-        </td>
-        <td>
-            <input type="number" class="item-qtd" min="0" step="0.01" value="1" onchange="calculateItemTotal(this)">
-        </td>
-        <td>
-            <input type="text" class="item-unid" value="UN" placeholder="UN">
-        </td>
-        <td>
-            <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
-        </td>
-        <td>
-            <input type="text" class="item-ipi" placeholder="Ex: Isento">
-        </td>
-        <td>
-            <input type="text" class="item-st" placeholder="Ex: Não incluído">
-        </td>
-        <td>
-            <input type="text" class="item-total" readonly value="R$ 0,00">
-        </td>
-        <td style="text-align: center;">
-            <button type="button" class="danger small" onclick="removeItem(this)">Excluir</button>
-        </td>
-    `;
-    tbody.appendChild(row);
-}
-
-function removeItem(btn) {
-    const row = btn.closest('tr');
-    row.remove();
-    recalculateOrderTotal();
-    renumberItems();
-}
-
-function renumberItems() {
-    const rows = document.querySelectorAll('#itemsBody tr');
-    rows.forEach((row, index) => {
-        row.cells[0].textContent = index + 1;
-    });
-    itemCounter = rows.length;
-}
-
-function calculateItemTotal(input) {
-    const row = input.closest('tr');
-    const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
-    const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-    const total = qtd * valor;
-    row.querySelector('.item-total').value = formatCurrency(total);
-    recalculateOrderTotal();
-}
-
-function recalculateOrderTotal() {
-    const totals = document.querySelectorAll('.item-total');
-    let sum = 0;
-    totals.forEach(input => {
-        const value = input.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-        sum += parseFloat(value) || 0;
-    });
-    const totalInput = document.getElementById('valorTotalOrdem');
-    if (totalInput) {
-        totalInput.value = formatCurrency(sum);
-    }
-}
-
-async function handleSubmit(event) {
-    event.preventDefault();
-    
-    const items = [];
-    const rows = document.querySelectorAll('#itemsBody tr');
-    rows.forEach((row, index) => {
-        items.push({
-            item: index + 1,
-            especificacao: toUpperCase(row.querySelector('.item-especificacao').value),
-            quantidade: parseFloat(row.querySelector('.item-qtd').value) || 0,
-            unidade: toUpperCase(row.querySelector('.item-unid').value),
-            valorUnitario: parseFloat(row.querySelector('.item-valor').value) || 0,
-            ipi: toUpperCase(row.querySelector('.item-ipi').value || ''),
-            st: toUpperCase(row.querySelector('.item-st').value || ''),
-            valorTotal: row.querySelector('.item-total').value
-        });
-    });
-    
-    const formData = {
-        numeroOrdem: document.getElementById('numeroOrdem').value,
-        responsavel: toUpperCase(document.getElementById('responsavel').value),
-        dataOrdem: document.getElementById('dataOrdem').value,
-        razaoSocial: toUpperCase(document.getElementById('razaoSocial').value),
-        nomeFantasia: toUpperCase(document.getElementById('nomeFantasia').value),
-        cnpj: document.getElementById('cnpj').value,
-        enderecoFornecedor: toUpperCase(document.getElementById('enderecoFornecedor').value),
-        site: document.getElementById('site').value,
-        contato: toUpperCase(document.getElementById('contato').value),
-        telefone: document.getElementById('telefone').value,
-        email: document.getElementById('email').value,
-        items: items,
-        valorTotal: document.getElementById('valorTotalOrdem').value,
-        frete: toUpperCase(document.getElementById('frete').value),
-        localEntrega: toUpperCase(document.getElementById('localEntrega').value),
-        prazoEntrega: toUpperCase(document.getElementById('prazoEntrega').value),
-        transporte: toUpperCase(document.getElementById('transporte').value),
-        formaPagamento: toUpperCase(document.getElementById('formaPagamento').value),
-        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
-        dadosBancarios: toUpperCase(document.getElementById('dadosBancarios').value),
-        status: 'aberta'
-    };
-    
-    if (!isOnline && !DEVELOPMENT_MODE) {
-        showToast('Sistema offline. Dados não foram salvos.', 'error');
-        closeFormModal();
-        return;
-    }
-
+app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const url = editingId ? `${API_URL}/ordens/${editingId}` : `${API_URL}/ordens`;
-        const method = editingId ? 'PUT' : 'POST';
-
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        };
+        console.log(`✏️ Atualizando ordem ID: ${req.params.id}`);
         
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
-        }
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
 
-        const response = await fetch(url, {
-            method,
-            headers: headers,
-            body: JSON.stringify(formData),
-            mode: 'cors'
-        });
+        const ordemAtualizada = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta',
+            updated_at: new Date().toISOString()
+        };
 
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .update(ordemAtualizada)
+            .eq('id', req.params.id)
+            .select()
+            .single();
 
-        if (!response.ok) {
-            let errorMessage = 'Erro ao salvar';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorData.message || errorMessage;
-            } catch (e) {
-                errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
             }
-            throw new Error(errorMessage);
+            throw error;
         }
 
-        const savedData = await response.json();
-
-        if (editingId) {
-            const index = ordens.findIndex(o => String(o.id) === String(editingId));
-            if (index !== -1) ordens[index] = savedData;
-            showToast('Ordem atualizada com sucesso!', 'success');
-        } else {
-            ordens.push(savedData);
-            showToast('Ordem criada com sucesso!', 'success');
-        }
-
-        lastDataHash = JSON.stringify(ordens.map(o => o.id));
-        updateDisplay();
-        closeFormModal();
+        console.log('✅ Ordem atualizada com sucesso!');
+        res.json(data);
     } catch (error) {
-        console.error('Erro completo:', error);
-        showToast(`Erro: ${error.message}`, 'error');
-    }
-}
-
-async function editOrdem(id) {
-    const ordem = ordens.find(o => String(o.id) === String(id));
-    if (!ordem) {
-        showToast('Ordem não encontrada!', 'error');
-        return;
-    }
-    
-    editingId = id;
-    currentTab = 0;
-    itemCounter = 0;
-    
-    const modalHTML = `
-        <div class="modal-overlay" id="formModal" style="display: flex;">
-            <div class="modal-content" style="max-width: 1200px;">
-                <div class="modal-header">
-                    <h3 class="modal-title">Editar Ordem de Compra</h3>
-                </div>
-                
-                <div class="tabs-container">
-                    <div class="tabs-nav">
-                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
-                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
-                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
-                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
-                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
-                    </div>
-
-                    <form id="ordemForm" onsubmit="handleSubmit(event)">
-                        <input type="hidden" id="editId" value="${ordem.id}">
-                        
-                        <div class="tab-content active" id="tab-geral">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="numeroOrdem">Número da Ordem *</label>
-                                    <input type="text" id="numeroOrdem" value="${ordem.numero_ordem || ordem.numeroOrdem}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" value="${toUpperCase(ordem.responsavel)}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="dataOrdem">Data da Ordem *</label>
-                                    <input type="date" id="dataOrdem" value="${ordem.data_ordem || ordem.dataOrdem}" required>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-fornecedor">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="razaoSocial">Razão Social *</label>
-                                    <input type="text" id="razaoSocial" value="${toUpperCase(ordem.razao_social || ordem.razaoSocial)}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="nomeFantasia">Nome Fantasia</label>
-                                    <input type="text" id="nomeFantasia" value="${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || '')}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cnpj">CNPJ *</label>
-                                    <input type="text" id="cnpj" value="${ordem.cnpj}" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="enderecoFornecedor">Endereço</label>
-                                    <input type="text" id="enderecoFornecedor" value="${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || '')}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="site">Site</label>
-                                    <input type="text" id="site" value="${ordem.site || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contato">Contato</label>
-                                    <input type="text" id="contato" value="${toUpperCase(ordem.contato || '')}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="telefone">Telefone</label>
-                                    <input type="text" id="telefone" value="${ordem.telefone || ''}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="email">E-mail</label>
-                                    <input type="email" id="email" value="${ordem.email || ''}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-pedido">
-                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
-                            <div style="overflow-x: auto;">
-                                <table class="items-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 40px;">Item</th>
-                                            <th style="min-width: 200px;">Especificação</th>
-                                            <th style="width: 80px;">QTD</th>
-                                            <th style="width: 80px;">Unid</th>
-                                            <th style="width: 100px;">Valor UN</th>
-                                            <th style="width: 100px;">IPI</th>
-                                            <th style="width: 100px;">ST</th>
-                                            <th style="width: 120px;">Total</th>
-                                            <th style="width: 80px;"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="itemsBody"></tbody>
-                                </table>
-                            </div>
-                            <div class="form-group" style="margin-top: 1rem;">
-                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
-                                <input type="text" id="valorTotalOrdem" readonly value="${ordem.valor_total || ordem.valorTotal}">
-                            </div>
-                            <div class="form-group">
-                                <label for="frete">Frete</label>
-                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || '')}" placeholder="Ex: CIF, FOB">
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-entrega">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318')}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '')}" placeholder="Ex: 10 dias úteis">
-                                </div>
-                                <div class="form-group">
-                                    <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || '')}" placeholder="Ex: Por conta do fornecedor">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="tab-content" id="tab-pagamento">
-                            <div class="form-grid">
-                                <div class="form-group">
-                                    <label for="formaPagamento">Forma de Pagamento *</label>
-                                    <input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}" required placeholder="Ex: Boleto, PIX, Cartão">
-                                </div>
-                                <div class="form-group">
-                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
-                                    <input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}" required placeholder="Ex: 30 dias">
-                                </div>
-                                <div class="form-group">
-                                    <label for="dadosBancarios">Dados Bancários</label>
-                                    <textarea id="dadosBancarios" rows="3">${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="modal-actions">
-                            <button type="submit" class="save">Atualizar Ordem</button>
-                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
-    setTimeout(() => {
-        setupFornecedorAutocomplete();
-    }, 100);
-    
-    if (ordem.items && ordem.items.length > 0) {
-        ordem.items.forEach(item => {
-            addItem();
-            const row = document.querySelector('#itemsBody tr:last-child');
-            if (row) {
-                row.querySelector('.item-especificacao').value = toUpperCase(item.especificacao || '');
-                row.querySelector('.item-qtd').value = item.quantidade || 1;
-                row.querySelector('.item-unid').value = toUpperCase(item.unidade || 'UN');
-                row.querySelector('.item-valor').value = item.valorUnitario || item.valor_unitario || 0;
-                row.querySelector('.item-ipi').value = toUpperCase(item.ipi || '');
-                row.querySelector('.item-st').value = toUpperCase(item.st || '');
-                row.querySelector('.item-total').value = item.valorTotal || item.valor_total || 'R$ 0,00';
-            }
+        console.error('❌ Erro ao atualizar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao atualizar ordem',
+            message: error.message
         });
-    } else {
-        addItem();
     }
-}
+});
 
-async function deleteOrdem(id) {
-    if (!confirm('Tem certeza que deseja excluir esta ordem?')) return;
-
-    if (!isOnline && !DEVELOPMENT_MODE) {
-        showToast('Sistema offline. Não foi possível excluir.', 'error');
-        return;
-    }
-
+app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
     try {
-        const headers = {
-            'Accept': 'application/json'
+        console.log(`🔄 Atualizando status da ordem ID: ${req.params.id}`);
+        const updates = {
+            status: req.body.status,
+            updated_at: new Date().toISOString()
         };
-        
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
+
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .update(updates)
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            throw error;
         }
 
-        const response = await fetch(`${API_URL}/ordens/${id}`, {
-            method: 'DELETE',
-            headers: headers,
-            mode: 'cors'
-        });
-
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
-
-        if (!response.ok) throw new Error('Erro ao deletar');
-
-        ordens = ordens.filter(o => String(o.id) !== String(id));
-        lastDataHash = JSON.stringify(ordens.map(o => o.id));
-        updateDisplay();
-        showToast('Ordem excluída com sucesso!', 'success');
+        console.log('✅ Status atualizado com sucesso!');
+        res.json(data);
     } catch (error) {
-        console.error('Erro ao deletar:', error);
-        showToast('Erro ao excluir ordem', 'error');
-    }
-}
-
-async function toggleStatus(id) {
-    const ordem = ordens.find(o => String(o.id) === String(id));
-    if (!ordem) return;
-
-    const novoStatus = ordem.status === 'aberta' ? 'fechada' : 'aberta';
-    const old = { status: ordem.status };
-    ordem.status = novoStatus;
-    updateDisplay();
-    
-    showToast(`Ordem marcada como ${novoStatus}!`, 'success');
-
-    if (isOnline || DEVELOPMENT_MODE) {
-        try {
-            const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            };
-            
-            if (!DEVELOPMENT_MODE && sessionToken) {
-                headers['X-Session-Token'] = sessionToken;
-            }
-
-            const response = await fetch(`${API_URL}/ordens/${id}/status`, {
-                method: 'PATCH',
-                headers: headers,
-                body: JSON.stringify({ status: novoStatus }),
-                mode: 'cors'
-            });
-
-            if (!DEVELOPMENT_MODE && response.status === 401) {
-                sessionStorage.removeItem('ordemCompraSession');
-                mostrarTelaAcessoNegado('Sua sessão expirou');
-                return;
-            }
-
-            if (!response.ok) throw new Error('Erro ao atualizar');
-
-            const data = await response.json();
-            const index = ordens.findIndex(o => String(o.id) === String(id));
-            if (index !== -1) ordens[index] = data;
-        } catch (error) {
-            ordem.status = old.status;
-            updateDisplay();
-            showToast('Erro ao atualizar status', 'error');
-        }
-    }
-}
-
-function viewOrdem(id) {
-    const ordem = ordens.find(o => String(o.id) === String(id));
-    if (!ordem) return;
-    
-    document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
-    
-    document.getElementById('info-tab-geral').innerHTML = `
-        <div class="info-section">
-            <h4>Informações Gerais</h4>
-            <p><strong>Responsável:</strong> ${toUpperCase(ordem.responsavel)}</p>
-            <p><strong>Data:</strong> ${formatDate(ordem.data_ordem || ordem.dataOrdem)}</p>
-            <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
-        </div>
-    `;
-    
-    document.getElementById('info-tab-fornecedor').innerHTML = `
-        <div class="info-section">
-            <h4>Dados do Fornecedor</h4>
-            <p><strong>Razão Social:</strong> ${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</p>
-            ${ordem.nome_fantasia || ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia)}</p>` : ''}
-            <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
-            ${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor)}</p>` : ''}
-            ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
-            ${ordem.contato ? `<p><strong>Contato:</strong> ${toUpperCase(ordem.contato)}</p>` : ''}
-            ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
-            ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
-        </div>
-    `;
-    
-    document.getElementById('info-tab-pedido').innerHTML = `
-        <div class="info-section">
-            <h4>Itens do Pedido</h4>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; margin-top: 0.5rem;">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Especificação</th>
-                            <th>QTD</th>
-                            <th>Unid</th>
-                            <th>Valor UN</th>
-                            <th>IPI</th>
-                            <th>ST</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${ordem.items.map(item => `
-                            <tr>
-                                <td>${item.item}</td>
-                                <td>${toUpperCase(item.especificacao)}</td>
-                                <td>${item.quantidade}</td>
-                                <td>${toUpperCase(item.unidade)}</td>
-                                <td>R$ ${(item.valorUnitario || item.valor_unitario || 0).toFixed(2)}</td>
-                                <td>${toUpperCase(item.ipi || '-')}</td>
-                                <td>${toUpperCase(item.st || '-')}</td>
-                                <td>${item.valorTotal || item.valor_total}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valor_total || ordem.valorTotal}</p>
-            ${ordem.frete ? `<p><strong>Frete:</strong> ${toUpperCase(ordem.frete)}</p>` : ''}
-        </div>
-    `;
-    
-    document.getElementById('info-tab-entrega').innerHTML = `
-        <div class="info-section">
-            <h4>Informações de Entrega</h4>
-            ${ordem.local_entrega || ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${toUpperCase(ordem.local_entrega || ordem.localEntrega)}</p>` : ''}
-            ${ordem.prazo_entrega || ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega)}</p>` : ''}
-            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${toUpperCase(ordem.transporte)}</p>` : ''}
-        </div>
-    `;
-    
-    document.getElementById('info-tab-pagamento').innerHTML = `
-        <div class="info-section">
-            <h4>Dados de Pagamento</h4>
-            <p><strong>Forma de Pagamento:</strong> ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}</p>
-            <p><strong>Prazo de Pagamento:</strong> ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}</p>
-            ${ordem.dados_bancarios || ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios)}</p>` : ''}
-        </div>
-    `;
-    
-    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
-    document.querySelectorAll('#infoModal .tab-btn')[0].classList.add('active');
-    document.getElementById('info-tab-geral').classList.add('active');
-    
-    document.getElementById('infoModal').classList.add('show');
-}
-
-function closeInfoModal() {
-    const modal = document.getElementById('infoModal');
-    if (modal) {
-        modal.classList.remove('show');
-    }
-}
-
-function filterOrdens() {
-    updateTable();
-}
-
-function updateDisplay() {
-    updateMonthDisplay();
-    updateDashboard();
-    updateTable();
-    updateResponsaveisFilter();
-}
-
-function updateDashboard() {
-    const monthOrdens = getOrdensForCurrentMonth();
-    const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
-    const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
-    
-    const numeros = ordens
-        .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
-        .filter(n => !isNaN(n));
-    const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
-    
-    document.getElementById('totalOrdens').textContent = ultimoNumero;
-    document.getElementById('totalFechadas').textContent = totalFechadas;
-    document.getElementById('totalAbertas').textContent = totalAbertas;
-    
-    const cardAbertas = document.getElementById('cardAbertas');
-    if (!cardAbertas) return;
-    
-    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
-    
-    if (totalAbertas > 0) {
-        cardAbertas.classList.add('has-alert');
-        
-        if (!pulseBadge) {
-            pulseBadge = document.createElement('div');
-            pulseBadge.className = 'pulse-badge';
-            cardAbertas.appendChild(pulseBadge);
-        }
-        pulseBadge.textContent = totalAbertas;
-        pulseBadge.style.display = 'flex';
-    } else {
-        cardAbertas.classList.remove('has-alert');
-        if (pulseBadge) {
-            pulseBadge.style.display = 'none';
-        }
-    }
-}
-
-function updateTable() {
-    const container = document.getElementById('ordensContainer');
-    let filteredOrdens = getOrdensForCurrentMonth();
-    
-    const search = document.getElementById('search').value.toLowerCase();
-    const filterResp = document.getElementById('filterResponsavel').value;
-    const filterStatus = document.getElementById('filterStatus').value;
-    
-    if (search) {
-        filteredOrdens = filteredOrdens.filter(o => 
-            (o.numero_ordem || o.numeroOrdem || '').toLowerCase().includes(search) ||
-            (o.razao_social || o.razaoSocial || '').toLowerCase().includes(search) ||
-            (o.responsavel || '').toLowerCase().includes(search)
-        );
-    }
-    
-    if (filterResp) {
-        filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
-    }
-    
-    if (filterStatus) {
-        filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
-    }
-    
-    if (filteredOrdens.length === 0) {
-        container.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem;">
-                    Nenhuma ordem encontrada
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    filteredOrdens.sort((a, b) => {
-        const numA = parseInt(a.numero_ordem || a.numeroOrdem);
-        const numB = parseInt(b.numero_ordem || b.numeroOrdem);
-        return numA - numB;
-    });
-    
-    container.innerHTML = filteredOrdens.map(ordem => `
-        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
-            <td style="text-align: center; padding: 8px;">
-                <div class="checkbox-wrapper">
-                    <input 
-                        type="checkbox" 
-                        id="check-${ordem.id}"
-                        ${ordem.status === 'fechada' ? 'checked' : ''}
-                        onchange="toggleStatus('${ordem.id}')"
-                        class="styled-checkbox"
-                    >
-                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
-                </div>
-            </td>
-            <td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
-            <td>${toUpperCase(ordem.responsavel)}</td>
-            <td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
-            <td style="white-space: nowrap;">${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
-            <td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td>
-            <td>
-                <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
-            </td>
-            <td class="actions-cell">
-                <div class="actions">
-                    <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
-                    <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
-                    <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function updateResponsaveisFilter() {
-    const responsaveis = new Set();
-    ordens.forEach(o => {
-        if (o.responsavel?.trim()) {
-            responsaveis.add(o.responsavel.trim());
-        }
-    });
-
-    const select = document.getElementById('filterResponsavel');
-    if (select) {
-        const currentValue = select.value;
-        select.innerHTML = '<option value="">Todos</option>';
-        Array.from(responsaveis).sort().forEach(r => {
-            const option = document.createElement('option');
-            option.value = r;
-            option.textContent = toUpperCase(r);
-            select.appendChild(option);
+        console.error('❌ Erro ao atualizar status:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao atualizar status',
+            message: error.message
         });
-        select.value = currentValue;
     }
-}
+});
 
-function getOrdensForCurrentMonth() {
-    return ordens.filter(ordem => {
-        const ordemDate = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
-        return ordemDate.getMonth() === currentMonth.getMonth() &&
-               ordemDate.getFullYear() === currentMonth.getFullYear();
-    });
-}
+app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+    try {
+        console.log(`🗑️ Deletando ordem ID: ${req.params.id}`);
+        const { error } = await supabase
+            .from('ordens_compra')
+            .delete()
+            .eq('id', req.params.id);
 
-function getNextOrderNumber() {
-    const existingNumbers = ordens
-        .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
-        .filter(n => !isNaN(n));
-    
-    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
-    return nextNum.toString();
-}
+        if (error) throw error;
 
-function formatDate(dateString) {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR');
-}
-
-function formatCurrency(value) {
-    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
-}
-
-function showToast(message, type = 'success') {
-    const oldMessages = document.querySelectorAll('.floating-message');
-    oldMessages.forEach(msg => msg.remove());
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `floating-message ${type}`;
-    messageDiv.textContent = message;
-    
-    document.body.appendChild(messageDiv);
-    
-    setTimeout(() => {
-        messageDiv.style.animation = 'slideOut 0.3s ease forwards';
-        setTimeout(() => messageDiv.remove(), 300);
-    }, 3000);
-}
-
-// GERAÇÃO DE PDF (resto do código igual ao original...)
-function generatePDFFromTable(id) {
-    const ordem = ordens.find(o => String(o.id) === String(id));
-    if (!ordem) {
-        showToast('Ordem não encontrada!', 'error');
-        return;
-    }
-    
-    // Verificar se jsPDF está disponível
-    if (typeof window.jspdf === 'undefined') {
-        showToast('Erro: jsPDF não carregado. Recarregue a página.', 'error');
-        console.error('jsPDF não encontrado!');
-        return;
-    }
-    
-    generatePDFForOrdem(ordem);
-}
-
-function generatePDFForOrdem(ordem) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    let y = 25;
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const lineHeight = 5;
-    const maxWidth = pageWidth - (2 * margin);
-    
-    function addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
-        const lines = doc.splitTextToSize(text, maxW);
-        lines.forEach((line, index) => {
-            if (yStart + (index * lineH) > pageHeight - 30) {
-                doc.addPage();
-                yStart = 20;
-            }
-            doc.text(line, x, yStart + (index * lineH));
+        console.log('✅ Ordem deletada com sucesso!');
+        res.json({ success: true, message: 'Ordem removida com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao deletar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao deletar ordem',
+            message: error.message
         });
-        return yStart + (lines.length * lineH);
     }
-    
-    // CABEÇALHO
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
-    
-    y += 8;
-    doc.setFontSize(14);
-    doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-    
-    y += 12;
-    
-    // DADOS PARA FATURAMENTO
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont(undefined, 'bold');
-    doc.text('DADOS PARA FATURAMENTO', margin, y);
-    
-    y += lineHeight + 1;
-    doc.setFont(undefined, 'bold');
-    doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
-    
-    y += lineHeight + 1;
-    doc.setFont(undefined, 'normal');
-    doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
-    
-    y += lineHeight + 1;
-    doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
-    
-    y += lineHeight + 1;
-    doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
-    
-    y += lineHeight + 1;
-    doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
-    
-    y += 10;
-    
-    // DADOS DO FORNECEDOR
-    doc.setFont(undefined, 'bold');
-    doc.text('DADOS DO FORNECEDOR', margin, y);
-    
-    y += lineHeight + 1;
-    doc.setFont(undefined, 'bold');
-    y = addTextWithWrap(toUpperCase(ordem.razao_social || ordem.razaoSocial), margin, y, maxWidth);
+});
 
-    if (ordem.nome_fantasia || ordem.nomeFantasia) {
-        y += 2;
-        doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), margin, y, maxWidth);
-    }
+// ROTAS DE SAÚDE
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-    y += 2;
-    doc.setFont(undefined, 'normal');
-    doc.text(`${ordem.cnpj}`, margin, y);
-    y += lineHeight;
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-    if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
-        y += 1;
-        y = addTextWithWrap(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), margin, y, maxWidth);
-    }
-
-    if (ordem.contato) {
-        y += 2;
-        y = addTextWithWrap(toUpperCase(ordem.contato), margin, y, maxWidth);
-    }
-
-    if (ordem.telefone) {
-        y += 1;
-        doc.text(`${ordem.telefone}`, margin, y);
-        y += lineHeight;
-    }
-
-    if (ordem.email) {
-        y += 1;
-        y = addTextWithWrap(`${ordem.email}`, margin, y, maxWidth);
-    }
-    
-    y += 10;
-    
-    // Verificar se precisa de nova página antes da tabela
-    if (y > pageHeight - 80) {
-        doc.addPage();
-        y = 20;
-    }
-    
-    // ITENS DO PEDIDO
-    doc.setFont(undefined, 'bold');
-    doc.text('ITENS DO PEDIDO', margin, y);
-    
-    y += 6;
-    
-    const tableWidth = pageWidth - (2 * margin);
-    const colWidths = {
-        item: tableWidth * 0.05,
-        especificacao: tableWidth * 0.35,
-        qtd: tableWidth * 0.08,
-        unid: tableWidth * 0.08,
-        valorUn: tableWidth * 0.12,
-        ipi: tableWidth * 0.10,
-        st: tableWidth * 0.10,
-        total: tableWidth * 0.12
-    };
-    
-    const itemRowHeight = 10;
-    
-    // Cabeçalho da tabela
-    doc.setFillColor(108, 117, 125);
-    doc.setDrawColor(180, 180, 180);
-    doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    
-    let xPos = margin;
-    
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.item;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.especificacao;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.qtd;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.unid;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.valorUn;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.ipi;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.st;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-    xPos += colWidths.total;
-    doc.line(xPos, y, xPos, y + itemRowHeight);
-    
-    y += itemRowHeight;
-    doc.setTextColor(0, 0, 0);
-    
-    // Linhas dos itens
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(8);
-    
-    ordem.items.forEach((item, index) => {
-        const especificacaoUpper = toUpperCase(item.especificacao);
-        const maxWidth = colWidths.especificacao - 6;
-        const especLines = doc.splitTextToSize(especificacaoUpper, maxWidth);
-        const lineCount = especLines.length;
-        const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
-        
-        if (y + necessaryHeight > pageHeight - 70) {
-            doc.addPage();
-            y = 20;
-            
-            doc.setFillColor(108, 117, 125);
-            doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-            doc.setTextColor(255, 255, 255);
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(9);
-            
-            xPos = margin;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.item;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.especificacao;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.qtd;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.unid;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.valorUn;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.ipi;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.st;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.total;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            
-            y += itemRowHeight;
-            doc.setTextColor(0, 0, 0);
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(8);
-        }
-        
-        if (index % 2 !== 0) {
-            doc.setFillColor(240, 240, 240);
-            doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
-        }
-        
-        xPos = margin;
-        
-        doc.setDrawColor(180, 180, 180);
-        doc.setLineWidth(0.3);
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.item;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(especLines, xPos + 3, y + 4);
-        xPos += colWidths.especificacao;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.qtd;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.unid;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        const valorUn = item.valorUnitario || item.valor_unitario || 0;
-        const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).replace('.', ',');
-        doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.valorUn;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.ipi;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.st;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-        xPos += colWidths.total;
-        doc.line(xPos, y, xPos, y + necessaryHeight);
-        
-        doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
-        
-        y += necessaryHeight;
+// TRATAMENTO GLOBAL DE ERROS
+app.use((err, req, res, next) => {
+    console.error('❌ Erro não tratado:', err);
+    res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        message: err.message
     });
-    
-    y += 8;
-    
-    // VALOR TOTAL
-    if (y > pageHeight - 80) {
-        doc.addPage();
-        y = 20;
-    }
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y);
-    
-    y += 10;
-    
-    // LOCAL DE ENTREGA
-    if (y > pageHeight - 70) {
-        doc.addPage();
-        y = 20;
-    }
-    doc.setFont(undefined, 'bold');
-    doc.text('LOCAL DE ENTREGA:', margin, y);
-    y += 5;
-    doc.setFont(undefined, 'normal');
-    
-    const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
-    const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' 
-        ? toUpperCase(ordem.local_entrega || ordem.localEntrega)
-        : localPadrao;
-    
-    y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth);
-    
-    y += 10;
-    
-    // PRAZO E FRETE
-    if (y > pageHeight - 60) {
-        doc.addPage();
-        y = 20;
-    }
-    doc.setFont(undefined, 'bold');
-    doc.text('PRAZO DE ENTREGA:', margin, y);
-    doc.setFont(undefined, 'normal');
-    doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
-    
-    doc.setFont(undefined, 'bold');
-    doc.text('FRETE:', pageWidth - margin - 35, y);
-    doc.setFont(undefined, 'normal');
-    doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
-    
-    y += 10;
-    
-    // CONDIÇÕES DE PAGAMENTO
-    if (y > pageHeight - 50) {
-        doc.addPage();
-        y = 20;
-    }
-    doc.setFont(undefined, 'bold');
-    doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
-    y += 5;
-    doc.setFont(undefined, 'normal');
-    doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
-    y += 5;
-    doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
-    
-    if (ordem.dados_bancarios || ordem.dadosBancarios) {
-        y += 5;
-        doc.setFont(undefined, 'bold');
-        doc.text('DADOS BANCÁRIOS:', margin, y);
-        y += 5;
-        doc.setFont(undefined, 'normal');
-        const bancarioUpper = toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios);
-        y = addTextWithWrap(bancarioUpper, margin, y, maxWidth);
-    }
-    
-    y += 15;
-    
-    // DATA E ASSINATURA
-    if (y > pageHeight - 60) {
-        doc.addPage();
-        y = 20;
-    }
-    
-    const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
-    const dia = dataOrdem.getDate();
-    const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
-                   'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-    const mes = meses[dataOrdem.getMonth()];
-    const ano = dataOrdem.getFullYear();
-    
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
-    
-    y += 5;
-    
-    const assinatura = new Image();
-    assinatura.crossOrigin = 'anonymous';
-    assinatura.src = 'assinatura.png';
+});
 
-    assinatura.onload = function() {
-        try {
-            const imgWidth = 50;
-            const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
-            
-            doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
-            
-            let yFinal = y + imgHeight + 5;
-            
-            yFinal += 5;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
-            
-            yFinal += 5;
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
-            
-            yFinal += 5;
-            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
-            
-            yFinal += 12;
-            
-            if (yFinal > pageHeight - 30) {
-                doc.addPage();
-                yFinal = 20;
-            }
-            
-            doc.setFillColor(240, 240, 240);
-            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
-            
-            yFinal += 6;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(204, 112, 0);
-            doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
-            
-            yFinal += 5;
-            doc.setTextColor(0, 0, 0);
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
-            
-            yFinal += 5;
-            doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
-            
-            doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
-            showToast('PDF gerado com sucesso!', 'success');
-            
-        } catch (e) {
-            console.log('Erro ao adicionar assinatura:', e);
-            gerarPDFSemAssinatura();
-        }
-    };
+// INICIAR SERVIDOR
+const PORT = process.env.PORT || 10000;
 
-    assinatura.onerror = function() {
-        console.log('Erro ao carregar assinatura, gerando PDF sem ela');
-        gerarPDFSemAssinatura();
-    };
-    
-    function gerarPDFSemAssinatura() {
-        let yFinal = y + 5;
-        
-        yFinal += 5;
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
-        doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
-        
-        yFinal += 5;
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
-        
-        yFinal += 5;
-        doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
-        
-        yFinal += 12;
-        
-        if (yFinal > pageHeight - 30) {
-            doc.addPage();
-            yFinal = 20;
-        }
-        
-        doc.setFillColor(240, 240, 240);
-        doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
-        doc.setDrawColor(200, 200, 200);
-        doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
-        
-        yFinal += 6;
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(204, 112, 0);
-        doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
-        
-        yFinal += 5;
-        doc.setTextColor(0, 0, 0);
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(9);
-        doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
-        
-        yFinal += 5;
-        doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
-        
-        doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
-        showToast('PDF gerado (sem assinatura)', 'success');
-    }
-}
+app.listen(PORT, '0.0.0.0', () => {
+    console.log('');
+    console.log('===============================================');
+    console.log('🚀 ORDEM DE COMPRA');
+    console.log('===============================================');
+    console.log(`✅ Porta: ${PORT}`);
+    console.log(`✅ Supabase: ${supabaseUrl}`);
+    console.log(`✅ Portal: ${PORTAL_URL}`);
+    console.log('===============================================');
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    process.exit(1);
+});
+
+module.exports = app;

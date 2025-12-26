@@ -1,5 +1,10 @@
+// MODO DESENVOLVIMENTO - Permite funcionar sem autenticação
+const DEVELOPMENT_MODE = true; // Mude para false em produção
+
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'https://ordem-compra.onrender.com/api';
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:10000/api'
+    : 'https://ordem-compra.onrender.com/api';
 
 let ordens = [];
 let currentMonth = new Date();
@@ -13,14 +18,22 @@ let fornecedoresCache = {};
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
-console.log('Ordem de Compra iniciada');
+console.log('🚀 Ordem de Compra iniciada');
+console.log('📍 API URL:', API_URL);
+console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
 
 function toUpperCase(value) {
     return value ? String(value).toUpperCase() : '';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    verificarAutenticacao();
+    if (DEVELOPMENT_MODE) {
+        console.log('⚠️ MODO DESENVOLVIMENTO ATIVADO');
+        sessionToken = 'dev-mode';
+        inicializarApp();
+    } else {
+        verificarAutenticacao();
+    }
 });
 
 function verificarAutenticacao() {
@@ -44,13 +57,13 @@ function verificarAutenticacao() {
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    document.body.innerHTML = \`
+    document.body.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">\${mensagem}</h1>
+            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
             <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="\${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
+            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
         </div>
-    \`;
+    `;
 }
 
 function inicializarApp() {
@@ -62,16 +75,21 @@ function inicializarApp() {
 
 async function checkServerStatus() {
     try {
-        const response = await fetch(\`\${API_URL}/ordens\`, {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens`, {
             method: 'GET',
-            headers: { 
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: headers,
             mode: 'cors'
         });
 
-        if (response.status === 401) {
+        if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
             return false;
@@ -88,6 +106,7 @@ async function checkServerStatus() {
         updateConnectionStatus();
         return isOnline;
     } catch (error) {
+        console.error('❌ Erro ao verificar servidor:', error);
         isOnline = false;
         updateConnectionStatus();
         return false;
@@ -109,25 +128,33 @@ function startPolling() {
 }
 
 async function loadOrdens() {
-    if (!isOnline) return;
+    if (!isOnline && !DEVELOPMENT_MODE) return;
 
     try {
-        const response = await fetch(\`\${API_URL}/ordens\`, {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens`, {
             method: 'GET',
-            headers: { 
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: headers,
             mode: 'cors'
         });
 
-        if (response.status === 401) {
+        if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.error('❌ Erro ao carregar ordens:', response.status);
+            return;
+        }
 
         const data = await response.json();
         ordens = data;
@@ -164,7 +191,7 @@ function atualizarCacheFornecedores(ordens) {
         }
     });
     
-    console.log(\`📋 Cache de fornecedores atualizado: \${Object.keys(fornecedoresCache).length} fornecedores\`);
+    console.log(`📋 Cache de fornecedores atualizado: ${Object.keys(fornecedoresCache).length} fornecedores`);
 }
 
 function buscarFornecedoresSimilares(termo) {
@@ -214,7 +241,7 @@ function setupFornecedorAutocomplete() {
         
         suggestionsDiv = document.createElement('div');
         suggestionsDiv.id = 'fornecedorSuggestions';
-        suggestionsDiv.style.cssText = \`
+        suggestionsDiv.style.cssText = `
             position: absolute;
             z-index: 1000;
             background: var(--bg-card);
@@ -225,25 +252,25 @@ function setupFornecedorAutocomplete() {
             overflow-y: auto;
             width: 100%;
             margin-top: 4px;
-        \`;
+        `;
         
         fornecedores.forEach(fornecedor => {
             const item = document.createElement('div');
-            item.style.cssText = \`
+            item.style.cssText = `
                 padding: 12px;
                 cursor: pointer;
                 border-bottom: 1px solid var(--border-color);
                 transition: background 0.2s;
-            \`;
+            `;
             
-            item.innerHTML = \`
+            item.innerHTML = `
                 <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
-                    \${fornecedor.razaoSocial}
+                    ${fornecedor.razaoSocial}
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                    \${fornecedor.cnpj}\${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}
+                    ${fornecedor.cnpj}${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}
                 </div>
-            \`;
+            `;
             
             item.addEventListener('mouseenter', () => {
                 item.style.background = 'var(--table-hover)';
@@ -283,7 +310,7 @@ function updateMonthDisplay() {
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthName = months[currentMonth.getMonth()];
     const year = currentMonth.getFullYear();
-    document.getElementById('currentMonth').textContent = \`\${monthName} \${year}\`;
+    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
 }
 
 function switchTab(tabId) {
@@ -328,7 +355,7 @@ function openFormModal() {
     const nextNumber = getNextOrderNumber();
     const today = new Date().toISOString().split('T')[0];
     
-    const modalHTML = \`
+    const modalHTML = `
         <div class="modal-overlay" id="formModal" style="display: flex;">
             <div class="modal-content" style="max-width: 1200px;">
                 <div class="modal-header">
@@ -351,7 +378,7 @@ function openFormModal() {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="numeroOrdem">Número da Ordem *</label>
-                                    <input type="text" id="numeroOrdem" value="\${nextNumber}" required>
+                                    <input type="text" id="numeroOrdem" value="${nextNumber}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="responsavel">Responsável *</label>
@@ -359,7 +386,7 @@ function openFormModal() {
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
-                                    <input type="date" id="dataOrdem" value="\${today}" required>
+                                    <input type="date" id="dataOrdem" value="${today}" required>
                                 </div>
                             </div>
                         </div>
@@ -473,7 +500,7 @@ function openFormModal() {
                 </div>
             </div>
         </div>
-    \`;
+    `;
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     addItem();
@@ -503,8 +530,8 @@ function addItem() {
     itemCounter++;
     const tbody = document.getElementById('itemsBody');
     const row = document.createElement('tr');
-    row.innerHTML = \`
-        <td style="text-align: center;">\${itemCounter}</td>
+    row.innerHTML = `
+        <td style="text-align: center;">${itemCounter}</td>
         <td>
             <textarea class="item-especificacao" placeholder="Descrição do item..." rows="2"></textarea>
         </td>
@@ -529,7 +556,7 @@ function addItem() {
         <td style="text-align: center;">
             <button type="button" class="danger small" onclick="removeItem(this)">Excluir</button>
         </td>
-    \`;
+    `;
     tbody.appendChild(row);
 }
 
@@ -588,8 +615,6 @@ async function handleSubmit(event) {
         });
     });
     
-    const timestamp = Date.now();
-    
     const formData = {
         numeroOrdem: document.getElementById('numeroOrdem').value,
         responsavel: toUpperCase(document.getElementById('responsavel').value),
@@ -614,28 +639,33 @@ async function handleSubmit(event) {
         status: 'aberta'
     };
     
-    if (!isOnline) {
+    if (!isOnline && !DEVELOPMENT_MODE) {
         showToast('Sistema offline. Dados não foram salvos.', 'error');
         closeFormModal();
         return;
     }
 
     try {
-        const url = editingId ? \`\${API_URL}/ordens/\${editingId}\` : \`\${API_URL}/ordens\`;
+        const url = editingId ? `${API_URL}/ordens/${editingId}` : `${API_URL}/ordens`;
         const method = editingId ? 'PUT' : 'POST';
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
 
         const response = await fetch(url, {
             method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(formData),
             mode: 'cors'
         });
 
-        if (response.status === 401) {
+        if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
@@ -647,7 +677,7 @@ async function handleSubmit(event) {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorData.message || errorMessage;
             } catch (e) {
-                errorMessage = \`Erro \${response.status}: \${response.statusText}\`;
+                errorMessage = `Erro ${response.status}: ${response.statusText}`;
             }
             throw new Error(errorMessage);
         }
@@ -668,7 +698,7 @@ async function handleSubmit(event) {
         closeFormModal();
     } catch (error) {
         console.error('Erro completo:', error);
-        showToast(\`Erro: \${error.message}\`, 'error');
+        showToast(`Erro: ${error.message}`, 'error');
     }
 }
 
@@ -683,7 +713,7 @@ async function editOrdem(id) {
     currentTab = 0;
     itemCounter = 0;
     
-    const modalHTML = \`
+    const modalHTML = `
         <div class="modal-overlay" id="formModal" style="display: flex;">
             <div class="modal-content" style="max-width: 1200px;">
                 <div class="modal-header">
@@ -700,21 +730,21 @@ async function editOrdem(id) {
                     </div>
 
                     <form id="ordemForm" onsubmit="handleSubmit(event)">
-                        <input type="hidden" id="editId" value="\${ordem.id}">
+                        <input type="hidden" id="editId" value="${ordem.id}">
                         
                         <div class="tab-content active" id="tab-geral">
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="numeroOrdem">Número da Ordem *</label>
-                                    <input type="text" id="numeroOrdem" value="\${ordem.numero_ordem || ordem.numeroOrdem}" required>
+                                    <input type="text" id="numeroOrdem" value="${ordem.numero_ordem || ordem.numeroOrdem}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" value="\${toUpperCase(ordem.responsavel)}" required>
+                                    <input type="text" id="responsavel" value="${toUpperCase(ordem.responsavel)}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
-                                    <input type="date" id="dataOrdem" value="\${ordem.data_ordem || ordem.dataOrdem}" required>
+                                    <input type="date" id="dataOrdem" value="${ordem.data_ordem || ordem.dataOrdem}" required>
                                 </div>
                             </div>
                         </div>
@@ -723,35 +753,35 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="razaoSocial">Razão Social *</label>
-                                    <input type="text" id="razaoSocial" value="\${toUpperCase(ordem.razao_social || ordem.razaoSocial)}" required>
+                                    <input type="text" id="razaoSocial" value="${toUpperCase(ordem.razao_social || ordem.razaoSocial)}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="nomeFantasia">Nome Fantasia</label>
-                                    <input type="text" id="nomeFantasia" value="\${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || '')}">
+                                    <input type="text" id="nomeFantasia" value="${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="cnpj">CNPJ *</label>
-                                    <input type="text" id="cnpj" value="\${ordem.cnpj}" required>
+                                    <input type="text" id="cnpj" value="${ordem.cnpj}" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="enderecoFornecedor">Endereço</label>
-                                    <input type="text" id="enderecoFornecedor" value="\${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || '')}">
+                                    <input type="text" id="enderecoFornecedor" value="${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="site">Site</label>
-                                    <input type="text" id="site" value="\${ordem.site || ''}">
+                                    <input type="text" id="site" value="${ordem.site || ''}">
                                 </div>
                                 <div class="form-group">
                                     <label for="contato">Contato</label>
-                                    <input type="text" id="contato" value="\${toUpperCase(ordem.contato || '')}">
+                                    <input type="text" id="contato" value="${toUpperCase(ordem.contato || '')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="telefone">Telefone</label>
-                                    <input type="text" id="telefone" value="\${ordem.telefone || ''}">
+                                    <input type="text" id="telefone" value="${ordem.telefone || ''}">
                                 </div>
                                 <div class="form-group">
                                     <label for="email">E-mail</label>
-                                    <input type="email" id="email" value="\${ordem.email || ''}">
+                                    <input type="email" id="email" value="${ordem.email || ''}">
                                 </div>
                             </div>
                         </div>
@@ -778,11 +808,11 @@ async function editOrdem(id) {
                             </div>
                             <div class="form-group" style="margin-top: 1rem;">
                                 <label for="valorTotalOrdem">Valor Total da Ordem</label>
-                                <input type="text" id="valorTotalOrdem" readonly value="\${ordem.valor_total || ordem.valorTotal}">
+                                <input type="text" id="valorTotalOrdem" readonly value="${ordem.valor_total || ordem.valorTotal}">
                             </div>
                             <div class="form-group">
                                 <label for="frete">Frete</label>
-                                <input type="text" id="frete" value="\${toUpperCase(ordem.frete || '')}" placeholder="Ex: CIF, FOB">
+                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || '')}" placeholder="Ex: CIF, FOB">
                             </div>
                         </div>
 
@@ -790,15 +820,15 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="\${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318')}">
+                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" value="\${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '')}" placeholder="Ex: 10 dias úteis">
+                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '')}" placeholder="Ex: 10 dias úteis">
                                 </div>
                                 <div class="form-group">
                                     <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" value="\${toUpperCase(ordem.transporte || '')}" placeholder="Ex: Por conta do fornecedor">
+                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || '')}" placeholder="Ex: Por conta do fornecedor">
                                 </div>
                             </div>
                         </div>
@@ -807,15 +837,15 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="formaPagamento">Forma de Pagamento *</label>
-                                    <input type="text" id="formaPagamento" value="\${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}" required placeholder="Ex: Boleto, PIX, Cartão">
+                                    <input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}" required placeholder="Ex: Boleto, PIX, Cartão">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoPagamento">Prazo de Pagamento *</label>
-                                    <input type="text" id="prazoPagamento" value="\${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}" required placeholder="Ex: 30 dias">
+                                    <input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}" required placeholder="Ex: 30 dias">
                                 </div>
                                 <div class="form-group">
                                     <label for="dadosBancarios">Dados Bancários</label>
-                                    <textarea id="dadosBancarios" rows="3">\${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea>
+                                    <textarea id="dadosBancarios" rows="3">${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -828,7 +858,7 @@ async function editOrdem(id) {
                 </div>
             </div>
         </div>
-    \`;
+    `;
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
@@ -858,22 +888,27 @@ async function editOrdem(id) {
 async function deleteOrdem(id) {
     if (!confirm('Tem certeza que deseja excluir esta ordem?')) return;
 
-    if (!isOnline) {
+    if (!isOnline && !DEVELOPMENT_MODE) {
         showToast('Sistema offline. Não foi possível excluir.', 'error');
         return;
     }
 
     try {
-        const response = await fetch(\`\${API_URL}/ordens/\${id}\`, {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens/${id}`, {
             method: 'DELETE',
-            headers: {
-                'X-Session-Token': sessionToken,
-                'Accept': 'application/json'
-            },
+            headers: headers,
             mode: 'cors'
         });
 
-        if (response.status === 401) {
+        if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
@@ -900,22 +935,27 @@ async function toggleStatus(id) {
     ordem.status = novoStatus;
     updateDisplay();
     
-    showToast(\`Ordem marcada como \${novoStatus}!\`, 'success');
+    showToast(`Ordem marcada como ${novoStatus}!`, 'success');
 
-    if (isOnline) {
+    if (isOnline || DEVELOPMENT_MODE) {
         try {
-            const response = await fetch(\`\${API_URL}/ordens/\${id}/status\`, {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            
+            if (!DEVELOPMENT_MODE && sessionToken) {
+                headers['X-Session-Token'] = sessionToken;
+            }
+
+            const response = await fetch(`${API_URL}/ordens/${id}/status`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Token': sessionToken,
-                    'Accept': 'application/json'
-                },
+                headers: headers,
                 body: JSON.stringify({ status: novoStatus }),
                 mode: 'cors'
             });
 
-            if (response.status === 401) {
+            if (!DEVELOPMENT_MODE && response.status === 401) {
                 sessionStorage.removeItem('ordemCompraSession');
                 mostrarTelaAcessoNegado('Sua sessão expirou');
                 return;
@@ -940,30 +980,30 @@ function viewOrdem(id) {
     
     document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
     
-    document.getElementById('info-tab-geral').innerHTML = \`
+    document.getElementById('info-tab-geral').innerHTML = `
         <div class="info-section">
             <h4>Informações Gerais</h4>
-            <p><strong>Responsável:</strong> \${toUpperCase(ordem.responsavel)}</p>
-            <p><strong>Data:</strong> \${formatDate(ordem.data_ordem || ordem.dataOrdem)}</p>
-            <p><strong>Status:</strong> <span class="badge \${ordem.status}">\${ordem.status.toUpperCase()}</span></p>
+            <p><strong>Responsável:</strong> ${toUpperCase(ordem.responsavel)}</p>
+            <p><strong>Data:</strong> ${formatDate(ordem.data_ordem || ordem.dataOrdem)}</p>
+            <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
         </div>
-    \`;
+    `;
     
-    document.getElementById('info-tab-fornecedor').innerHTML = \`
+    document.getElementById('info-tab-fornecedor').innerHTML = `
         <div class="info-section">
             <h4>Dados do Fornecedor</h4>
-            <p><strong>Razão Social:</strong> \${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</p>
-            \${ordem.nome_fantasia || ordem.nomeFantasia ? \`<p><strong>Nome Fantasia:</strong> \${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia)}</p>\` : ''}
-            <p><strong>CNPJ:</strong> \${ordem.cnpj}</p>
-            \${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? \`<p><strong>Endereço:</strong> \${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor)}</p>\` : ''}
-            \${ordem.site ? \`<p><strong>Site:</strong> \${ordem.site}</p>\` : ''}
-            \${ordem.contato ? \`<p><strong>Contato:</strong> \${toUpperCase(ordem.contato)}</p>\` : ''}
-            \${ordem.telefone ? \`<p><strong>Telefone:</strong> \${ordem.telefone}</p>\` : ''}
-            \${ordem.email ? \`<p><strong>E-mail:</strong> \${ordem.email}</p>\` : ''}
+            <p><strong>Razão Social:</strong> ${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</p>
+            ${ordem.nome_fantasia || ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia)}</p>` : ''}
+            <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
+            ${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor)}</p>` : ''}
+            ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
+            ${ordem.contato ? `<p><strong>Contato:</strong> ${toUpperCase(ordem.contato)}</p>` : ''}
+            ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
+            ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
         </div>
-    \`;
+    `;
     
-    document.getElementById('info-tab-pedido').innerHTML = \`
+    document.getElementById('info-tab-pedido').innerHTML = `
         <div class="info-section">
             <h4>Itens do Pedido</h4>
             <div style="overflow-x: auto;">
@@ -981,43 +1021,43 @@ function viewOrdem(id) {
                         </tr>
                     </thead>
                     <tbody>
-                        \${ordem.items.map(item => \`
+                        ${ordem.items.map(item => `
                             <tr>
-                                <td>\${item.item}</td>
-                                <td>\${toUpperCase(item.especificacao)}</td>
-                                <td>\${item.quantidade}</td>
-                                <td>\${toUpperCase(item.unidade)}</td>
-                                <td>R$ \${(item.valorUnitario || item.valor_unitario || 0).toFixed(2)}</td>
-                                <td>\${toUpperCase(item.ipi || '-')}</td>
-                                <td>\${toUpperCase(item.st || '-')}</td>
-                                <td>\${item.valorTotal || item.valor_total}</td>
+                                <td>${item.item}</td>
+                                <td>${toUpperCase(item.especificacao)}</td>
+                                <td>${item.quantidade}</td>
+                                <td>${toUpperCase(item.unidade)}</td>
+                                <td>R$ ${(item.valorUnitario || item.valor_unitario || 0).toFixed(2)}</td>
+                                <td>${toUpperCase(item.ipi || '-')}</td>
+                                <td>${toUpperCase(item.st || '-')}</td>
+                                <td>${item.valorTotal || item.valor_total}</td>
                             </tr>
-                        \`).join('')}
+                        `).join('')}
                     </tbody>
                 </table>
             </div>
-            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> \${ordem.valor_total || ordem.valorTotal}</p>
-            \${ordem.frete ? \`<p><strong>Frete:</strong> \${toUpperCase(ordem.frete)}</p>\` : ''}
+            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valor_total || ordem.valorTotal}</p>
+            ${ordem.frete ? `<p><strong>Frete:</strong> ${toUpperCase(ordem.frete)}</p>` : ''}
         </div>
-    \`;
+    `;
     
-    document.getElementById('info-tab-entrega').innerHTML = \`
+    document.getElementById('info-tab-entrega').innerHTML = `
         <div class="info-section">
             <h4>Informações de Entrega</h4>
-            \${ordem.local_entrega || ordem.localEntrega ? \`<p><strong>Local de Entrega:</strong> \${toUpperCase(ordem.local_entrega || ordem.localEntrega)}</p>\` : ''}
-            \${ordem.prazo_entrega || ordem.prazoEntrega ? \`<p><strong>Prazo de Entrega:</strong> \${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega)}</p>\` : ''}
-            \${ordem.transporte ? \`<p><strong>Transporte:</strong> \${toUpperCase(ordem.transporte)}</p>\` : ''}
+            ${ordem.local_entrega || ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${toUpperCase(ordem.local_entrega || ordem.localEntrega)}</p>` : ''}
+            ${ordem.prazo_entrega || ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega)}</p>` : ''}
+            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${toUpperCase(ordem.transporte)}</p>` : ''}
         </div>
-    \`;
+    `;
     
-    document.getElementById('info-tab-pagamento').innerHTML = \`
+    document.getElementById('info-tab-pagamento').innerHTML = `
         <div class="info-section">
             <h4>Dados de Pagamento</h4>
-            <p><strong>Forma de Pagamento:</strong> \${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}</p>
-            <p><strong>Prazo de Pagamento:</strong> \${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}</p>
-            \${ordem.dados_bancarios || ordem.dadosBancarios ? \`<p><strong>Dados Bancários:</strong> \${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios)}</p>\` : ''}
+            <p><strong>Forma de Pagamento:</strong> ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}</p>
+            <p><strong>Prazo de Pagamento:</strong> ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}</p>
+            ${ordem.dados_bancarios || ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios)}</p>` : ''}
         </div>
-    \`;
+    `;
     
     document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
@@ -1107,13 +1147,13 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
-        container.innerHTML = \`
+        container.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align: center; padding: 2rem;">
                     Nenhuma ordem encontrada
                 </td>
             </tr>
-        \`;
+        `;
         return;
     }
     
@@ -1123,38 +1163,38 @@ function updateTable() {
         return numA - numB;
     });
     
-    container.innerHTML = filteredOrdens.map(ordem => \`
-        <tr class="\${ordem.status === 'fechada' ? 'row-fechada' : ''}">
+    container.innerHTML = filteredOrdens.map(ordem => `
+        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
             <td style="text-align: center; padding: 8px;">
                 <div class="checkbox-wrapper">
                     <input 
                         type="checkbox" 
-                        id="check-\${ordem.id}"
-                        \${ordem.status === 'fechada' ? 'checked' : ''}
-                        onchange="toggleStatus('\${ordem.id}')"
+                        id="check-${ordem.id}"
+                        ${ordem.status === 'fechada' ? 'checked' : ''}
+                        onchange="toggleStatus('${ordem.id}')"
                         class="styled-checkbox"
                     >
-                    <label for="check-\${ordem.id}" class="checkbox-label-styled"></label>
+                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
                 </div>
             </td>
-            <td><strong>\${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
-            <td>\${toUpperCase(ordem.responsavel)}</td>
-            <td>\${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
-            <td style="white-space: nowrap;">\${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
-            <td><strong>\${ordem.valor_total || ordem.valorTotal}</strong></td>
+            <td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
+            <td>${toUpperCase(ordem.responsavel)}</td>
+            <td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
+            <td style="white-space: nowrap;">${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
+            <td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td>
             <td>
-                <span class="badge \${ordem.status}">\${ordem.status.toUpperCase()}</span>
+                <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
             </td>
             <td class="actions-cell">
                 <div class="actions">
-                    <button onclick="viewOrdem('\${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
-                    <button onclick="editOrdem('\${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                    <button onclick="generatePDFFromTable('\${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
-                    <button onclick="deleteOrdem('\${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
+                    <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
+                    <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
+                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
+                    <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
                 </div>
             </td>
         </tr>
-    \`).join('');
+    `).join('');
 }
 
 function updateResponsaveisFilter() {
@@ -1202,7 +1242,7 @@ function formatDate(dateString) {
 }
 
 function formatCurrency(value) {
-    return \`R$ \${parseFloat(value).toFixed(2).replace('.', ',')}\`;
+    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
 }
 
 function showToast(message, type = 'success') {
@@ -1210,7 +1250,7 @@ function showToast(message, type = 'success') {
     oldMessages.forEach(msg => msg.remove());
     
     const messageDiv = document.createElement('div');
-    messageDiv.className = \`floating-message \${type}\`;
+    messageDiv.className = `floating-message ${type}`;
     messageDiv.textContent = message;
     
     document.body.appendChild(messageDiv);
@@ -1221,15 +1261,21 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// ============================================
-// GERAÇÃO DE PDF - COM QUEBRA DE LINHA AUTOMÁTICA
-// ============================================
+// GERAÇÃO DE PDF (resto do código igual ao original...)
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) {
         showToast('Ordem não encontrada!', 'error');
         return;
     }
+    
+    // Verificar se jsPDF está disponível
+    if (typeof window.jspdf === 'undefined') {
+        showToast('Erro: jsPDF não carregado. Recarregue a página.', 'error');
+        console.error('jsPDF não encontrado!');
+        return;
+    }
+    
     generatePDFForOrdem(ordem);
 }
 
@@ -1244,7 +1290,6 @@ function generatePDFForOrdem(ordem) {
     const lineHeight = 5;
     const maxWidth = pageWidth - (2 * margin);
     
-    // Função auxiliar para adicionar texto com quebra de linha automática
     function addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
         const lines = doc.splitTextToSize(text, maxW);
         lines.forEach((line, index) => {
@@ -1265,7 +1310,7 @@ function generatePDFForOrdem(ordem) {
     
     y += 8;
     doc.setFontSize(14);
-    doc.text(\`Nº \${ordem.numero_ordem || ordem.numeroOrdem}\`, pageWidth / 2, y, { align: 'center' });
+    doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
     
     y += 12;
     
@@ -1294,7 +1339,7 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // DADOS DO FORNECEDOR - COM QUEBRA DE LINHA
+    // DADOS DO FORNECEDOR
     doc.setFont(undefined, 'bold');
     doc.text('DADOS DO FORNECEDOR', margin, y);
     
@@ -1310,7 +1355,7 @@ function generatePDFForOrdem(ordem) {
 
     y += 2;
     doc.setFont(undefined, 'normal');
-    doc.text(\`\${ordem.cnpj}\`, margin, y);
+    doc.text(`${ordem.cnpj}`, margin, y);
     y += lineHeight;
 
     if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
@@ -1325,13 +1370,13 @@ function generatePDFForOrdem(ordem) {
 
     if (ordem.telefone) {
         y += 1;
-        doc.text(\`\${ordem.telefone}\`, margin, y);
+        doc.text(`${ordem.telefone}`, margin, y);
         y += lineHeight;
     }
 
     if (ordem.email) {
         y += 1;
-        y = addTextWithWrap(\`\${ordem.email}\`, margin, y, maxWidth);
+        y = addTextWithWrap(`${ordem.email}`, margin, y, maxWidth);
     }
     
     y += 10;
@@ -1409,7 +1454,7 @@ function generatePDFForOrdem(ordem) {
     y += itemRowHeight;
     doc.setTextColor(0, 0, 0);
     
-    // Linhas dos itens - COM QUEBRA DE LINHA AUTOMÁTICA
+    // Linhas dos itens
     doc.setFont(undefined, 'normal');
     doc.setFontSize(8);
     
@@ -1420,12 +1465,10 @@ function generatePDFForOrdem(ordem) {
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
-        // Verificar se precisa de nova página
         if (y + necessaryHeight > pageHeight - 70) {
             doc.addPage();
             y = 20;
             
-            // Redesenhar cabeçalho da tabela
             doc.setFillColor(108, 117, 125);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
             doc.setTextColor(255, 255, 255);
@@ -1465,7 +1508,6 @@ function generatePDFForOrdem(ordem) {
             doc.setFontSize(8);
         }
         
-        // Fundo zebrado
         if (index % 2 !== 0) {
             doc.setFillColor(240, 240, 240);
             doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
@@ -1473,54 +1515,44 @@ function generatePDFForOrdem(ordem) {
         
         xPos = margin;
         
-        // Linhas verticais
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Item número
         doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.item;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Especificação com quebra de linha
         doc.text(especLines, xPos + 3, y + 4);
         xPos += colWidths.especificacao;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Quantidade
         doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.qtd;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Unidade
         doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.unid;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Valor unitário
         const valorUn = item.valorUnitario || item.valor_unitario || 0;
         const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).replace('.', ',');
         doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.valorUn;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // IPI
         doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.ipi;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // ST
         doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.st;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Total
         doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
         xPos += colWidths.total;
         doc.line(xPos, y, xPos, y + necessaryHeight);
         
-        // Linha horizontal inferior
         doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
         
         y += necessaryHeight;
@@ -1535,11 +1567,11 @@ function generatePDFForOrdem(ordem) {
     }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text(\`VALOR TOTAL: \${ordem.valor_total || ordem.valorTotal}\`, margin, y);
+    doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y);
     
     y += 10;
     
-    // LOCAL DE ENTREGA - COM QUEBRA DE LINHA
+    // LOCAL DE ENTREGA
     if (y > pageHeight - 70) {
         doc.addPage();
         y = 20;
@@ -1575,7 +1607,7 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // CONDIÇÕES DE PAGAMENTO - COM QUEBRA DE LINHA
+    // CONDIÇÕES DE PAGAMENTO
     if (y > pageHeight - 50) {
         doc.addPage();
         y = 20;
@@ -1584,9 +1616,9 @@ function generatePDFForOrdem(ordem) {
     doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
     y += 5;
     doc.setFont(undefined, 'normal');
-    doc.text(\`FORMA: \${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}\`, margin, y);
+    doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
     y += 5;
-    doc.text(\`PRAZO: \${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}\`, margin, y);
+    doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
     
     if (ordem.dados_bancarios || ordem.dadosBancarios) {
         y += 5;
@@ -1600,7 +1632,7 @@ function generatePDFForOrdem(ordem) {
     
     y += 15;
     
-    // DATA E ASSINATURA CENTRALIZADA
+    // DATA E ASSINATURA
     if (y > pageHeight - 60) {
         doc.addPage();
         y = 20;
@@ -1615,11 +1647,10 @@ function generatePDFForOrdem(ordem) {
     
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(\`SERRA/ES, \${dia} DE \${mes} DE \${ano}\`, pageWidth / 2, y, { align: 'center' });
+    doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
     
     y += 5;
     
-    // ASSINATURA (IMAGEM assinatura.png) - CENTRALIZADA
     const assinatura = new Image();
     assinatura.crossOrigin = 'anonymous';
     assinatura.src = 'assinatura.png';
@@ -1668,12 +1699,12 @@ function generatePDFForOrdem(ordem) {
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
             doc.setFontSize(9);
-            doc.text(\`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº \${ordem.numero_ordem || ordem.numeroOrdem}\`, margin + 5, yFinal);
+            doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
             
             yFinal += 5;
             doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
             
-            doc.save(\`\${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-\${ordem.numero_ordem || ordem.numeroOrdem}.pdf\`);
+            doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
             showToast('PDF gerado com sucesso!', 'success');
             
         } catch (e) {
@@ -1725,12 +1756,12 @@ function generatePDFForOrdem(ordem) {
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
         doc.setFontSize(9);
-        doc.text(\`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº \${ordem.numero_ordem || ordem.numeroOrdem}\`, margin + 5, yFinal);
+        doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
         
         yFinal += 5;
         doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
         
-        doc.save(\`\${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-\${ordem.numero_ordem || ordem.numeroOrdem}.pdf\`);
+        doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
         showToast('PDF gerado (sem assinatura)', 'success');
     }
 }

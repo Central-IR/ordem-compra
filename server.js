@@ -15,11 +15,26 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 console.log('✅ Supabase configurado:', supabaseUrl);
 
+// CORS mais permissivo para desenvolvimento
 app.use(cors({
-    origin: [
-        'https://ordem-compra.onrender.com',
-        'http://localhost:3000'
-    ],
+    origin: function(origin, callback) {
+        // Permite requisições sem origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://ordem-compra.onrender.com',
+            'http://localhost:3000',
+            'http://localhost:10000',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:10000'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Permitir todas as origens em desenvolvimento
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
@@ -39,9 +54,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 app.use((req, res, next) => {
     console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
-    if (req.body && Object.keys(req.body).length > 0) {
-        console.log('📦 Body:', JSON.stringify(req.body, null, 2));
-    }
     next();
 });
 
@@ -49,7 +61,7 @@ app.use((req, res, next) => {
 const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
 
 async function verificarAutenticacao(req, res, next) {
-    const publicPaths = ['/', '/health'];
+    const publicPaths = ['/', '/health', '/diagnostico.html'];
     if (publicPaths.includes(req.path)) return next();
 
     const sessionToken = req.headers['x-session-token'];
@@ -86,11 +98,7 @@ async function verificarAutenticacao(req, res, next) {
     }
 }
 
-// =====================================================
-// ROTAS DA API - ORDEM DE COMPRA
-// =====================================================
-
-// GET /api/ordens - Buscar todas as ordens
+// ROTAS DA API
 app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
         console.log('📋 Listando ordens...');
@@ -111,13 +119,11 @@ app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Erro ao listar ordens',
-            message: error.message,
-            details: error.details || error.hint
+            message: error.message
         });
     }
 });
 
-// GET /api/ordens/:id - Buscar ordem por ID
 app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
         console.log(`🔍 Buscando ordem ID: ${req.params.id}`);
@@ -132,7 +138,6 @@ app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
                 console.log('❌ Ordem não encontrada');
                 return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
             }
-            console.error('❌ Erro Supabase:', error);
             throw error;
         }
 
@@ -148,7 +153,6 @@ app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     }
 });
 
-// POST /api/ordens - Criar nova ordem
 app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
         console.log('➕ Criando nova ordem...');
@@ -159,24 +163,6 @@ app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
             valorTotal, frete, localEntrega, prazoEntrega, transporte, 
             formaPagamento, prazoPagamento, dadosBancarios, status 
         } = req.body;
-
-        // Validação
-        const camposObrigatorios = { 
-            numeroOrdem, responsavel, dataOrdem, razaoSocial, 
-            cnpj, formaPagamento, prazoPagamento 
-        };
-        const camposFaltando = Object.entries(camposObrigatorios)
-            .filter(([key, value]) => !value)
-            .map(([key]) => key);
-
-        if (camposFaltando.length > 0) {
-            console.log('❌ Campos obrigatórios faltando:', camposFaltando);
-            return res.status(400).json({
-                success: false,
-                error: 'Campos obrigatórios faltando',
-                campos_faltando: camposFaltando
-            });
-        }
 
         const novaOrdem = {
             numero_ordem: numeroOrdem,
@@ -202,8 +188,6 @@ app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
             status: status || 'aberta'
         };
 
-        console.log('📤 Dados a inserir:', JSON.stringify(novaOrdem, null, 2));
-
         const { data, error } = await supabase
             .from('ordens_compra')
             .insert([novaOrdem])
@@ -212,9 +196,6 @@ app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
 
         if (error) {
             console.error('❌ Erro Supabase ao inserir:', error);
-            console.error('Detalhes:', error.details);
-            console.error('Hint:', error.hint);
-            console.error('Message:', error.message);
             throw error;
         }
 
@@ -225,14 +206,11 @@ app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: 'Erro ao criar ordem',
-            message: error.message,
-            details: error.details || error.hint,
-            code: error.code
+            message: error.message
         });
     }
 });
 
-// PUT /api/ordens/:id - Atualizar ordem
 app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
         console.log(`✏️ Atualizando ordem ID: ${req.params.id}`);
@@ -269,8 +247,6 @@ app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
             updated_at: new Date().toISOString()
         };
 
-        console.log('📤 Dados a atualizar:', JSON.stringify(ordemAtualizada, null, 2));
-
         const { data, error } = await supabase
             .from('ordens_compra')
             .update(ordemAtualizada)
@@ -280,10 +256,8 @@ app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
 
         if (error) {
             if (error.code === 'PGRST116') {
-                console.log('❌ Ordem não encontrada');
                 return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
             }
-            console.error('❌ Erro Supabase:', error);
             throw error;
         }
 
@@ -299,7 +273,6 @@ app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     }
 });
 
-// PATCH /api/ordens/:id/status - Atualizar apenas status
 app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
     try {
         console.log(`🔄 Atualizando status da ordem ID: ${req.params.id}`);
@@ -307,8 +280,6 @@ app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
             status: req.body.status,
             updated_at: new Date().toISOString()
         };
-
-        console.log('📤 Updates:', JSON.stringify(updates, null, 2));
 
         const { data, error } = await supabase
             .from('ordens_compra')
@@ -319,10 +290,8 @@ app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
 
         if (error) {
             if (error.code === 'PGRST116') {
-                console.log('❌ Ordem não encontrada');
                 return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
             }
-            console.error('❌ Erro Supabase:', error);
             throw error;
         }
 
@@ -338,7 +307,6 @@ app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
     }
 });
 
-// DELETE /api/ordens/:id - Excluir ordem
 app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
         console.log(`🗑️ Deletando ordem ID: ${req.params.id}`);
@@ -347,10 +315,7 @@ app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
             .delete()
             .eq('id', req.params.id);
 
-        if (error) {
-            console.error('❌ Erro Supabase:', error);
-            throw error;
-        }
+        if (error) throw error;
 
         console.log('✅ Ordem deletada com sucesso!');
         res.json({ success: true, message: 'Ordem removida com sucesso' });
@@ -379,15 +344,14 @@ app.use((err, req, res, next) => {
     res.status(500).json({
         success: false,
         error: 'Erro interno do servidor',
-        message: err.message,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        message: err.message
     });
 });
 
 // INICIAR SERVIDOR
 const PORT = process.env.PORT || 10000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log('===============================================');
     console.log('🚀 ORDEM DE COMPRA');

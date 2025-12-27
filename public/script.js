@@ -1,10 +1,6 @@
-// MODO DESENVOLVIMENTO - Permite funcionar sem autenticação
-const DEVELOPMENT_MODE = true; // Mude para false em produção
-
+const DEVELOPMENT_MODE = true;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:10000/api'
-    : 'https://ordem-compra.onrender.com/api';
+const API_URL = 'http://localhost:10000/api'; // FORÇAR LOCAL
 
 let ordens = [];
 let currentMonth = new Date();

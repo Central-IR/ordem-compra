@@ -64,6 +64,13 @@ async function verificarAutenticacao(req, res, next) {
     const publicPaths = ['/', '/health', '/diagnostico.html'];
     if (publicPaths.includes(req.path)) return next();
 
+    // FORÇAR MODO DESENVOLVIMENTO - DESABILITAR PARA PRODUÇÃO
+    const DEVELOPMENT_MODE = true; // SEMPRE TRUE = SEM AUTENTICAÇÃO
+    if (DEVELOPMENT_MODE) {
+        console.log('⚠️ MODO DESENVOLVIMENTO - Autenticação desabilitada');
+        return next();
+    }
+
     const sessionToken = req.headers['x-session-token'];
     if (!sessionToken) {
         console.log('❌ Token não fornecido');

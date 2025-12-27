@@ -1,6 +1,6 @@
 const DEVELOPMENT_MODE = true;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'http://localhost:10000/api'; // FORÇAR LOCAL
+const API_URL = 'https://ordem-compra.onrender.com/api'; // USAR RENDER
 
 let ordens = [];
 let currentMonth = new Date();

@@ -22,6 +22,19 @@ function toUpperCase(value) {
     return value ? String(value).toUpperCase() : '';
 }
 
+// Converter input para maiúsculo automaticamente
+function setupUpperCaseInputs() {
+    const textInputs = document.querySelectorAll('input[type="text"]:not([readonly]), textarea');
+    textInputs.forEach(input => {
+        input.addEventListener('input', function(e) {
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = toUpperCase(this.value);
+            this.setSelectionRange(start, end);
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (DEVELOPMENT_MODE) {
         console.log('⚠️ MODO DESENVOLVIMENTO ATIVADO');
@@ -314,6 +327,7 @@ function switchTab(tabId) {
     if (tabIndex !== -1) {
         currentTab = tabIndex;
         showTab(currentTab);
+        updateNavigationButtons();
     }
 }
 
@@ -326,6 +340,46 @@ function showTab(index) {
     
     if (tabButtons[index]) tabButtons[index].classList.add('active');
     if (tabContents[index]) tabContents[index].classList.add('active');
+}
+
+function updateNavigationButtons() {
+    const btnPrevious = document.getElementById('btnPrevious');
+    const btnNext = document.getElementById('btnNext');
+    const btnSave = document.getElementById('btnSave');
+    
+    if (!btnPrevious || !btnNext || !btnSave) return;
+    
+    // Botão Anterior: mostrar a partir da segunda aba
+    if (currentTab > 0) {
+        btnPrevious.style.display = 'inline-flex';
+    } else {
+        btnPrevious.style.display = 'none';
+    }
+    
+    // Botão Próximo: mostrar até a penúltima aba
+    if (currentTab < tabs.length - 1) {
+        btnNext.style.display = 'inline-flex';
+        btnSave.style.display = 'none';
+    } else {
+        btnNext.style.display = 'none';
+        btnSave.style.display = 'inline-flex';
+    }
+}
+
+function nextTab() {
+    if (currentTab < tabs.length - 1) {
+        currentTab++;
+        showTab(currentTab);
+        updateNavigationButtons();
+    }
+}
+
+function previousTab() {
+    if (currentTab > 0) {
+        currentTab--;
+        showTab(currentTab);
+        updateNavigationButtons();
+    }
 }
 
 function switchInfoTab(tabId) {
@@ -378,7 +432,12 @@ function openFormModal() {
                                 </div>
                                 <div class="form-group">
                                     <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" required>
+                                    <select id="responsavel" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO">ROBERTO</option>
+                                        <option value="ISAQUE">ISAQUE</option>
+                                        <option value="MIGUEL">MIGUEL</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
@@ -450,7 +509,7 @@ function openFormModal() {
                             </div>
                             <div class="form-group">
                                 <label for="frete">Frete</label>
-                                <input type="text" id="frete" placeholder="Ex: CIF, FOB">
+                                <input type="text" id="frete" value="CIF" placeholder="Ex: CIF, FOB">
                             </div>
                         </div>
 
@@ -458,15 +517,15 @@ function openFormModal() {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318">
+                                    <input type="text" id="localEntrega" value="RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" placeholder="Ex: 10 dias úteis">
+                                    <input type="text" id="prazoEntrega" value="IMEDIATO" placeholder="Ex: 10 dias úteis">
                                 </div>
                                 <div class="form-group">
                                     <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" placeholder="Ex: Por conta do fornecedor">
+                                    <input type="text" id="transporte" value="FORNECEDOR" placeholder="Ex: Por conta do fornecedor">
                                 </div>
                             </div>
                         </div>
@@ -489,7 +548,9 @@ function openFormModal() {
                         </div>
 
                         <div class="modal-actions">
-                            <button type="submit" class="save">Salvar Ordem</button>
+                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
+                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Salvar Ordem</button>
                             <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
                         </div>
                     </form>
@@ -503,6 +564,8 @@ function openFormModal() {
     
     setTimeout(() => {
         setupFornecedorAutocomplete();
+        setupUpperCaseInputs();
+        updateNavigationButtons();
         document.getElementById('numeroOrdem')?.focus();
     }, 100);
 }
@@ -554,6 +617,11 @@ function addItem() {
         </td>
     `;
     tbody.appendChild(row);
+    
+    // Aplicar conversão para maiúsculas nos novos campos
+    setTimeout(() => {
+        setupUpperCaseInputs();
+    }, 50);
 }
 
 function removeItem(btn) {
@@ -736,7 +804,12 @@ async function editOrdem(id) {
                                 </div>
                                 <div class="form-group">
                                     <label for="responsavel">Responsável *</label>
-                                    <input type="text" id="responsavel" value="${toUpperCase(ordem.responsavel)}" required>
+                                    <select id="responsavel" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO" ${toUpperCase(ordem.responsavel) === 'ROBERTO' ? 'selected' : ''}>ROBERTO</option>
+                                        <option value="ISAQUE" ${toUpperCase(ordem.responsavel) === 'ISAQUE' ? 'selected' : ''}>ISAQUE</option>
+                                        <option value="MIGUEL" ${toUpperCase(ordem.responsavel) === 'MIGUEL' ? 'selected' : ''}>MIGUEL</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
@@ -808,7 +881,7 @@ async function editOrdem(id) {
                             </div>
                             <div class="form-group">
                                 <label for="frete">Frete</label>
-                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || '')}" placeholder="Ex: CIF, FOB">
+                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || 'CIF')}" placeholder="Ex: CIF, FOB">
                             </div>
                         </div>
 
@@ -816,15 +889,15 @@ async function editOrdem(id) {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="localEntrega">Local de Entrega</label>
-                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'Rua Tadorna nº 472, sala 2, Novo Horizonte - Serra/ES  |  CEP: 29.163-318')}">
+                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318')}">
                                 </div>
                                 <div class="form-group">
                                     <label for="prazoEntrega">Prazo de Entrega</label>
-                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '')}" placeholder="Ex: 10 dias úteis">
+                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || 'IMEDIATO')}" placeholder="Ex: 10 dias úteis">
                                 </div>
                                 <div class="form-group">
                                     <label for="transporte">Transporte</label>
-                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || '')}" placeholder="Ex: Por conta do fornecedor">
+                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || 'FORNECEDOR')}" placeholder="Ex: Por conta do fornecedor">
                                 </div>
                             </div>
                         </div>
@@ -847,7 +920,9 @@ async function editOrdem(id) {
                         </div>
 
                         <div class="modal-actions">
-                            <button type="submit" class="save">Atualizar Ordem</button>
+                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
+                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Atualizar Ordem</button>
                             <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
                         </div>
                     </form>
@@ -860,6 +935,8 @@ async function editOrdem(id) {
     
     setTimeout(() => {
         setupFornecedorAutocomplete();
+        setupUpperCaseInputs();
+        updateNavigationButtons();
     }, 100);
     
     if (ordem.items && ordem.items.length > 0) {
@@ -1224,6 +1301,7 @@ function getOrdensForCurrentMonth() {
 }
 
 function getNextOrderNumber() {
+    // Buscar o maior número de ordem existente de todos os tempos (não apenas do mês atual)
     const existingNumbers = ordens
         .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
@@ -1257,7 +1335,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// GERAÇÃO DE PDF (resto do código igual ao original...)
+// GERAÇÃO DE PDF (mantido igual ao original)
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) {
@@ -1265,9 +1343,7 @@ function generatePDFFromTable(id) {
         return;
     }
     
-    // Verificar se jsPDF está disponível com múltiplas tentativas
     if (typeof window.jspdf === 'undefined') {
-        // Tentar aguardar o carregamento
         let attempts = 0;
         const maxAttempts = 5;
         const checkInterval = setInterval(() => {
@@ -1389,7 +1465,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // Verificar se precisa de nova página antes da tabela
     if (y > pageHeight - 80) {
         doc.addPage();
         y = 20;
@@ -1568,7 +1643,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 8;
     
-    // VALOR TOTAL
     if (y > pageHeight - 80) {
         doc.addPage();
         y = 20;
@@ -1579,7 +1653,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // LOCAL DE ENTREGA
     if (y > pageHeight - 70) {
         doc.addPage();
         y = 20;
@@ -1598,7 +1671,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // PRAZO E FRETE
     if (y > pageHeight - 60) {
         doc.addPage();
         y = 20;
@@ -1615,7 +1687,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 10;
     
-    // CONDIÇÕES DE PAGAMENTO
     if (y > pageHeight - 50) {
         doc.addPage();
         y = 20;
@@ -1640,7 +1711,6 @@ function generatePDFForOrdem(ordem) {
     
     y += 15;
     
-    // DATA E ASSINATURA
     if (y > pageHeight - 60) {
         doc.addPage();
         y = 20;

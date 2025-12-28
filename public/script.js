@@ -1367,7 +1367,7 @@ function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    let y = 25;
+    let y = 10;
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -1386,7 +1386,60 @@ function generatePDFForOrdem(ordem) {
         return yStart + (lines.length * lineH);
     }
     
-    // CABEÇALHO
+    // CABEÇALHO COM LOGO E TEXTO TRANSLÚCIDO
+    const logoHeader = new Image();
+    logoHeader.crossOrigin = 'anonymous';
+    logoHeader.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    
+    logoHeader.onload = function() {
+        try {
+            // Adicionar logo no canto superior esquerdo
+            const logoWidth = 25;
+            const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
+            const logoX = margin;
+            const logoY = y;
+            
+            // Definir opacidade para a imagem (translúcido)
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
+            
+            // Restaurar opacidade normal
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+            
+            // Adicionar texto ao lado da logo
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
+            const textX = logoX + logoWidth + 5;
+            const textY = logoY + (logoHeight / 2) + 2;
+            doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+            
+            // Resetar cor do texto para preto
+            doc.setTextColor(0, 0, 0);
+            
+            // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
+            y = logoY + logoHeight + 10;
+            
+            // Continuar com a geração do PDF
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+            
+        } catch (e) {
+            console.log('Erro ao adicionar logo no cabeçalho:', e);
+            // Se falhar, continuar sem o cabeçalho
+            y = 25;
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+        }
+    };
+    
+    logoHeader.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
+        y = 25;
+        continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+    };
+}
+
+function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
+    // TÍTULO ORDEM DE COMPRA
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 0, 0);

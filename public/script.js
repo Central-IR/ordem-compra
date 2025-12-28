@@ -1367,7 +1367,7 @@ function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    let y = 10;
+    let y = 5; // Diminuído de 10 para 5
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -1394,10 +1394,10 @@ function generatePDFForOrdem(ordem) {
     logoHeader.onload = function() {
         try {
             // Adicionar logo no canto superior esquerdo
-            const logoWidth = 25;
+            const logoWidth = 40; // Aumentado de 25 para 40
             const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
-            const logoX = margin;
-            const logoY = y;
+            const logoX = 10; // Diminuído de margin (15) para 10
+            const logoY = y; // y começa em 10
             
             // Definir opacidade para a imagem (translúcido)
             doc.setGState(new doc.GState({ opacity: 0.3 }));
@@ -1407,18 +1407,18 @@ function generatePDFForOrdem(ordem) {
             doc.setGState(new doc.GState({ opacity: 1.0 }));
             
             // Adicionar texto ao lado da logo
-            doc.setFontSize(10);
+            doc.setFontSize(14); // Aumentado de 10 para 14
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 5;
-            const textY = logoY + (logoHeight / 2) + 2;
-            doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+            const textX = logoX + logoWidth + 8; // Aumentado espaço de 5 para 8
+            const textY = logoY + (logoHeight / 2) + 3; // Ajustado para centralizar melhor
+            doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
             
             // Resetar cor do texto para preto
             doc.setTextColor(0, 0, 0);
             
             // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
-            y = logoY + logoHeight + 10;
+            y = logoY + logoHeight + 8; // Aumentado de 10 para 8
             
             // Continuar com a geração do PDF
             continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
@@ -1456,10 +1456,10 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             return 20; // Retorna posição padrão se logo não estiver carregada
         }
         
-        const headerY = 10;
-        const logoWidth = 25;
+        const headerY = 5; // Diminuído de 10 para 5
+        const logoWidth = 40; // Aumentado de 25 para 40
         const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
-        const logoX = margin;
+        const logoX = 10; // Diminuído de margin (15) para 10
         
         // Salvar estado atual
         const currentFont = doc.internal.getCurrentPageInfo();
@@ -1470,17 +1470,17 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setGState(new doc.GState({ opacity: 1.0 }));
         
         // Adicionar texto ao lado da logo
-        doc.setFontSize(10);
+        doc.setFontSize(14); // Aumentado de 10 para 14
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 5;
-        const textY = headerY + (logoHeight / 2) + 2;
-        doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+        const textX = logoX + logoWidth + 8; // Aumentado espaço de 5 para 8
+        const textY = headerY + (logoHeight / 2) + 3; // Ajustado para centralizar melhor
+        doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
         
         // Resetar cor do texto para preto
         doc.setTextColor(0, 0, 0);
         
-        return headerY + logoHeight + 5; // Retorna a posição Y após o cabeçalho
+        return headerY + logoHeight + 8; // Retorna a posição Y após o cabeçalho (aumentado de 5 para 8)
     }
     
     // Função auxiliar para adicionar nova página com cabeçalho

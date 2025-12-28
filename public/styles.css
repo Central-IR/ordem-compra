@@ -379,6 +379,12 @@ button.edit, button[onclick*="editOrdem"], .action-btn.edit { background: var(--
 button.view, .action-btn.view { background: var(--btn-view); }
 button.success, button.save, button[type="submit"], .action-btn.success { background: var(--btn-save); }
 button.secondary { background: #4B5563; }
+
+/* BOTÃO CANCELAR EM VERMELHO */
+button[onclick*="closeFormModal"] { 
+    background: var(--btn-delete); 
+}
+
 button.small { padding: 8px 12px; font-size: 0.85rem; }
 
 .action-btn {

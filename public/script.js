@@ -1685,6 +1685,13 @@ function generatePDFForOrdem(ordem) {
     doc.setFont(undefined, 'normal');
     doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
     
+    y += 6;
+    
+    doc.setFont(undefined, 'bold');
+    doc.text('TRANSPORTE:', margin, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y);
+    
     y += 10;
     
     if (y > pageHeight - 50) {

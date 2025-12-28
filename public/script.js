@@ -1439,6 +1439,69 @@ function generatePDFForOrdem(ordem) {
 }
 
 function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
+    // Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
+    const logoHeaderImg = new Image();
+    logoHeaderImg.crossOrigin = 'anonymous';
+    logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    let logoCarregada = false;
+    
+    // Aguardar carregamento da logo
+    logoHeaderImg.onload = function() {
+        logoCarregada = true;
+    };
+    
+    // Função para adicionar cabeçalho em qualquer página
+    function adicionarCabecalho() {
+        if (!logoCarregada || !logoHeaderImg.complete || logoHeaderImg.naturalHeight === 0) {
+            return 20; // Retorna posição padrão se logo não estiver carregada
+        }
+        
+        const headerY = 10;
+        const logoWidth = 25;
+        const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
+        const logoX = margin;
+        
+        // Salvar estado atual
+        const currentFont = doc.internal.getCurrentPageInfo();
+        
+        // Adicionar logo translúcida
+        doc.setGState(new doc.GState({ opacity: 0.3 }));
+        doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
+        doc.setGState(new doc.GState({ opacity: 1.0 }));
+        
+        // Adicionar texto ao lado da logo
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(150, 150, 150);
+        const textX = logoX + logoWidth + 5;
+        const textY = headerY + (logoHeight / 2) + 2;
+        doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+        
+        // Resetar cor do texto para preto
+        doc.setTextColor(0, 0, 0);
+        
+        return headerY + logoHeight + 5; // Retorna a posição Y após o cabeçalho
+    }
+    
+    // Função auxiliar para adicionar nova página com cabeçalho
+    function addPageWithHeader() {
+        doc.addPage();
+        return adicionarCabecalho();
+    }
+    
+    // Atualizar addTextWithWrap para usar a nova função
+    const originalAddTextWithWrap = addTextWithWrap;
+    addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
+        const lines = doc.splitTextToSize(text, maxW);
+        lines.forEach((line, index) => {
+            if (yStart + (index * lineH) > pageHeight - 30) {
+                yStart = addPageWithHeader();
+            }
+            doc.text(line, x, yStart + (index * lineH));
+        });
+        return yStart + (lines.length * lineH);
+    };
+    
     // TÍTULO ORDEM DE COMPRA
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
@@ -1519,8 +1582,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 10;
     
     if (y > pageHeight - 80) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     
     // ITENS DO PEDIDO
@@ -1602,8 +1664,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
         if (y + necessaryHeight > pageHeight - 70) {
-            doc.addPage();
-            y = 20;
+            y = addPageWithHeader();
             
             doc.setFillColor(108, 117, 125);
             doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
@@ -1697,8 +1758,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 8;
     
     if (y > pageHeight - 80) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
@@ -1707,8 +1767,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 10;
     
     if (y > pageHeight - 70) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
     doc.text('LOCAL DE ENTREGA:', margin, y);
@@ -1725,8 +1784,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 10;
     
     if (y > pageHeight - 60) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
     doc.text('PRAZO DE ENTREGA:', margin, y);
@@ -1748,8 +1806,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 10;
     
     if (y > pageHeight - 50) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
     doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
@@ -1772,8 +1829,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     y += 15;
     
     if (y > pageHeight - 60) {
-        doc.addPage();
-        y = 20;
+        y = addPageWithHeader();
     }
     
     const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
@@ -1818,8 +1874,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             yFinal += 12;
             
             if (yFinal > pageHeight - 30) {
-                doc.addPage();
-                yFinal = 20;
+                yFinal = addPageWithHeader();
             }
             
             doc.setFillColor(240, 240, 240);
@@ -1875,8 +1930,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         yFinal += 12;
         
         if (yFinal > pageHeight - 30) {
-            doc.addPage();
-            yFinal = 20;
+            yFinal = addPageWithHeader();
         }
         
         doc.setFillColor(240, 240, 240);

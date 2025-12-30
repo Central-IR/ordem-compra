@@ -1415,18 +1415,14 @@ function generatePDFForOrdem(ordem) {
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
             const textX = logoX + logoWidth + 4;
             
-            // Calcular altura total do bloco de texto (2 linhas)
+            // Calcular espaçamento entre linhas
             const lineSpacing = fontSize * 0.5;
-            const totalTextHeight = fontSize + lineSpacing;
             
-            // Centralizar o bloco de texto verticalmente em relação à logo
-            const startY = logoY + (logoHeight / 2) - (totalTextHeight / 2);
+            // Alinhar a primeira linha com o topo das letras "iR"
+            const textY1 = logoY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
+            doc.text('COMÉRCIO E', textX, textY1);
             
-            // Primeira linha: "I.R COMÉRCIO E"
-            const textY1 = startY + fontSize * 0.8; // Ajuste para baseline do texto
-            doc.text('I.R COMÉRCIO E', textX, textY1);
-            
-            // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
+            // Segunda linha
             const textY2 = textY1 + lineSpacing;
             doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
@@ -1494,18 +1490,15 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setTextColor(150, 150, 150);
         const textX = logoX + logoWidth + 4;
         
-        // Calcular altura total do bloco de texto (2 linhas)
+        // Calcular espaçamento entre linhas
         const lineSpacing = fontSize * 0.5;
-        const totalTextHeight = fontSize + lineSpacing;
         
-        // Centralizar o bloco de texto verticalmente em relação à logo
-        const startY = headerY + (logoHeight / 2) - (totalTextHeight / 2);
-        
-        // Primeira linha: "I.R COMÉRCIO E"
-        const textY1 = startY + fontSize * 0.8; // Ajuste para baseline do texto
+        // Alinhar a primeira linha com o topo das letras "iR"
+        // Considerando que a logo tem uma pequena margem superior
+        const textY1 = headerY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
         doc.text('I.R COMÉRCIO E', textX, textY1);
         
-        // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
+        // Segunda linha
         const textY2 = textY1 + lineSpacing;
         doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
         

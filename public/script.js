@@ -7,6 +7,7 @@ let currentMonth = new Date();
 let editingId = null;
 let itemCounter = 0;
 let currentTab = 0;
+let currentInfoTab = 0;
 let isOnline = false;
 let sessionToken = null;
 let lastDataHash = '';
@@ -383,6 +384,13 @@ function previousTab() {
 }
 
 function switchInfoTab(tabId) {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    const currentIndex = infoTabs.indexOf(tabId);
+    
+    if (currentIndex !== -1) {
+        currentInfoTab = currentIndex;
+    }
+    
     document.querySelectorAll('#infoModal .tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -390,11 +398,58 @@ function switchInfoTab(tabId) {
         content.classList.remove('active');
     });
     
-    const clickedBtn = event.target.closest('.tab-btn');
+    const clickedBtn = event?.target?.closest('.tab-btn');
     if (clickedBtn) {
         clickedBtn.classList.add('active');
+    } else {
+        document.querySelectorAll('#infoModal .tab-btn')[currentIndex]?.classList.add('active');
     }
     document.getElementById(tabId).classList.add('active');
+    
+    updateInfoNavigationButtons();
+}
+
+function updateInfoNavigationButtons() {
+    const btnInfoPrevious = document.getElementById('btnInfoPrevious');
+    const btnInfoNext = document.getElementById('btnInfoNext');
+    const btnInfoClose = document.getElementById('btnInfoClose');
+    
+    if (!btnInfoPrevious || !btnInfoNext || !btnInfoClose) return;
+    
+    const totalTabs = 5; // Total de abas no modal de visualização
+    
+    // Botão Anterior: mostrar a partir da segunda aba
+    if (currentInfoTab > 0) {
+        btnInfoPrevious.style.display = 'inline-flex';
+    } else {
+        btnInfoPrevious.style.display = 'none';
+    }
+    
+    // Botão Próximo: mostrar até a penúltima aba
+    if (currentInfoTab < totalTabs - 1) {
+        btnInfoNext.style.display = 'inline-flex';
+    } else {
+        btnInfoNext.style.display = 'none';
+    }
+    
+    // Botão Fechar: sempre visível
+    btnInfoClose.style.display = 'inline-flex';
+}
+
+function nextInfoTab() {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    if (currentInfoTab < infoTabs.length - 1) {
+        currentInfoTab++;
+        switchInfoTab(infoTabs[currentInfoTab]);
+    }
+}
+
+function previousInfoTab() {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    if (currentInfoTab > 0) {
+        currentInfoTab--;
+        switchInfoTab(infoTabs[currentInfoTab]);
+    }
 }
 
 function openFormModal() {
@@ -1051,6 +1106,8 @@ function viewOrdem(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) return;
     
+    currentInfoTab = 0; // Resetar para primeira aba
+    
     document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
     
     document.getElementById('info-tab-geral').innerHTML = `
@@ -1138,6 +1195,11 @@ function viewOrdem(id) {
     document.getElementById('info-tab-geral').classList.add('active');
     
     document.getElementById('infoModal').classList.add('show');
+    
+    // Atualizar botões de navegação após um pequeno delay para garantir que o modal está renderizado
+    setTimeout(() => {
+        updateInfoNavigationButtons();
+    }, 100);
 }
 
 function closeInfoModal() {
@@ -1496,7 +1558,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         // Alinhar a primeira linha com o topo das letras "iR"
         // Considerando que a logo tem uma pequena margem superior
         const textY1 = headerY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
-        doc.text('I.R. COMÉRCIO E', textX, textY1);
+        doc.text('I.R COMÉRCIO E', textX, textY1);
         
         // Segunda linha
         const textY2 = textY1 + lineSpacing;

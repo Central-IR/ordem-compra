@@ -1409,13 +1409,19 @@ function generatePDFForOrdem(ordem) {
             // Calcular tamanho da fonte baseado na altura da logo
             const fontSize = logoHeight * 0.5; // 50% da altura da logo
             
-            // Adicionar texto ao lado da logo
+            // Adicionar texto em duas linhas ao lado da logo
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 4; // 4mm de espaço entre logo e texto
-            const textY = logoY + (logoHeight / 2) + (fontSize * 0.25); // Ajustado para alinhar melhor verticalmente
-            doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+            const textX = logoX + logoWidth + 4;
+            
+            // Primeira linha: "I.R COMÉRCIO E"
+            const textY1 = logoY + (logoHeight / 2) - (fontSize * 0.3); // Linha superior
+            doc.text('I.R COMÉRCIO E', textX, textY1);
+            
+            // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
+            const textY2 = textY1 + fontSize * 0.8; // Espaçamento entre linhas
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
             // Resetar cor do texto para preto
             doc.setTextColor(0, 0, 0);
@@ -1459,10 +1465,10 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             return 20; // Retorna posição padrão se logo não estiver carregada
         }
         
-        const headerY = 3; // Diminuído de 5 para 3 (mais próximo do topo)
+        const headerY = 3;
         const logoWidth = 40;
         const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
-        const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
+        const logoX = 5;
         
         // Salvar estado atual
         const currentFont = doc.internal.getCurrentPageInfo();
@@ -1475,13 +1481,19 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         // Calcular tamanho da fonte baseado na altura da logo
         const fontSize = logoHeight * 0.5; // 50% da altura da logo
         
-        // Adicionar texto ao lado da logo
+        // Adicionar texto em duas linhas ao lado da logo
         doc.setFontSize(fontSize);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 4; // 4mm de espaço entre logo e texto
-        const textY = headerY + (logoHeight / 2) + (fontSize * 0.25); // Ajustado para alinhar melhor verticalmente
-        doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
+        const textX = logoX + logoWidth + 4;
+        
+        // Primeira linha: "I.R COMÉRCIO E"
+        const textY1 = headerY + (logoHeight / 2) - (fontSize * 0.3); // Linha superior
+        doc.text('I.R COMÉRCIO E', textX, textY1);
+        
+        // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
+        const textY2 = textY1 + fontSize * 0.8; // Espaçamento entre linhas
+        doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
         
         // Resetar cor do texto para preto
         doc.setTextColor(0, 0, 0);

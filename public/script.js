@@ -1517,83 +1517,84 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     const logoHeaderImg = new Image();
     logoHeaderImg.crossOrigin = 'anonymous';
     logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-    let logoCarregada = false;
     
-    // Aguardar carregamento da logo
+    // Aguardar carregamento da logo antes de continuar
     logoHeaderImg.onload = function() {
-        logoCarregada = true;
+        gerarPDFComCabecalho();
     };
     
-    // Função para adicionar cabeçalho em qualquer página
-    function adicionarCabecalho() {
-        if (!logoCarregada || !logoHeaderImg.complete || logoHeaderImg.naturalHeight === 0) {
-            return 20; // Retorna posição padrão se logo não estiver carregada
+    logoHeaderImg.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho');
+        gerarPDFComCabecalho(); // Continuar mesmo sem a logo
+    };
+    
+    function gerarPDFComCabecalho() {
+        const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
+        
+        // Função para adicionar cabeçalho em qualquer página
+        function adicionarCabecalho() {
+            if (!logoCarregada) {
+                return 20; // Retorna posição padrão se logo não estiver carregada
+            }
+            
+            const headerY = 3;
+            const logoWidth = 40;
+            const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
+            const logoX = 5;
+            
+            // Adicionar logo translúcida
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+            
+            // Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoHeight * 0.5;
+            
+            // Adicionar texto em duas linhas ao lado da logo
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
+            
+            const lineSpacing = fontSize * 0.5;
+            const textY1 = headerY + fontSize * 0.85;
+            doc.text('I.R COMÉRCIO E', textX, textY1);
+            
+            const textY2 = textY1 + lineSpacing;
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
+            
+            // Resetar cor do texto para preto
+            doc.setTextColor(0, 0, 0);
+            
+            return headerY + logoHeight + 8;
         }
         
-        const headerY = 3;
-        const logoWidth = 40;
-        const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
-        const logoX = 5;
+        // Função auxiliar para adicionar nova página com cabeçalho
+        function addPageWithHeader() {
+            doc.addPage();
+            return adicionarCabecalho();
+        }
         
-        // Salvar estado atual
-        const currentFont = doc.internal.getCurrentPageInfo();
+        // Atualizar addTextWithWrap para usar a nova função
+        const originalAddTextWithWrap = addTextWithWrap;
+        addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
+            const lines = doc.splitTextToSize(text, maxW);
+            lines.forEach((line, index) => {
+                if (yStart + (index * lineH) > pageHeight - 30) {
+                    yStart = addPageWithHeader();
+                }
+                doc.text(line, x, yStart + (index * lineH));
+            });
+            return yStart + (lines.length * lineH);
+        };
         
-        // Adicionar logo translúcida
-        doc.setGState(new doc.GState({ opacity: 0.3 }));
-        doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
-        doc.setGState(new doc.GState({ opacity: 1.0 }));
-        
-        // Calcular tamanho da fonte baseado na altura da logo
-        const fontSize = logoHeight * 0.5; // 50% da altura da logo
-        
-        // Adicionar texto em duas linhas ao lado da logo
-        doc.setFontSize(fontSize);
+        // ============ INÍCIO DO CONTEÚDO DO PDF ============
+    
+        // TÍTULO ORDEM DE COMPRA
+        doc.setFontSize(18);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
-        
-        // Calcular espaçamento entre linhas
-        const lineSpacing = fontSize * 0.5;
-        
-        // Alinhar a primeira linha com o topo das letras "iR"
-        // Considerando que a logo tem uma pequena margem superior
-        const textY1 = headerY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
-        doc.text('I.R COMÉRCIO E', textX, textY1);
-        
-        // Segunda linha
-        const textY2 = textY1 + lineSpacing;
-        doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
-        
-        // Resetar cor do texto para preto
         doc.setTextColor(0, 0, 0);
-        
-        return headerY + logoHeight + 8; // Retorna a posição Y após o cabeçalho
-    }
-    
-    // Função auxiliar para adicionar nova página com cabeçalho
-    function addPageWithHeader() {
-        doc.addPage();
-        return adicionarCabecalho();
-    }
-    
-    // Atualizar addTextWithWrap para usar a nova função
-    const originalAddTextWithWrap = addTextWithWrap;
-    addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
-        const lines = doc.splitTextToSize(text, maxW);
-        lines.forEach((line, index) => {
-            if (yStart + (index * lineH) > pageHeight - 30) {
-                yStart = addPageWithHeader();
-            }
-            doc.text(line, x, yStart + (index * lineH));
-        });
-        return yStart + (lines.length * lineH);
-    };
-    
-    // TÍTULO ORDEM DE COMPRA
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
+        doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
     
     y += 8;
     doc.setFontSize(14);
@@ -1631,39 +1632,82 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     doc.text('DADOS DO FORNECEDOR', margin, y);
     
     y += lineHeight + 1;
+    
+    // RAZÃO SOCIAL (título em negrito, valor em negrito)
+    doc.setFont(undefined, 'bold');
+    doc.text('RAZÃO SOCIAL:', margin, y);
+    y += lineHeight;
     doc.setFont(undefined, 'bold');
     y = addTextWithWrap(toUpperCase(ordem.razao_social || ordem.razaoSocial), margin, y, maxWidth);
 
+    // NOME FANTASIA (se existir)
     if (ordem.nome_fantasia || ordem.nomeFantasia) {
         y += 2;
+        doc.setFont(undefined, 'bold');
+        doc.text('NOME FANTASIA:', margin, y);
+        y += lineHeight;
         doc.setFont(undefined, 'normal');
         y = addTextWithWrap(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), margin, y, maxWidth);
     }
 
+    // CNPJ (título em negrito, valor em negrito)
     y += 2;
-    doc.setFont(undefined, 'normal');
+    doc.setFont(undefined, 'bold');
+    doc.text('CNPJ:', margin, y);
+    y += lineHeight;
+    doc.setFont(undefined, 'bold');
     doc.text(`${ordem.cnpj}`, margin, y);
     y += lineHeight;
 
+    // ENDEREÇO (se existir)
     if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
         y += 1;
+        doc.setFont(undefined, 'bold');
+        doc.text('ENDEREÇO:', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
         y = addTextWithWrap(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), margin, y, maxWidth);
     }
 
+    // SITE (se existir)
+    if (ordem.site) {
+        y += 2;
+        doc.setFont(undefined, 'bold');
+        doc.text('SITE:', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
+        y = addTextWithWrap(ordem.site, margin, y, maxWidth);
+    }
+
+    // CONTATO (se existir)
     if (ordem.contato) {
         y += 2;
+        doc.setFont(undefined, 'bold');
+        doc.text('CONTATO:', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
         y = addTextWithWrap(toUpperCase(ordem.contato), margin, y, maxWidth);
     }
 
+    // TELEFONE (se existir)
     if (ordem.telefone) {
         y += 1;
+        doc.setFont(undefined, 'bold');
+        doc.text('TELEFONE:', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
         doc.text(`${ordem.telefone}`, margin, y);
         y += lineHeight;
     }
 
+    // E-MAIL (se existir)
     if (ordem.email) {
         y += 1;
-        y = addTextWithWrap(`${ordem.email}`, margin, y, maxWidth);
+        doc.setFont(undefined, 'bold');
+        doc.text('E-MAIL:', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
+        y = addTextWithWrap(ordem.email, margin, y, maxWidth);
     }
     
     y += 10;
@@ -2043,4 +2087,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
         showToast('PDF gerado (sem assinatura)', 'success');
     }
+    
+    } // Fechamento da função gerarPDFComCabecalho
 }

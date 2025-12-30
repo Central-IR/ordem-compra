@@ -6,16 +6,13 @@
     <title>Ordem de Compra</title>
     <link rel="icon" type="image/png" href="I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-PRETO.png">
     <link rel="stylesheet" href="styles.css">
-    <!-- JSPDF CORRIGIDO - Usando unpkg ao invés de cdnjs -->
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <!-- Splash Screen -->
     <div class="splash-screen" id="splashScreen">
         <h1 class="splash-title">Ordem de Compra</h1>
     </div>
 
-    <!-- Conteúdo Principal -->
     <div class="app-content">
         <div class="container">
             <div class="header">
@@ -25,7 +22,6 @@
                 </div>
             </div>
 
-            <!-- NAVEGAÇÃO POR MESES -->
             <div class="card">
                 <div class="month-navigation">
                     <button onclick="changeMonth(-1)" class="month-nav-btn">Anterior</button>
@@ -34,7 +30,6 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD -->
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total de Ordens</div>
@@ -50,7 +45,6 @@
                 </div>
             </div>
 
-            <!-- FILTROS -->
             <div class="card">
                 <div class="filter-section">
                     <div class="form-group">
@@ -74,7 +68,6 @@
                 </div>
             </div>
 
-            <!-- LISTA DE ORDENS -->
             <div class="card">
                 <div style="overflow-x: auto;">
                     <table>
@@ -99,7 +92,6 @@
         </div>
     </div>
 
-    <!-- BOTÃO FLUTUANTE -->
     <button class="floating-add-btn" onclick="openFormModal()" title="Registrar Ordem">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -132,7 +124,9 @@
             </div>
 
             <div class="modal-actions">
-                <button onclick="closeInfoModal()" class="secondary">Fechar</button>
+                <button type="button" id="btnInfoPrevious" onclick="previousInfoTab()" class="secondary" style="display: none;">Anterior</button>
+                <button type="button" id="btnInfoNext" onclick="nextInfoTab()" class="secondary">Próximo</button>
+                <button type="button" id="btnInfoClose" onclick="closeInfoModal()" class="secondary">Fechar</button>
             </div>
         </div>
     </div>

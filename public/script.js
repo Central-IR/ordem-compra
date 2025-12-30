@@ -1420,7 +1420,7 @@ function generatePDFForOrdem(ordem) {
             doc.text('I.R COMÉRCIO E', textX, textY1);
             
             // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
-            const textY2 = textY1 + fontSize * 0.8; // Espaçamento entre linhas
+            const textY2 = textY1 + fontSize * 0.5; // Diminuído de 0.8 para 0.5 (espaçamento reduzido)
             doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
             // Resetar cor do texto para preto
@@ -1492,7 +1492,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.text('I.R COMÉRCIO E', textX, textY1);
         
         // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
-        const textY2 = textY1 + fontSize * 0.8; // Espaçamento entre linhas
+        const textY2 = textY1 + fontSize * 0.5; // Diminuído de 0.8 para 0.5 (espaçamento reduzido)
         doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
         
         // Resetar cor do texto para preto

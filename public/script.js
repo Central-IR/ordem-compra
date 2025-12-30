@@ -1413,14 +1413,14 @@ function generatePDFForOrdem(ordem) {
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 4;
+            const textX = logoX + logoWidth + 2; // Diminuído de 4 para 2 (mais próximo da logo)
             
             // Calcular espaçamento entre linhas
             const lineSpacing = fontSize * 0.5;
             
             // Alinhar a primeira linha com o topo das letras "iR"
             const textY1 = logoY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
-            doc.text('COMÉRCIO E', textX, textY1);
+            doc.text('I.R COMÉRCIO E', textX, textY1);
             
             // Segunda linha
             const textY2 = textY1 + lineSpacing;
@@ -1488,7 +1488,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setFontSize(fontSize);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 4;
+        const textX = logoX + logoWidth + 2; // Diminuído de 4 para 2 (mais próximo da logo)
         
         // Calcular espaçamento entre linhas
         const lineSpacing = fontSize * 0.5;

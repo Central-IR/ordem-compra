@@ -1397,7 +1397,7 @@ function generatePDFForOrdem(ordem) {
             const logoWidth = 40; // Aumentado de 25 para 40
             const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
             const logoX = 10; // Diminuído de margin (15) para 10
-            const logoY = y; // y começa em 10
+            const logoY = y; // y começa em 5
             
             // Definir opacidade para a imagem (translúcido)
             doc.setGState(new doc.GState({ opacity: 0.3 }));
@@ -1406,19 +1406,22 @@ function generatePDFForOrdem(ordem) {
             // Restaurar opacidade normal
             doc.setGState(new doc.GState({ opacity: 1.0 }));
             
+            // Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoHeight * 0.5; // Aumentado de 0.35 para 0.5 (50% da altura da logo)
+            
             // Adicionar texto ao lado da logo
-            doc.setFontSize(14); // Aumentado de 10 para 14
+            doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 8; // Aumentado espaço de 5 para 8
-            const textY = logoY + (logoHeight / 2) + 3; // Ajustado para centralizar melhor
+            const textX = logoX + logoWidth + 8;
+            const textY = logoY + (logoHeight / 2) + (fontSize * 0.35); // Centralizar verticalmente
             doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
             
             // Resetar cor do texto para preto
             doc.setTextColor(0, 0, 0);
             
             // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
-            y = logoY + logoHeight + 8; // Aumentado de 10 para 8
+            y = logoY + logoHeight + 8;
             
             // Continuar com a geração do PDF
             continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
@@ -1469,12 +1472,16 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
         doc.setGState(new doc.GState({ opacity: 1.0 }));
         
+        // Calcular tamanho da fonte baseado na altura da logo
+        // A altura da logo é aproximadamente igual ao tamanho do texto desejado
+        const fontSize = logoHeight * 0.5; // Aumentado de 0.35 para 0.5 (50% da altura da logo)
+        
         // Adicionar texto ao lado da logo
-        doc.setFontSize(14); // Aumentado de 10 para 14
+        doc.setFontSize(fontSize);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 8; // Aumentado espaço de 5 para 8
-        const textY = headerY + (logoHeight / 2) + 3; // Ajustado para centralizar melhor
+        const textX = logoX + logoWidth + 8;
+        const textY = headerY + (logoHeight / 2) + (fontSize * 0.35); // Centralizar verticalmente
         doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
         
         // Resetar cor do texto para preto

@@ -1415,12 +1415,19 @@ function generatePDFForOrdem(ordem) {
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
             const textX = logoX + logoWidth + 4;
             
+            // Calcular altura total do bloco de texto (2 linhas)
+            const lineSpacing = fontSize * 0.5;
+            const totalTextHeight = fontSize + lineSpacing;
+            
+            // Centralizar o bloco de texto verticalmente em relação à logo
+            const startY = logoY + (logoHeight / 2) - (totalTextHeight / 2);
+            
             // Primeira linha: "I.R COMÉRCIO E"
-            const textY1 = logoY + (logoHeight / 2) - (fontSize * 0.3); // Linha superior
+            const textY1 = startY + fontSize * 0.8; // Ajuste para baseline do texto
             doc.text('I.R COMÉRCIO E', textX, textY1);
             
             // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
-            const textY2 = textY1 + fontSize * 0.5; // Diminuído de 0.8 para 0.5 (espaçamento reduzido)
+            const textY2 = textY1 + lineSpacing;
             doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
             // Resetar cor do texto para preto
@@ -1487,12 +1494,19 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setTextColor(150, 150, 150);
         const textX = logoX + logoWidth + 4;
         
+        // Calcular altura total do bloco de texto (2 linhas)
+        const lineSpacing = fontSize * 0.5;
+        const totalTextHeight = fontSize + lineSpacing;
+        
+        // Centralizar o bloco de texto verticalmente em relação à logo
+        const startY = headerY + (logoHeight / 2) - (totalTextHeight / 2);
+        
         // Primeira linha: "I.R COMÉRCIO E"
-        const textY1 = headerY + (logoHeight / 2) - (fontSize * 0.3); // Linha superior
+        const textY1 = startY + fontSize * 0.8; // Ajuste para baseline do texto
         doc.text('I.R COMÉRCIO E', textX, textY1);
         
         // Segunda linha: "MATERIAIS ELÉTRICOS LTDA"
-        const textY2 = textY1 + fontSize * 0.5; // Diminuído de 0.8 para 0.5 (espaçamento reduzido)
+        const textY2 = textY1 + lineSpacing;
         doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
         
         // Resetar cor do texto para preto

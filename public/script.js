@@ -1367,7 +1367,7 @@ function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    let y = 5; // Diminuído de 10 para 5
+    let y = 3; // Diminuído de 5 para 3 (mais próximo do topo)
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -1394,9 +1394,9 @@ function generatePDFForOrdem(ordem) {
     logoHeader.onload = function() {
         try {
             // Adicionar logo no canto superior esquerdo
-            const logoWidth = 40; // Aumentado de 25 para 40
+            const logoWidth = 40;
             const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
-            const logoX = 10; // Diminuído de margin (15) para 10
+            const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
             const logoY = y; // y começa em 5
             
             // Definir opacidade para a imagem (translúcido)
@@ -1407,14 +1407,14 @@ function generatePDFForOrdem(ordem) {
             doc.setGState(new doc.GState({ opacity: 1.0 }));
             
             // Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoHeight * 0.5; // Aumentado de 0.35 para 0.5 (50% da altura da logo)
+            const fontSize = logoHeight * 0.5; // 50% da altura da logo
             
             // Adicionar texto ao lado da logo
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 8;
-            const textY = logoY + (logoHeight / 2) + (fontSize * 0.35); // Centralizar verticalmente
+            const textX = logoX + logoWidth + 4; // 4mm de espaço entre logo e texto
+            const textY = logoY + (logoHeight / 2) + (fontSize * 0.25); // Ajustado para alinhar melhor verticalmente
             doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
             
             // Resetar cor do texto para preto
@@ -1459,10 +1459,10 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             return 20; // Retorna posição padrão se logo não estiver carregada
         }
         
-        const headerY = 5; // Diminuído de 10 para 5
-        const logoWidth = 40; // Aumentado de 25 para 40
+        const headerY = 3; // Diminuído de 5 para 3 (mais próximo do topo)
+        const logoWidth = 40;
         const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
-        const logoX = 10; // Diminuído de margin (15) para 10
+        const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
         
         // Salvar estado atual
         const currentFont = doc.internal.getCurrentPageInfo();
@@ -1473,21 +1473,20 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setGState(new doc.GState({ opacity: 1.0 }));
         
         // Calcular tamanho da fonte baseado na altura da logo
-        // A altura da logo é aproximadamente igual ao tamanho do texto desejado
-        const fontSize = logoHeight * 0.5; // Aumentado de 0.35 para 0.5 (50% da altura da logo)
+        const fontSize = logoHeight * 0.5; // 50% da altura da logo
         
         // Adicionar texto ao lado da logo
         doc.setFontSize(fontSize);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 8;
-        const textY = headerY + (logoHeight / 2) + (fontSize * 0.35); // Centralizar verticalmente
+        const textX = logoX + logoWidth + 4; // 4mm de espaço entre logo e texto
+        const textY = headerY + (logoHeight / 2) + (fontSize * 0.25); // Ajustado para alinhar melhor verticalmente
         doc.text('COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', textX, textY);
         
         // Resetar cor do texto para preto
         doc.setTextColor(0, 0, 0);
         
-        return headerY + logoHeight + 8; // Retorna a posição Y após o cabeçalho (aumentado de 5 para 8)
+        return headerY + logoHeight + 8; // Retorna a posição Y após o cabeçalho
     }
     
     // Função auxiliar para adicionar nova página com cabeçalho

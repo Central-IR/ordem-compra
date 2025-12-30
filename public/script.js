@@ -1496,7 +1496,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         // Alinhar a primeira linha com o topo das letras "iR"
         // Considerando que a logo tem uma pequena margem superior
         const textY1 = headerY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
-        doc.text('I.R COMÉRCIO E', textX, textY1);
+        doc.text('COMÉRCIO E', textX, textY1);
         
         // Segunda linha
         const textY2 = textY1 + lineSpacing;

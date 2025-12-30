@@ -1413,7 +1413,7 @@ function generatePDFForOrdem(ordem) {
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 2; // Diminuído de 4 para 2 (mais próximo da logo)
+            const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
             
             // Calcular espaçamento entre linhas
             const lineSpacing = fontSize * 0.5;
@@ -1488,7 +1488,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.setFontSize(fontSize);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(150, 150, 150);
-        const textX = logoX + logoWidth + 2; // Diminuído de 4 para 2 (mais próximo da logo)
+        const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
         
         // Calcular espaçamento entre linhas
         const lineSpacing = fontSize * 0.5;

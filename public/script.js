@@ -1063,7 +1063,12 @@ async function toggleStatus(id) {
     ordem.status = novoStatus;
     updateDisplay();
     
-    showToast(`Ordem marcada como ${novoStatus}!`, 'success');
+    // Mensagem verde ao fechar (marcar), vermelha ao abrir (desmarcar)
+    if (novoStatus === 'fechada') {
+        showToast(`Ordem marcada como ${novoStatus}!`, 'success');
+    } else {
+        showToast(`Ordem marcada como ${novoStatus}!`, 'error');
+    }
 
     if (isOnline || DEVELOPMENT_MODE) {
         try {
@@ -1633,86 +1638,124 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += lineHeight + 1;
     
-    // RAZÃO SOCIAL (título em negrito, valor em negrito)
+    // RAZÃO SOCIAL (título normal, valor em negrito na mesma linha)
+    doc.setFont(undefined, 'normal');
+    doc.text('RAZÃO SOCIAL: ', margin, y);
+    const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
     doc.setFont(undefined, 'bold');
-    doc.text('RAZÃO SOCIAL:', margin, y);
+    const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial);
+    const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - razaoSocialWidth);
+    doc.text(razaoLines[0], margin + razaoSocialWidth, y);
     y += lineHeight;
-    doc.setFont(undefined, 'bold');
-    y = addTextWithWrap(toUpperCase(ordem.razao_social || ordem.razaoSocial), margin, y, maxWidth);
+    
+    // Continuar linhas da razão social se necessário
+    if (razaoLines.length > 1) {
+        for (let i = 1; i < razaoLines.length; i++) {
+            doc.text(razaoLines[i], margin, y);
+            y += lineHeight;
+        }
+    }
 
     // NOME FANTASIA (se existir)
     if (ordem.nome_fantasia || ordem.nomeFantasia) {
-        y += 2;
-        doc.setFont(undefined, 'bold');
-        doc.text('NOME FANTASIA:', margin, y);
-        y += lineHeight;
+        y += 1;
         doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia), margin, y, maxWidth);
+        doc.text('NOME FANTASIA: ', margin, y);
+        const nomeFantasiaWidth = doc.getTextWidth('NOME FANTASIA: ');
+        doc.setFont(undefined, 'normal');
+        const nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia);
+        const nomeLines = doc.splitTextToSize(nomeFantasiaTexto, maxWidth - nomeFantasiaWidth);
+        doc.text(nomeLines[0], margin + nomeFantasiaWidth, y);
+        y += lineHeight;
+        
+        if (nomeLines.length > 1) {
+            for (let i = 1; i < nomeLines.length; i++) {
+                doc.text(nomeLines[i], margin, y);
+                y += lineHeight;
+            }
+        }
     }
 
-    // CNPJ (título em negrito, valor em negrito)
-    y += 2;
+    // CNPJ (título normal, valor em negrito na mesma linha)
+    y += 1;
+    doc.setFont(undefined, 'normal');
+    doc.text('CNPJ: ', margin, y);
+    const cnpjWidth = doc.getTextWidth('CNPJ: ');
     doc.setFont(undefined, 'bold');
-    doc.text('CNPJ:', margin, y);
-    y += lineHeight;
-    doc.setFont(undefined, 'bold');
-    doc.text(`${ordem.cnpj}`, margin, y);
+    doc.text(`${ordem.cnpj}`, margin + cnpjWidth, y);
     y += lineHeight;
 
     // ENDEREÇO (se existir)
     if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
         y += 1;
-        doc.setFont(undefined, 'bold');
-        doc.text('ENDEREÇO:', margin, y);
-        y += lineHeight;
         doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor), margin, y, maxWidth);
+        doc.text('ENDEREÇO: ', margin, y);
+        const enderecoWidth = doc.getTextWidth('ENDEREÇO: ');
+        const enderecoTexto = toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor);
+        const enderecoLines = doc.splitTextToSize(enderecoTexto, maxWidth - enderecoWidth);
+        doc.text(enderecoLines[0], margin + enderecoWidth, y);
+        y += lineHeight;
+        
+        if (enderecoLines.length > 1) {
+            for (let i = 1; i < enderecoLines.length; i++) {
+                doc.text(enderecoLines[i], margin, y);
+                y += lineHeight;
+            }
+        }
     }
 
     // SITE (se existir)
     if (ordem.site) {
-        y += 2;
-        doc.setFont(undefined, 'bold');
-        doc.text('SITE:', margin, y);
-        y += lineHeight;
+        y += 1;
         doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(ordem.site, margin, y, maxWidth);
+        doc.text('SITE: ', margin, y);
+        const siteWidth = doc.getTextWidth('SITE: ');
+        doc.text(ordem.site, margin + siteWidth, y);
+        y += lineHeight;
     }
 
     // CONTATO (se existir)
     if (ordem.contato) {
-        y += 2;
-        doc.setFont(undefined, 'bold');
-        doc.text('CONTATO:', margin, y);
-        y += lineHeight;
+        y += 1;
         doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(toUpperCase(ordem.contato), margin, y, maxWidth);
+        doc.text('CONTATO: ', margin, y);
+        const contatoWidth = doc.getTextWidth('CONTATO: ');
+        const contatoTexto = toUpperCase(ordem.contato);
+        const contatoLines = doc.splitTextToSize(contatoTexto, maxWidth - contatoWidth);
+        doc.text(contatoLines[0], margin + contatoWidth, y);
+        y += lineHeight;
+        
+        if (contatoLines.length > 1) {
+            for (let i = 1; i < contatoLines.length; i++) {
+                doc.text(contatoLines[i], margin, y);
+                y += lineHeight;
+            }
+        }
     }
 
     // TELEFONE (se existir)
     if (ordem.telefone) {
         y += 1;
-        doc.setFont(undefined, 'bold');
-        doc.text('TELEFONE:', margin, y);
-        y += lineHeight;
         doc.setFont(undefined, 'normal');
-        doc.text(`${ordem.telefone}`, margin, y);
+        doc.text('TELEFONE: ', margin, y);
+        const telefoneWidth = doc.getTextWidth('TELEFONE: ');
+        doc.text(`${ordem.telefone}`, margin + telefoneWidth, y);
         y += lineHeight;
     }
 
     // E-MAIL (se existir)
     if (ordem.email) {
         y += 1;
-        doc.setFont(undefined, 'bold');
-        doc.text('E-MAIL:', margin, y);
-        y += lineHeight;
         doc.setFont(undefined, 'normal');
-        y = addTextWithWrap(ordem.email, margin, y, maxWidth);
+        doc.text('E-MAIL: ', margin, y);
+        const emailWidth = doc.getTextWidth('E-MAIL: ');
+        doc.text(ordem.email, margin + emailWidth, y);
+        y += lineHeight;
     }
     
-    y += 10;
+    y += 8;
     
-    if (y > pageHeight - 80) {
+    if (y > pageHeight - 50) {
         y = addPageWithHeader();
     }
     
@@ -1794,43 +1837,9 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         const lineCount = especLines.length;
         const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
         
-        if (y + necessaryHeight > pageHeight - 70) {
+        // Se não couber, adiciona nova página sem cabeçalho da tabela (continua a tabela)
+        if (y + necessaryHeight > pageHeight - 50) {
             y = addPageWithHeader();
-            
-            doc.setFillColor(108, 117, 125);
-            doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-            doc.setTextColor(255, 255, 255);
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(9);
-            
-            xPos = margin;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.item;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.especificacao;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.qtd;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.unid;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.valorUn;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.ipi;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.st;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-            xPos += colWidths.total;
-            doc.line(xPos, y, xPos, y + itemRowHeight);
-            
-            y += itemRowHeight;
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
             doc.setFontSize(8);
@@ -1888,7 +1897,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 8;
     
-    if (y > pageHeight - 80) {
+    if (y > pageHeight - 40) {
         y = addPageWithHeader();
     }
     doc.setFontSize(11);
@@ -1897,7 +1906,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 70) {
+    if (y > pageHeight - 40) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
@@ -1914,7 +1923,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 60) {
+    if (y > pageHeight - 40) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
@@ -1936,7 +1945,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 50) {
+    if (y > pageHeight - 40) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
@@ -1959,7 +1968,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 15;
     
-    if (y > pageHeight - 60) {
+    if (y > pageHeight - 80) {
         y = addPageWithHeader();
     }
     

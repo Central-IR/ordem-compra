@@ -1906,7 +1906,8 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 40) {
+    // Verificar se há espaço suficiente para LOCAL DE ENTREGA (precisa de ~25mm)
+    if (y > pageHeight - 60) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
@@ -1923,7 +1924,8 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 40) {
+    // Verificar se há espaço para PRAZO/FRETE/TRANSPORTE (precisa de ~20mm)
+    if (y > pageHeight - 50) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');
@@ -1945,7 +1947,8 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
     
     y += 10;
     
-    if (y > pageHeight - 40) {
+    // Verificar se há espaço para CONDIÇÕES DE PAGAMENTO (precisa de ~25mm)
+    if (y > pageHeight - 60) {
         y = addPageWithHeader();
     }
     doc.setFont(undefined, 'bold');

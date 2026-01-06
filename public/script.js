@@ -1235,9 +1235,24 @@ function updateDashboard() {
         .filter(n => !isNaN(n));
     const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
     
+    // ===== INÍCIO DA MODIFICAÇÃO =====
+    // Calcular o valor total das ordens do mês
+    let valorTotalMes = 0;
+    monthOrdens.forEach(ordem => {
+        const valorStr = (ordem.valor_total || ordem.valorTotal || 'R$ 0,00')
+            .replace('R$', '')
+            .replace(/\./g, '')
+            .replace(',', '.')
+            .trim();
+        const valor = parseFloat(valorStr) || 0;
+        valorTotalMes += valor;
+    });
+    // ===== FIM DA MODIFICAÇÃO =====
+    
     document.getElementById('totalOrdens').textContent = ultimoNumero;
     document.getElementById('totalFechadas').textContent = totalFechadas;
     document.getElementById('totalAbertas').textContent = totalAbertas;
+    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes); // ← NOVA LINHA
     
     const cardAbertas = document.getElementById('cardAbertas');
     if (!cardAbertas) return;

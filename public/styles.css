@@ -14,8 +14,8 @@
     --table-stripe: #FAFAFA;
     --table-hover: rgba(0, 0, 0, 0.02);
     --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    --th-bg: #F3F4F6;
-    --th-color: #374151;
+    --th-bg: #6B7280;
+    --th-color: #FFFFFF;
     --th-border: #E5E7EB;
     --shadow: rgba(0, 0, 0, 0.08);
     --btn-register: #3B82F6;
@@ -133,6 +133,12 @@ body {
     gap: 1rem;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 h1 {
     font-size: 2rem;
     font-weight: 700;
@@ -140,7 +146,7 @@ h1 {
     letter-spacing: -0.5px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    margin: 0;
 }
 
 h2 {
@@ -188,44 +194,94 @@ h2 {
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+/* NEW ORDER BUTTON IN HEADER */
+.btn-new-order-header {
+    background: var(--btn-register);
+    color: white;
+    border: none;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+    white-space: nowrap;
+}
+
+.btn-new-order-header:hover {
+    background: #2563EB;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
 /* ============================================
-   FILTER BAR (LIKE REFERENCE IMAGE)
+   SEARCH BAR WITH INTEGRATED FILTERS
    ============================================ */
-.filter-bar {
+.search-bar-wrapper {
+    margin-bottom: 0.5rem;
+}
+
+.search-bar {
     background: var(--bg-card);
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px 12px 0 0;
     border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
+    border-bottom: none;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
-.filter-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.search-icon {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.search-bar input {
     flex: 1;
-    flex-wrap: wrap;
-}
-
-.filter-dropdown {
-    position: relative;
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
     min-width: 150px;
 }
 
-.filter-dropdown select {
+.search-bar input:focus {
+    outline: none;
+}
+
+.search-bar input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* FILTERS INTEGRATED IN SEARCH BAR */
+.search-bar-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-dropdown-inline {
+    position: relative;
+    min-width: 140px;
+}
+
+.filter-dropdown-inline select {
     width: 100%;
-    padding: 0.6rem 2.5rem 0.6rem 1rem;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--bg-card);
+    border-radius: 6px;
+    background: var(--input-bg);
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
@@ -233,18 +289,18 @@ h2 {
     transition: all 0.2s ease;
 }
 
-.filter-dropdown select:hover {
+.filter-dropdown-inline select:hover {
     border-color: var(--text-secondary);
 }
 
-.filter-dropdown select:focus {
+.filter-dropdown-inline select:focus {
     outline: none;
     border-color: var(--primary);
 }
 
-.filter-dropdown .dropdown-icon {
+.filter-dropdown-inline .dropdown-icon {
     position: absolute;
-    right: 1rem;
+    right: 0.75rem;
     top: 50%;
     transform: translateY(-50%);
     pointer-events: none;
@@ -255,10 +311,10 @@ h2 {
 .month-navigation-inline {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     background: var(--input-bg);
-    padding: 0.4rem;
-    border-radius: 8px;
+    padding: 0.35rem;
+    border-radius: 6px;
     border: 1px solid var(--border-color);
 }
 
@@ -267,8 +323,8 @@ h2 {
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 0.4rem;
-    border-radius: 6px;
+    padding: 0.35rem;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -281,20 +337,32 @@ h2 {
 }
 
 .month-display-inline {
-    padding: 0 0.75rem;
-    font-size: 0.875rem;
+    padding: 0 0.5rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
 }
 
-/* VIEW ICONS */
-.filter-view-icons {
+.search-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    justify-content: center;
+    transition: all 0.2s ease;
 }
 
+.search-btn:hover {
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* VIEW ICONS */
 .view-icon {
     background: transparent;
     border: none;
@@ -317,35 +385,6 @@ h2 {
     background: var(--input-bg);
     color: var(--primary);
 }
-
-/* NEW ORDER BUTTON */
-.btn-new-order {
-    background: var(--btn-register);
-    color: white;
-    border: none;
-    padding: 0.65rem 1.5rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-    white-space: nowrap;
-}
-
-.btn-new-order:hover {
-    background: #2563EB;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-}
-
-/* ============================================
-   DASHBOARD CARDS
-   ============================================ */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -471,65 +510,6 @@ h2 {
     50% {
         transform: scale(1.1);
     }
-}
-
-/* ============================================
-   SEARCH BAR (ABOVE TABLE)
-   ============================================ */
-.search-bar-wrapper {
-    margin-bottom: 0.5rem;
-}
-
-.search-bar {
-    background: var(--bg-card);
-    padding: 0.75rem 1rem;
-    border-radius: 12px 12px 0 0;
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.search-icon {
-    color: var(--text-secondary);
-    flex-shrink: 0;
-}
-
-.search-bar input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 0.5rem;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    font-family: inherit;
-}
-
-.search-bar input:focus {
-    outline: none;
-}
-
-.search-bar input::placeholder {
-    color: var(--text-secondary);
-}
-
-.search-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.search-btn:hover {
-    background: var(--input-bg);
-    color: var(--text-primary);
 }
 
 /* ============================================
@@ -1062,7 +1042,17 @@ button.small {
     
     .header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+    }
+    
+    .header-left {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .btn-new-order-header {
+        width: 100%;
+        justify-content: center;
     }
     
     h1 {
@@ -1073,23 +1063,29 @@ button.small {
         font-size: 1.3rem;
     }
     
-    .filter-bar {
+    .search-bar {
         flex-direction: column;
         align-items: stretch;
+        gap: 0.5rem;
     }
     
-    .filter-controls {
+    .search-bar input {
+        width: 100%;
+        min-width: unset;
+    }
+    
+    .search-bar-filters {
+        width: 100%;
         flex-direction: column;
+    }
+    
+    .filter-dropdown-inline {
         width: 100%;
     }
     
-    .filter-dropdown {
+    .month-navigation-inline {
         width: 100%;
-    }
-    
-    .btn-new-order {
-        width: 100%;
-        justify-content: center;
+        justify-content: space-between;
     }
     
     .dashboard-grid {

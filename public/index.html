@@ -16,76 +16,13 @@
     <div class="app-content">
         <div class="container">
             <div class="header">
-                <h1>Ordem de Compra</h1>
-                <div id="connectionStatus" class="connection-status offline">
-                    <span class="status-dot"></span>
-                </div>
-            </div>
-
-            <!-- Filter Bar (like reference image) -->
-            <div class="filter-bar">
-                <div class="filter-controls">
-                    <div class="filter-dropdown">
-                        <select id="filterResponsavel" onchange="filterOrdens()">
-                            <option value="">Responsável</option>
-                        </select>
-                        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                    <div class="filter-dropdown">
-                        <select id="filterStatus" onchange="filterOrdens()">
-                            <option value="">Todos os Status</option>
-                            <option value="aberta">Aberta</option>
-                            <option value="fechada">Fechada</option>
-                        </select>
-                        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                    <div class="month-navigation-inline">
-                        <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                        </button>
-                        <div class="month-display-inline">
-                            <span id="currentMonth">Carregando...</span>
-                        </div>
-                        <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="filter-view-icons">
-                        <button class="view-icon active" title="Visualização em lista">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="8" y1="6" x2="21" y2="6"></line>
-                                <line x1="8" y1="12" x2="21" y2="12"></line>
-                                <line x1="8" y1="18" x2="21" y2="18"></line>
-                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                            </svg>
-                        </button>
-                        <button class="view-icon" title="Visualização em grade">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="14" width="7" height="7"></rect>
-                                <rect x="3" y="14" width="7" height="7"></rect>
-                            </svg>
-                        </button>
-                        <button class="view-icon" title="Visualização compacta">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="7" height="18"></rect>
-                                <rect x="14" y="3" width="7" height="18"></rect>
-                            </svg>
-                        </button>
+                <div class="header-left">
+                    <h1>Ordem de Compra</h1>
+                    <div id="connectionStatus" class="connection-status offline">
+                        <span class="status-dot"></span>
                     </div>
                 </div>
-                <button onclick="openFormModal()" class="btn-new-order">
+                <button onclick="openFormModal()" class="btn-new-order-header">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -126,7 +63,7 @@
                 </div>
             </div>
 
-            <!-- Search Bar (above table header) -->
+            <!-- Search Bar with Filters -->
             <div class="search-bar-wrapper">
                 <div class="search-bar">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -134,6 +71,44 @@
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
                     <input type="text" id="search" placeholder="Pesquisar" oninput="filterOrdens()">
+                    
+                    <!-- Filters integrated in search bar -->
+                    <div class="search-bar-filters">
+                        <div class="filter-dropdown-inline">
+                            <select id="filterResponsavel" onchange="filterOrdens()">
+                                <option value="">Responsável</option>
+                            </select>
+                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="filter-dropdown-inline">
+                            <select id="filterStatus" onchange="filterOrdens()">
+                                <option value="">Todos os Status</option>
+                                <option value="aberta">Aberta</option>
+                                <option value="fechada">Fechada</option>
+                            </select>
+                            <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="month-navigation-inline">
+                            <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <div class="month-display-inline">
+                                <span id="currentMonth">Carregando...</span>
+                            </div>
+                            <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
                     <button class="search-btn" title="Pesquisar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"></circle>

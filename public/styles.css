@@ -271,7 +271,7 @@ h2 {
 
 .filter-dropdown-inline {
     position: relative;
-    min-width: 140px;
+    min-width: 160px;
 }
 
 .filter-dropdown-inline select {
@@ -287,6 +287,7 @@ h2 {
     cursor: pointer;
     appearance: none;
     transition: all 0.2s ease;
+    height: 38px;
 }
 
 .filter-dropdown-inline select:hover {
@@ -316,6 +317,8 @@ h2 {
     padding: 0.35rem;
     border-radius: 6px;
     border: 1px solid var(--border-color);
+    height: 38px;
+    min-width: 160px;
 }
 
 .month-nav-arrow {
@@ -384,6 +387,121 @@ h2 {
 .view-icon.active {
     background: var(--input-bg);
     color: var(--primary);
+}
+
+/* CALENDAR BUTTON */
+.calendar-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: 0.25rem;
+}
+
+.calendar-btn:hover {
+    background: var(--input-bg);
+    color: var(--primary);
+}
+
+/* CALENDAR MODAL */
+.calendar-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.calendar-modal.show {
+    display: flex;
+}
+
+.calendar-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px var(--shadow);
+    border: 1px solid var(--border-color);
+    max-width: 400px;
+    width: 90%;
+    animation: scaleIn 0.2s ease;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-header h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.calendar-year-nav {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.calendar-year-nav:hover {
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.calendar-months {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.calendar-month {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.calendar-month:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(204, 112, 0, 0.3);
+}
+
+.calendar-month.current {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
 }
 .dashboard-grid {
     display: grid;
@@ -754,45 +872,46 @@ button.small {
    ============================================ */
 .floating-message {
     position: fixed;
-    top: 24px;
+    bottom: 24px;
     right: 24px;
     padding: 14px 20px;
     border-radius: 10px;
     font-weight: 500;
     font-size: 0.95rem;
     z-index: 9999999;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     border: 1px solid;
-    animation: slideIn 0.3s ease;
+    animation: slideInBottom 0.3s ease;
+    min-width: 300px;
 }
 
 .floating-message.success {
-    background: rgba(34, 197, 94, 0.1);
-    color: #16A34A;
-    border-color: rgba(34, 197, 94, 0.3);
+    background: #10B981;
+    color: #FFFFFF;
+    border-color: #059669;
 }
 
 .floating-message.error {
-    background: rgba(239, 68, 68, 0.1);
-    color: #DC2626;
-    border-color: rgba(239, 68, 68, 0.3);
+    background: #EF4444;
+    color: #FFFFFF;
+    border-color: #DC2626;
 }
 
-@keyframes slideIn {
+@keyframes slideInBottom {
     from {
         opacity: 0;
-        transform: translateX(400px);
+        transform: translateY(100px);
     }
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
-@keyframes slideOut {
+@keyframes slideOutBottom {
     to {
         opacity: 0;
-        transform: translateX(400px);
+        transform: translateY(100px);
     }
 }
 
@@ -994,44 +1113,6 @@ button.small {
 }
 
 /* ============================================
-   BOTÃO FLUTUANTE
-   ============================================ */
-.floating-add-btn {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: var(--btn-register);
-    color: white;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    z-index: 1000;
-    padding: 0;
-    margin: 0;
-}
-
-.floating-add-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
-}
-
-.floating-add-btn:active {
-    transform: scale(0.95);
-}
-
-.floating-add-btn svg {
-    width: 28px;
-    height: 28px;
-}
-
-/* ============================================
    RESPONSIVE
    ============================================ */
 @media (max-width: 768px) {
@@ -1133,17 +1214,5 @@ button.small {
     
     .actions-cell {
         min-width: auto;
-    }
-    
-    .floating-add-btn {
-        width: 56px;
-        height: 56px;
-        bottom: 1.5rem;
-        right: 1.5rem;
-    }
-    
-    .floating-add-btn svg {
-        width: 24px;
-        height: 24px;
     }
 }

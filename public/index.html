@@ -22,53 +22,146 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="month-navigation">
-                    <button onclick="changeMonth(-1)" class="month-nav-btn">Anterior</button>
-                    <h3 id="currentMonth" class="month-display">Carregando...</h3>
-                    <button onclick="changeMonth(1)" class="month-nav-btn">Próximo</button>
-                </div>
-            </div>
-
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Total de Ordens</div>
-                    <div class="stat-value" id="totalOrdens">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Ordens Fechadas</div>
-                    <div class="stat-value stat-success" id="totalFechadas">0</div>
-                </div>
-                <div class="stat-card" id="cardAbertas">
-                    <div class="stat-label">Ordens Abertas</div>
-                    <div class="stat-value stat-danger" id="totalAbertas">0</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="filter-section">
-                    <div class="form-group">
-                        <label for="search">Pesquisar</label>
-                        <input type="text" id="search" placeholder="Número, fornecedor, responsável..." oninput="filterOrdens()">
-                    </div>
-                    <div class="form-group">
-                        <label for="filterResponsavel">Responsável</label>
+            <!-- Filter Bar (like reference image) -->
+            <div class="filter-bar">
+                <div class="filter-controls">
+                    <div class="filter-dropdown">
                         <select id="filterResponsavel" onchange="filterOrdens()">
-                            <option value="">Todos</option>
+                            <option value="">Responsável</option>
                         </select>
+                        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
                     </div>
-                    <div class="form-group">
-                        <label for="filterStatus">Status</label>
+                    <div class="filter-dropdown">
                         <select id="filterStatus" onchange="filterOrdens()">
-                            <option value="">Todos</option>
+                            <option value="">Todos os Status</option>
                             <option value="aberta">Aberta</option>
                             <option value="fechada">Fechada</option>
                         </select>
+                        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="month-navigation-inline">
+                        <button onclick="changeMonth(-1)" class="month-nav-arrow" title="Mês anterior">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <div class="month-display-inline">
+                            <span id="currentMonth">Carregando...</span>
+                        </div>
+                        <button onclick="changeMonth(1)" class="month-nav-arrow" title="Próximo mês">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="filter-view-icons">
+                        <button class="view-icon active" title="Visualização em lista">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="8" y1="6" x2="21" y2="6"></line>
+                                <line x1="8" y1="12" x2="21" y2="12"></line>
+                                <line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                        </button>
+                        <button class="view-icon" title="Visualização em grade">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                        </button>
+                        <button class="view-icon" title="Visualização compacta">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="18"></rect>
+                                <rect x="14" y="3" width="7" height="18"></rect>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button onclick="openFormModal()" class="btn-new-order">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Nova Ordem
+                </button>
+            </div>
+
+            <!-- Dashboard Cards -->
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-default">📋</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="totalOrdens">58</div>
+                        <div class="stat-label">Total de Ordens</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-success">
+                    <div class="stat-icon stat-icon-success">✓</div>
+                    <div class="stat-content">
+                        <div class="stat-value stat-value-success" id="totalFechadas">14</div>
+                        <div class="stat-label">Fechadas</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-warning" id="cardAbertas">
+                    <div class="stat-icon stat-icon-warning">◷</div>
+                    <div class="stat-content">
+                        <div class="stat-value stat-value-warning" id="totalAbertas">28</div>
+                        <div class="stat-label">Abertas</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-info">
+                    <div class="stat-icon stat-icon-info">💰</div>
+                    <div class="stat-content">
+                        <div class="stat-value stat-value-info" id="valorTotal">R$ 0,00</div>
+                        <div class="stat-label">Total</div>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
+            <!-- Search Bar (above table header) -->
+            <div class="search-bar-wrapper">
+                <div class="search-bar">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" id="search" placeholder="Pesquisar" oninput="filterOrdens()">
+                    <button class="search-btn" title="Pesquisar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
+                    <button class="view-icon" title="Opções de visualização">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
+                    </button>
+                    <button class="view-icon" title="Mais opções">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="1" fill="currentColor"></circle>
+                            <circle cx="19" cy="12" r="1" fill="currentColor"></circle>
+                            <circle cx="5" cy="12" r="1" fill="currentColor"></circle>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Card -->
+            <div class="card table-card">
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>

@@ -89,7 +89,7 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 99999;
-    animation: splashFadeOut 0.5s ease 2.5s forwards;
+    animation: splashFadeOut 0.0s ease 2.5s forwards;
 }
 
 @keyframes splashFadeOut {
@@ -101,7 +101,7 @@ body {
 
 .app-content {
     opacity: 0;
-    animation: contentFadeIn 0.5s ease 2.5s forwards;
+    animation: contentFadeIn 0.0s ease 2.5s forwards;
 }
 
 @keyframes contentFadeIn {

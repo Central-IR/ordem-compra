@@ -1,7 +1,7 @@
 /* VARIÁVEIS BASE */
 :root {
     --primary: #CC7000;
-    --bg-primary: #000000;
+    --bg-primary: #FFFFFF;  /* ← MUDE DE #000000 PARA #FFFFFF */
     --bg-secondary: #F8F9FA;
     --bg-card: #FFFFFF;
     --text-primary: #1A1A1A;

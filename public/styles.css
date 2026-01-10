@@ -1,7 +1,7 @@
 /* VARIÁVEIS BASE */
 :root {
     --primary: #CC7000;
-    --bg-primary: #FFFFFF;
+    --bg-primary: #000000;
     --bg-secondary: #F8F9FA;
     --bg-card: #FFFFFF;
     --text-primary: #1A1A1A;
@@ -59,9 +59,49 @@ body {
     overflow-y: scroll;
 }
 
-/* APP CONTENT - SEM SPLASH */
+/* ============================================
+   SPLASH SCREEN
+   ============================================ */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeOut 0.5s ease 2.5s forwards;
+}
+
+.splash-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    opacity: 0;
+    animation: smoothFadeIn 1.5s ease-out 0.3s forwards;
+}
+
+@keyframes smoothFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; visibility: hidden; }
+}
+
 .app-content {
-    opacity: 1;
+    opacity: 0;
+    animation: contentFadeIn 0.5s ease 2.8s forwards;
+}
+
+@keyframes contentFadeIn {
+    to { opacity: 1; }
 }
 
 .container {
@@ -143,13 +183,15 @@ h2 {
 }
 
 @keyframes pulse-online {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
     70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
 @keyframes pulse-offline {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
     70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 /* NEW ORDER BUTTON IN HEADER */
@@ -175,136 +217,6 @@ h2 {
     background: #2563EB;
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-}
-
-/* ============================================
-   DASHBOARD CARDS
-   ============================================ */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.stat-card {
-    background: var(--bg-card);
-    padding: 1.25rem;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--card-shadow);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: all 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-
-.stat-icon-default {
-    background: rgba(107, 114, 128, 0.1);
-}
-
-.stat-icon-success {
-    background: rgba(34, 197, 94, 0.1);
-    color: #22C55E;
-}
-
-.stat-icon-warning {
-    background: rgba(245, 158, 11, 0.1);
-    color: #F59E0B;
-}
-
-.stat-icon-info {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3B82F6;
-}
-
-.stat-content {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1;
-    margin-bottom: 0.25rem;
-}
-
-.stat-value-success {
-    color: #22C55E;
-}
-
-.stat-value-warning {
-    color: #F59E0B;
-}
-
-.stat-value-info {
-    color: #3B82F6;
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-/* ALERTA VISUAL - ORDENS ABERTAS */
-.stat-card.has-alert {
-    position: relative;
-    animation: pulseAlert 2s ease-in-out infinite;
-    border-color: var(--alert-color) !important;
-}
-
-@keyframes pulseAlert {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.2);
-    }
-}
-
-.pulse-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: var(--alert-color);
-    color: white;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
 }
 
 /* ============================================
@@ -435,6 +347,48 @@ h2 {
     white-space: nowrap;
 }
 
+.search-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+/* VIEW ICONS */
+.view-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.view-icon:hover {
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.view-icon.active {
+    background: var(--input-bg);
+    color: var(--primary);
+}
+
 /* CALENDAR BUTTON */
 .calendar-btn {
     background: transparent;
@@ -548,6 +502,132 @@ h2 {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
+}
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.stat-icon-default {
+    background: rgba(107, 114, 128, 0.1);
+}
+
+.stat-icon-success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22C55E;
+}
+
+.stat-icon-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+}
+
+.stat-icon-info {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value-success {
+    color: #22C55E;
+}
+
+.stat-value-warning {
+    color: #F59E0B;
+}
+
+.stat-value-info {
+    color: #3B82F6;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* ALERTA VISUAL - ORDENS ABERTAS */
+.stat-card.has-alert {
+    position: relative;
+    animation: pulseAlert 2s ease-in-out infinite;
+    border-color: var(--alert-color) !important;
+}
+
+@keyframes pulseAlert {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.2);
+    }
+}
+
+.pulse-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--alert-color);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
 }
 
 /* ============================================
@@ -864,12 +944,6 @@ button.small {
     }
 }
 
-@keyframes scaleIn {
-    to {
-        transform: scale(1);
-    }
-}
-
 .modal-content {
     background: var(--bg-card);
     border-radius: 16px;
@@ -882,6 +956,12 @@ button.small {
     border: 1px solid var(--border-color);
     transform: scale(0.9);
     animation: scaleIn 0.2s ease forwards;
+}
+
+@keyframes scaleIn {
+    to {
+        transform: scale(1);
+    }
 }
 
 .modal-header {
@@ -1058,6 +1138,10 @@ button.small {
     
     h1 {
         font-size: 1.5rem;
+    }
+    
+    .splash-title {
+        font-size: 1.3rem;
     }
     
     .search-bar {

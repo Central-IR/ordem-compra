@@ -9,10 +9,6 @@
     <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <div class="splash-screen" id="splashScreen">
-        <h1 class="splash-title">Ordem de Compra</h1>
-    </div>
-
     <div class="app-content">
         <div class="container">
             <div class="header">
@@ -219,12 +215,6 @@
         </div>
     </div>
 
-    <script>
-        setTimeout(() => {
-            const splash = document.getElementById('splashScreen');
-            if (splash) splash.style.display = 'none';
-        }, 3000);
-    </script>
     <script src="script.js"></script>
     <script src="calendar.js"></script>
 </body>

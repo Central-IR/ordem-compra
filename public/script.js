@@ -181,6 +181,65 @@ async function loadOrdens() {
     }
 }
 
+// FUNÇÃO DE SINCRONIZAÇÃO DE DADOS
+async function syncData() {
+    console.log('🔄 Iniciando sincronização...');
+    
+    if (!isOnline && !DEVELOPMENT_MODE) {
+        showToast('Servidor offline. Não é possível sincronizar.', 'error');
+        console.log('❌ Sincronização cancelada: servidor offline');
+        return;
+    }
+
+    try {
+        // Mostrar mensagem de sincronização iniciada
+        showToast('Sincronizando dados...', 'info');
+        
+        // Forçar recarregamento dos dados
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens`, {
+            method: 'GET',
+            headers: headers,
+            mode: 'cors',
+            cache: 'no-cache' // Força buscar dados frescos
+        });
+
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(`Erro ao sincronizar: ${response.status}`);
+        }
+
+        const data = await response.json();
+        ordens = data;
+        
+        // Atualizar cache de fornecedores
+        atualizarCacheFornecedores(data);
+        
+        // Atualizar hash e display
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
+        
+        console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas`);
+        showToast(`Dados sincronizados com sucesso! ${ordens.length} ordens encontradas`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro na sincronização:', error);
+        showToast('Erro ao sincronizar dados. Tente novamente.', 'error');
+    }
+}
+
 function atualizarCacheFornecedores(ordens) {
     fornecedoresCache = {};
     

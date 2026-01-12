@@ -715,8 +715,7 @@ function addItem() {
             <input type="text" class="item-unid" value="UN" placeholder="UN">
         </td>
         <td>
-            <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
-        </td>
+<input type="number" class="item-valor" min="0" step="0.0001" value="0" onchange="calculateItemTotal(this)">
         <td>
             <input type="text" class="item-ipi" placeholder="Ex: Isento">
         </td>

@@ -758,7 +758,7 @@ function calculateItemTotal(input) {
     const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
     const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
     const total = qtd * valor;
-    row.querySelector('.item-total').value = formatCurrency(total);
+    row.querySelector('.item-total').value = formatCurrency(total, 2);
     recalculateOrderTotal();
 }
 
@@ -766,12 +766,11 @@ function recalculateOrderTotal() {
     const totals = document.querySelectorAll('.item-total');
     let sum = 0;
     totals.forEach(input => {
-        const value = input.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-        sum += parseFloat(value) || 0;
+        sum += parseCurrency(input.value);
     });
     const totalInput = document.getElementById('valorTotalOrdem');
     if (totalInput) {
-        totalInput.value = formatCurrency(sum);
+        totalInput.value = formatCurrency(sum, 2);
     }
 }
 

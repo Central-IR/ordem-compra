@@ -1456,8 +1456,22 @@ function formatDate(dateString) {
     return date.toLocaleDateString('pt-BR');
 }
 
-function formatCurrency(value) {
-    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
+function formatCurrency(value, decimals = 2) {
+    const num = parseFloat(value) || 0;
+    const formatted = num.toFixed(decimals);
+    const [integerPart, decimalPart] = formatted.split('.');
+    const integerFormatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `R$ ${integerFormatted},${decimalPart}`;
+}
+
+function parseCurrency(currencyString) {
+    if (typeof currencyString === 'number') return currencyString;
+    if (!currencyString) return 0;
+    const cleaned = String(currencyString)
+        .replace(/R\$\s?/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+    return parseFloat(cleaned) || 0;
 }
 
 function showToast(message, type = 'success') {

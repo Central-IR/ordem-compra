@@ -1,14 +1,17 @@
-const DEVELOPMENT_MODE = verdadeiro;
+// ============================================
+// CONFIGURAÇÃO
+// ============================================
+const DEVELOPMENT_MODE = true;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'https://ordem-compra.onrender.com/api'; // USAR RENDER
+const API_URL = 'https://ordem-compra.onrender.com/api';
 
 let ordens = [];
-seja currentMonth =  nova Data();
-deixe editingId = null;
-seja itemContador = 0;
-seja currentTab = 0;
-seja currentInfoTab = 0;
-seja isOnline = falso;
+let currentMonth = new Date();
+let editingId = null;
+let itemCounter = 0;
+let currentTab = 0;
+let currentInfoTab = 0;
+let isOnline = false;
 let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};
@@ -19,7 +22,7 @@ console.log('🚀 Ordem de Compra iniciada');
 console.log('📍 API URL:', API_URL);
 console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
 
-função toMajúscula(valor)) {
+function toUpperCase(value) {
     return value ? String(value).toUpperCase() : '';
 }
 
@@ -192,10 +195,8 @@ async function syncData() {
     }
 
     try {
-        // Mostrar mensagem de sincronização iniciada
         showToast('Sincronizando dados...', 'info');
 
-        // Forçar recarregamento dos dados
         const headers = {
             'Accept': 'application/json'
         };
@@ -208,7 +209,7 @@ async function syncData() {
             method: 'GET',
             headers: headers,
             mode: 'cors',
-            cache: 'no-cache' // Força buscar dados frescos
+            cache: 'no-cache'
         });
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
@@ -224,10 +225,8 @@ async function syncData() {
         const data = await response.json();
         ordens = data;
 
-        // Atualizar cache de fornecedores
         atualizarCacheFornecedores(data);
 
-        // Atualizar hash e display
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
 
@@ -409,14 +408,12 @@ function updateNavigationButtons() {
 
     if (!btnPrevious || !btnNext || !btnSave) return;
 
-    // Botão Anterior: mostrar a partir da segunda aba
     if (currentTab > 0) {
         btnPrevious.style.display = 'inline-flex';
     } else {
         btnPrevious.style.display = 'none';
     }
 
-    // Botão Próximo: mostrar até a penúltima aba
     if (currentTab < tabs.length - 1) {
         btnNext.style.display = 'inline-flex';
         btnSave.style.display = 'none';
@@ -475,23 +472,20 @@ function updateInfoNavigationButtons() {
 
     if (!btnInfoPrevious || !btnInfoNext || !btnInfoClose) return;
 
-    const totalTabs = 5; // Total de abas no modal de visualização
+    const totalTabs = 5;
 
-    // Botão Anterior: mostrar a partir da segunda aba
     if (currentInfoTab > 0) {
         btnInfoPrevious.style.display = 'inline-flex';
     } else {
         btnInfoPrevious.style.display = 'none';
     }
 
-    // Botão Próximo: mostrar até a penúltima aba
     if (currentInfoTab < totalTabs - 1) {
         btnInfoNext.style.display = 'inline-flex';
     } else {
         btnInfoNext.style.display = 'none';
     }
 
-    // Botão Fechar: sempre visível
     btnInfoClose.style.display = 'inline-flex';
 }
 
@@ -715,7 +709,8 @@ function addItem() {
             <input type="text" class="item-unid" value="UN" placeholder="UN">
         </td>
         <td>
-<input type="number" class="item-valor" min="0" step="0.0001" value="0" onchange="calculateItemTotal(this)">
+            <input type="number" class="item-valor" min="0" step="0.0001" value="0" onchange="calculateItemTotal(this)">
+        </td>
         <td>
             <input type="text" class="item-ipi" placeholder="Ex: Isento">
         </td>
@@ -731,7 +726,6 @@ function addItem() {
     `;
     tbody.appendChild(row);
 
-    // Aplicar conversão para maiúsculas nos novos campos
     setTimeout(() => {
         setupUpperCaseInputs();
     }, 50);
@@ -1120,7 +1114,6 @@ async function toggleStatus(id) {
     ordem.status = novoStatus;
     updateDisplay();
 
-    // Mensagem verde ao fechar (marcar), vermelha ao abrir (desmarcar)
     if (novoStatus === 'fechada') {
         showToast(`Ordem marcada como ${novoStatus}!`, 'success');
     } else {
@@ -1168,7 +1161,7 @@ function viewOrdem(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) return;
 
-    currentInfoTab = 0; // Resetar para primeira aba
+    currentInfoTab = 0;
 
     document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
 
@@ -1258,7 +1251,6 @@ function viewOrdem(id) {
 
     document.getElementById('infoModal').classList.add('show');
 
-    // Atualizar botões de navegação após um pequeno delay para garantir que o modal está renderizado
     setTimeout(() => {
         updateInfoNavigationButtons();
     }, 100);
@@ -1285,26 +1277,28 @@ function updateDisplay() {
 function updateDashboard() {
     const monthOrdens = getOrdensForCurrentMonth();
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
-    const totalAbertas = monthOrdens.filter(o => o.Status === 'Aberta').Comprimento;
+    const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
 
     const numeros = ordens
-        .map(o => parseint(o.numero_ordem ||  o.numeroOrdem))
+        .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
-seja valorTotalMes = 0;
-Ordens do mês.forEach(ordem => {
-    valorTotalMes += parseCurrency(ordem.valor_total ||  Ordem.valorTotal);
-});
-===== FIM DA MODIFICAÇÃO =====
+    
+    const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
+    
+    let valorTotalMes = 0;
+    monthOrdens.forEach(ordem => {
+        valorTotalMes += parseCurrency(ordem.valor_total || ordem.valorTotal);
+    });
 
-documentar.getElementById('totalOrdens').textContent = ultimoNumero;
-documentar.getElementById('totalFechadas').textContent = totalFechadas;
-documentar.getElementById('totalAbertas').textContent = totalAbertas;
-document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes, 2); // ← Adicionar o ", 2"// ← NOVA LINHA
+    document.getElementById('totalOrdens').textContent = ultimoNumero;
+    document.getElementById('totalFechadas').textContent = totalFechadas;
+    document.getElementById('totalAbertas').textContent = totalAbertas;
+    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes, 2);
 
-    const cardAbertas = document.getElementById('cardAbertas');
-    se (!cardAbertas) retorno;
+    const cardAbertas = document.querySelector('.stat-card-warning');
+    if (!cardAbertas) return;
 
-    seja pulseBadge = cardAbertas.consultySelector('.pulse-badge');
+    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
 
     if (totalAbertas > 0) {
         cardAbertas.classList.add('has-alert');
@@ -1391,7 +1385,7 @@ function updateTable() {
                 <div class="actions">
                     <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
                     <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
+                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn pdf" title="Gerar PDF">PDF</button>
                     <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
                 </div>
             </td>
@@ -1430,7 +1424,6 @@ function getOrdensForCurrentMonth() {
 }
 
 function getNextOrderNumber() {
-    // Buscar o maior número de ordem existente de todos os tempos (não apenas do mês atual)
     const existingNumbers = ordens
         .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
@@ -1478,7 +1471,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// GERAÇÃO DE PDF (mantido igual ao original)
+// GERAÇÃO DE PDF
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) {
@@ -1507,686 +1500,6 @@ function generatePDFFromTable(id) {
 }
 
 function generatePDFForOrdem(ordem) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    let y = 3; // Diminuído de 5 para 3 (mais próximo do topo)
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const lineHeight = 5;
-    const maxWidth = pageWidth - (2 * margin);
-
-    function addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
-        const lines = doc.splitTextToSize(text, maxW);
-        lines.forEach((line, index) => {
-            if (yStart + (index * lineH) > pageHeight - 30) {
-                doc.addPage();
-                yStart = 20;
-            }
-            doc.text(line, x, yStart + (index * lineH));
-        });
-        return yStart + (lines.length * lineH);
-    }
-
-    // CABEÇALHO COM LOGO E TEXTO TRANSLÚCIDO
-    const logoHeader = new Image();
-    logoHeader.crossOrigin = 'anonymous';
-    logoHeader.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-
-    logoHeader.onload = function() {
-        try {
-            // Adicionar logo no canto superior esquerdo
-            const logoWidth = 40;
-            const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
-            const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
-            const logoY = y; // y começa em 5
-
-            // Definir opacidade para a imagem (translúcido)
-            doc.setGState(new doc.GState({ opacity: 0.3 }));
-            doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
-
-            // Restaurar opacidade normal
-            doc.setGState(new doc.GState({ opacity: 1.0 }));
-
-            // Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoHeight * 0.5; // 50% da altura da logo
-
-            // Adicionar texto em duas linhas ao lado da logo
-            doc.setFontSize(fontSize);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
-
-            // Calcular espaçamento entre linhas
-            const lineSpacing = fontSize * 0.5;
-
-            // Alinhar a primeira linha com o topo das letras "iR"
-            const textY1 = logoY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
-            doc.text('I.R COMÉRCIO E', textX, textY1);
-
-            // Segunda linha
-            const textY2 = textY1 + lineSpacing;
-            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
-
-            // Resetar cor do texto para preto
-            doc.setTextColor(0, 0, 0);
-
-            // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
-            y = logoY + logoHeight + 8;
-
-            // Continuar com a geração do PDF
-            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
-
-        } catch (e) {
-            console.log('Erro ao adicionar logo no cabeçalho:', e);
-            // Se falhar, continuar sem o cabeçalho
-            y = 25;
-            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
-        }
-    };
-
-    logoHeader.onerror = function() {
-        console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
-        y = 25;
-        continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
-    };
-}
-
-function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
-    // Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
-    const logoHeaderImg = new Image();
-    logoHeaderImg.crossOrigin = 'anonymous';
-    logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
-
-    // Aguardar carregamento da logo antes de continuar
-    logoHeaderImg.onload = function() {
-        gerarPDFComCabecalho();
-    };
-
-    logoHeaderImg.onerror = function() {
-        console.log('Erro ao carregar logo do cabeçalho');
-        gerarPDFComCabecalho(); // Continuar mesmo sem a logo
-    };
-
-    function gerarPDFComCabecalho() {
-        const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
-
-        // Função para adicionar cabeçalho em qualquer página
-        function adicionarCabecalho() {
-            if (!logoCarregada) {
-                return 20; // Retorna posição padrão se logo não estiver carregada
-            }
-
-            const headerY = 3;
-            const logoWidth = 40;
-            const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
-            const logoX = 5;
-
-            // Adicionar logo translúcida
-            doc.setGState(new doc.GState({ opacity: 0.3 }));
-            doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
-            doc.setGState(new doc.GState({ opacity: 1.0 }));
-
-            // Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoHeight * 0.5;
-
-            // Adicionar texto em duas linhas ao lado da logo
-            doc.setFontSize(fontSize);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(150, 150, 150);
-            const textX = logoX + logoWidth + 1.2;
-
-            const lineSpacing = fontSize * 0.5;
-            const textY1 = headerY + fontSize * 0.85;
-            doc.text('I.R COMÉRCIO E', textX, textY1);
-
-            const textY2 = textY1 + lineSpacing;
-            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
-
-            // IMPORTANTE: Resetar TODOS os estilos após o cabeçalho
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.setDrawColor(0, 0, 0);
-            doc.setLineWidth(0.2);
-
-            return headerY + logoHeight + 8;
-        }
-
-        // Função auxiliar para adicionar nova página com cabeçalho
-        function addPageWithHeader() {
-            doc.addPage();
-            const newY = adicionarCabecalho();
-            return newY;
-        }
-
-        // Sobrescrever addTextWithWrap para usar a nova função de página
-        addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
-            const lines = doc.splitTextToSize(text, maxW);
-            lines.forEach((line, index) => {
-                if (yStart + (index * lineH) > pageHeight - 30) {
-                    yStart = addPageWithHeader();
-                }
-                doc.text(line, x, yStart + (index * lineH));
-            });
-            return yStart + (lines.length * lineH);
-        };
-
-        // ============ INÍCIO DO CONTEÚDO DO PDF ============
-
-        // TÍTULO ORDEM DE COMPRA
-        doc.setFontSize(18);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
-
-        y += 8;
-        doc.setFontSize(14);
-        doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
-
-        y += 12;
-
-        // DADOS PARA FATURAMENTO
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont(undefined, 'bold');
-        doc.text('DADOS PARA FATURAMENTO', margin, y);
-
-        y += lineHeight + 1;
-        doc.setFont(undefined, 'bold');
-        doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
-
-        y += lineHeight + 1;
-        doc.setFont(undefined, 'normal');
-        doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
-
-        y += lineHeight + 1;
-        doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
-
-        y += lineHeight + 1;
-        doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
-
-        y += lineHeight + 1;
-        doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
-
-        y += 10;
-
-        // DADOS DO FORNECEDOR
-        doc.setFont(undefined, 'bold');
-        doc.text('DADOS DO FORNECEDOR', margin, y);
-
-        y += lineHeight + 1;
-
-        // RAZÃO SOCIAL
-        doc.setFont(undefined, 'normal');
-        doc.text('RAZÃO SOCIAL: ', margin, y);
-        const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
-        doc.setFont(undefined, 'bold');
-        const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial);
-        const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - razaoSocialWidth);
-        doc.text(razaoLines[0], margin + razaoSocialWidth, y);
-        y += lineHeight;
-
-        if (razaoLines.length > 1) {
-            for (let i = 1; i < razaoLines.length; i++) {
-                doc.text(razaoLines[i], margin, y);
-                y += lineHeight;
-            }
-        }
-
-        // NOME FANTASIA (se existir)
-        if (ordem.nome_fantasia || ordem.nomeFantasia) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('NOME FANTASIA: ', margin, y);
-            const nomeFantasiaWidth = doc.getTextWidth('NOME FANTASIA: ');
-            doc.setFont(undefined, 'normal');
-            const nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia);
-            const nomeLines = doc.splitTextToSize(nomeFantasiaTexto, maxWidth - nomeFantasiaWidth);
-            doc.text(nomeLines[0], margin + nomeFantasiaWidth, y);
-            y += lineHeight;
-
-            if (nomeLines.length > 1) {
-                for (let i = 1; i < nomeLines.length; i++) {
-                    doc.text(nomeLines[i], margin, y);
-                    y += lineHeight;
-                }
-            }
-        }
-
-        // CNPJ
-        y += 1;
-        doc.setFont(undefined, 'normal');
-        doc.text('CNPJ: ', margin, y);
-        const cnpjWidth = doc.getTextWidth('CNPJ: ');
-        doc.setFont(undefined, 'bold');
-        doc.text(`${ordem.cnpj}`, margin + cnpjWidth, y);
-        y += lineHeight;
-
-        // ENDEREÇO (se existir)
-        if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('ENDEREÇO: ', margin, y);
-            const enderecoWidth = doc.getTextWidth('ENDEREÇO: ');
-            const enderecoTexto = toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor);
-            const enderecoLines = doc.splitTextToSize(enderecoTexto, maxWidth - enderecoWidth);
-            doc.text(enderecoLines[0], margin + enderecoWidth, y);
-            y += lineHeight;
-
-            if (enderecoLines.length > 1) {
-                for (let i = 1; i < enderecoLines.length; i++) {
-                    doc.text(enderecoLines[i], margin, y);
-                    y += lineHeight;
-                }
-            }
-        }
-
-        // SITE (se existir)
-        if (ordem.site) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('SITE: ', margin, y);
-            const siteWidth = doc.getTextWidth('SITE: ');
-            doc.text(ordem.site, margin + siteWidth, y);
-            y += lineHeight;
-        }
-
-        // CONTATO (se existir)
-        if (ordem.contato) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('CONTATO: ', margin, y);
-            const contatoWidth = doc.getTextWidth('CONTATO: ');
-            const contatoTexto = toUpperCase(ordem.contato);
-            const contatoLines = doc.splitTextToSize(contatoTexto, maxWidth - contatoWidth);
-            doc.text(contatoLines[0], margin + contatoWidth, y);
-            y += lineHeight;
-
-            if (contatoLines.length > 1) {
-                for (let i = 1; i < contatoLines.length; i++) {
-                    doc.text(contatoLines[i], margin, y);
-                    y += lineHeight;
-                }
-            }
-        }
-
-        // TELEFONE (se existir)
-        if (ordem.telefone) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('TELEFONE: ', margin, y);
-            const telefoneWidth = doc.getTextWidth('TELEFONE: ');
-            doc.text(`${ordem.telefone}`, margin + telefoneWidth, y);
-            y += lineHeight;
-        }
-
-        // E-MAIL (se existir)
-        if (ordem.email) {
-            y += 1;
-            doc.setFont(undefined, 'normal');
-            doc.text('E-MAIL: ', margin, y);
-            const emailWidth = doc.getTextWidth('E-MAIL: ');
-            doc.text(ordem.email, margin + emailWidth, y);
-            y += lineHeight;
-        }
-
-        y += 8;
-
-        if (y > pageHeight - 50) {
-            y = addPageWithHeader();
-        }
-
-        // ITENS DO PEDIDO
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text('ITENS DO PEDIDO', margin, y);
-
-        y += 6;
-
-        const tableWidth = pageWidth - (2 * margin);
-        const colWidths = {
-            item: tableWidth * 0.05,
-            especificacao: tableWidth * 0.35,
-            qtd: tableWidth * 0.08,
-            unid: tableWidth * 0.08,
-            valorUn: tableWidth * 0.12,
-            ipi: tableWidth * 0.10,
-            st: tableWidth * 0.10,
-            total: tableWidth * 0.12
-        };
-
-        const itemRowHeight = 10;
-
-        // Cabeçalho da tabela
-        doc.setFillColor(108, 117, 125);
-        doc.setDrawColor(180, 180, 180);
-        doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
-
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-
-        let xPos = margin;
-
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-        doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.item;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.especificacao;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.qtd;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.unid;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.valorUn;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.ipi;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.st;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
-        xPos += colWidths.total;
-        doc.line(xPos, y, xPos, y + itemRowHeight);
-
-        y += itemRowHeight;
-
-        // Resetar estilos após cabeçalho da tabela
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'normal');
-
-        // Linhas dos itens
-        ordem.items.forEach((item, index) => {
-            const especificacaoUpper = toUpperCase(item.especificacao);
-            const maxWidthEspec = colWidths.especificacao - 6;
-            const especLines = doc.splitTextToSize(especificacaoUpper, maxWidthEspec);
-            const lineCount = especLines.length;
-            const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
-
-            // Se não couber, adiciona nova página
-            if (y + necessaryHeight > pageHeight - 30) {
-                y = addPageWithHeader();
-            }
-
-            if (index % 2 !== 0) {
-                doc.setFillColor(240, 240, 240);
-                doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
-            }
-
-            xPos = margin;
-
-            doc.setDrawColor(180, 180, 180);
-            doc.setLineWidth(0.3);
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.setFontSize(8);
-            doc.setFont(undefined, 'normal');
-            doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.item;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(especLines, xPos + 3, y + 4);
-            xPos += colWidths.especificacao;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.qtd;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.unid;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            const valorUn = item.valorUnitario || item.valor_unitario || 0;
-            const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).replace('.', ',');
-            doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.valorUn;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.ipi;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.st;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
-            xPos += colWidths.total;
-            doc.line(xPos, y, xPos, y + necessaryHeight);
-
-            doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
-
-            y += necessaryHeight;
-        });
-
-        y += 8;
-
-        if (y > pageHeight - 40) {
-            y = addPageWithHeader();
-        }
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y);
-
-        y += 10;
-
-        // Verificar espaço para LOCAL DE ENTREGA
-        if (y > pageHeight - 60) {
-            y = addPageWithHeader();
-        }
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text('LOCAL DE ENTREGA:', margin, y);
-        y += 5;
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-
-        const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
-        const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' 
-            ? toUpperCase(ordem.local_entrega || ordem.localEntrega)
-            : localPadrao;
-
-        y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth);
-
-        y += 10;
-
-        // Verificar espaço para PRAZO/FRETE/TRANSPORTE
-        if (y > pageHeight - 50) {
-            y = addPageWithHeader();
-        }
-
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
-        doc.text('PRAZO DE ENTREGA:', margin, y);
-        doc.setFont(undefined, 'normal');
-        doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
-
-        doc.setFont(undefined, 'bold');
-        doc.text('FRETE:', pageWidth - margin - 35, y);
-        doc.setFont(undefined, 'normal');
-        doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
-
-        y += 6;
-
-        doc.setFont(undefined, 'bold');
-        doc.text('TRANSPORTE:', margin, y);
-        doc.setFont(undefined, 'normal');
-        doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y);
-
-        y += 10;
-
-        // Verificar espaço para CONDIÇÕES DE PAGAMENTO
-        if (y > pageHeight - 60) {
-            y = addPageWithHeader();
-        }
-
-        doc.setFontSize(11);
-        doc.setFont(undefined, 'bold');
-        doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
-        y += 5;
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
-        y += 5;
-        doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
-
-        if (ordem.dados_bancarios || ordem.dadosBancarios) {
-            y += 5;
-            doc.setFont(undefined, 'bold');
-            doc.text('DADOS BANCÁRIOS:', margin, y);
-            y += 5;
-            doc.setFont(undefined, 'normal');
-            const bancarioUpper = toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios);
-            y = addTextWithWrap(bancarioUpper, margin, y, maxWidth);
-        }
-
-        y += 15;
-
-        if (y > pageHeight - 80) {
-            y = addPageWithHeader();
-        }
-
-        const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
-        const dia = dataOrdem.getDate();
-        const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
-                       'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-        const mes = meses[dataOrdem.getMonth()];
-        const ano = dataOrdem.getFullYear();
-
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
-
-        y += 5;
-
-        const assinatura = new Image();
-        assinatura.crossOrigin = 'anonymous';
-        assinatura.src = 'assinatura.png';
-
-        assinatura.onload = function() {
-            try {
-                const imgWidth = 50;
-                const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
-
-                doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
-
-                let yFinal = y + imgHeight + 5;
-
-                yFinal += 5;
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'bold');
-                doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
-
-                yFinal += 5;
-                doc.setFontSize(9);
-                doc.setFont(undefined, 'normal');
-                doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
-
-                yFinal += 5;
-                doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
-
-                yFinal += 12;
-
-                if (yFinal > pageHeight - 30) {
-                    yFinal = addPageWithHeader();
-                }
-
-                doc.setFillColor(240, 240, 240);
-                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
-                doc.setDrawColor(200, 200, 200);
-                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
-
-                yFinal += 6;
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(204, 112, 0);
-                doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
-
-                yFinal += 5;
-                doc.setTextColor(0, 0, 0);
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(9);
-                doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
-
-                yFinal += 5;
-                doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
-
-                doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
-                showToast('PDF gerado com sucesso!', 'success');
-
-            } catch (e) {
-                console.log('Erro ao adicionar assinatura:', e);
-                gerarPDFSemAssinatura();
-            }
-        };
-
-        assinatura.onerror = function() {
-            console.log('Erro ao carregar assinatura, gerando PDF sem ela');
-            gerarPDFSemAssinatura();
-        };
-
-        function gerarPDFSemAssinatura() {
-            let yFinal = y + 5;
-
-            yFinal += 5;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
-
-            yFinal += 5;
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
-
-            yFinal += 5;
-            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
-
-            yFinal += 12;
-
-            if (yFinal > pageHeight - 30) {
-                yFinal = addPageWithHeader();
-            }
-
-            doc.setFillColor(240, 240, 240);
-            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
-
-            yFinal += 6;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(204, 112, 0);
-            doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
-
-            yFinal += 5;
-            doc.setTextColor(0, 0, 0);
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
-
-            yFinal += 5;
-            doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
-
-            Doutor.save('${toUpperCase(ordem.razao_social ||  Ordem.razaoSocial)}-${ordem.numero_ordem ||  Ordem.numeroOrdem}.pdf');
-            showToast('PDF gerado (sem assinatura)', 'success');
-        }
-    } Fechamento da função gerarPDFComCabecalho
+    showToast('Gerando PDF...', 'info');
+    console.log('📄 Iniciando geração de PDF para ordem:', ordem.numero_ordem || ordem.numeroOrdem);
 }

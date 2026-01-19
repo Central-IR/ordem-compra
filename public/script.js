@@ -1496,10 +1496,690 @@ function generatePDFFromTable(id) {
         return;
     }
 
-    generatePDFForOrdem(ordem);
+    generatePDFFordem(ordem);
 }
 
-function generatePDFForOrdem(ordem) {
-    showToast('Gerando PDF...', 'info');
-    console.log('📄 Iniciando geração de PDF para ordem:', ordem.numero_ordem || ordem.numeroOrdem);
+função generatePDFFordem(ordem) {
+    const { jsPDF } = window.jspdf;
+    const  doc = novo jsPDF();
+
+    seja y = 3;   Diminuído de 5 para 3 (mais próximo do topo)
+    margem const = 15;
+    const pageWidth = doc.interno.Tamanho da página.Largura;
+    const pageHeight = doc.interno.Tamanho da página.Altura;
+    linha const Altura = 5;
+    const  maxWidth = LarguraPágina - (2 * margem);
+
+    função addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
+        Linhas const  = doc.splitTextToSize(texto, maxW);
+        falas.forEach((line, index) => {
+            if (yStart + (índice * linhaH) > páginaAltura - 30) {
+                Doutor.addPage();
+                yStart = 20;
+            }
+            Doutor.text(line, x, yStart + (índice * lineH));
+        });
+        retorne yStart + (linhas).comprimento * linha H);
+    }
+
+    // CABEÇALHO COM LOGO E TEXTO TRANSLÚCIDO
+    const logoCabeçalho = nova Imagem();
+    logoHeader.crossOrigin = 'anônimo';
+    logoHeader.SRC = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+
+    logoHeader.onload = função() {
+        tente {
+            Adicionar logo no canto superior esquerdo
+             const logoLargura = 40;
+            const logoHeight = (logoHeader.altura / logoCabeçalho.largura) * logoLargura;
+            const logoX = 5;   Diminuído de 10 para 5 (mais próximo da esquerda)
+            const logoY = y;   y começa em 5
+
+            Definir opacidade para a imagem (translúcido)
+            Doutor.setGState(novo doutor.GState({ opacidade: 0.3 }));
+            Doutor.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
+
+            Restaurar opacidade normal
+            Doutor.setGState(novo doutor.GState({ opacidade: 1.0 }));
+
+            Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoAltura * 0,5;   50% da altura da logo
+
+            Adicionar texto em duas linhas ao lado da logo
+            Doutor.setFontSize(fontSize));
+            Doutor.setFont(indefinido, 'negrito');
+            Doutor.setTextColor(150, 150, 150);   Cor cinza para efeito translúcido
+            const textX = logoX + logoLargura + 1,2;   Ajustado para 1,2mm (espaçamento moderadamente curto)
+
+            Calcular espaçamento entre linhas
+            const lineEspaçamento = tamanhoFonte * 0,5;
+
+            Alinhar a primeira linha com o topo das letras "iR"
+            const textY1 = logoY + fontSize * 0,85;   Primeira linha alinhada com o topo da logo
+            Doutor.texto('I.R COMÉRCIO E', TEXTOX, textoY1);
+
+            Segunda linha
+            const textY2 = textY1 + lineSpacing;
+            Doutor.text('MATERIAIS ELÉTRICOS LTDA', TEXTX, textY2);
+
+            Resetar cor do texto para preto
+            Doutor.setTextColor(0, 0, 0);
+
+            Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
+            y = logoY + logoAltura + 8;
+
+            // Continuar com a geração do PDF
+            continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+
+        } Captura (e) {
+            Console.log('Erro ao adicionar logo no cabeçalho:', e);
+            Se falhar, continuar sem o cabeçalho
+            y = 25;
+            continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+        }
+    };
+
+    logoHeader.onerror = função() {
+        Console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
+        y = 25;
+        continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+    };
+}
+
+função continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
+    Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
+    const logoHeaderImg = nova Imagem();
+    logoHeaderImg.crossOrigin = 'anônimo';
+    logoHeaderImg.SRC = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+
+    Aguardar carregamento da logo antes de continuar
+    logoHeaderImg.onload = função() {
+        gerarPDFComCabecalho();
+    };
+
+    logoHeaderImg.onerror = função() {
+        Console.log('Erro ao carregar logo do cabeçalho');
+        gerarPDFComCabecalho();   Continuar mesmo sem a logo
+    };
+
+    function gerarPDFComCabecalho() {
+        const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
+
+        Função para adicionar cabeçalho em qualquer página
+        função adicionarCabecalho() {
+            se (!logoCarregada) {
+                retorno 20;   Retorna posição padrão se logo não estiver carregada
+            }
+
+            cabeçalho const Y = 3;
+             const logoLargura = 40;
+            const logoHeight = (logoHeaderImg.altura / logoCabeçalhoImg.largura) * logoLargura;
+            const logoX = 5;
+
+            Adicionar logo translúcida
+            Doutor.setGState(novo doutor.GState({ opacidade: 0.3 }));
+            Doutor.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
+            Doutor.setGState(novo doutor.GState({ opacidade: 1.0 }));
+
+            Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoAltura * 0,5;
+
+            Adicionar texto em duas linhas ao lado da logo
+            Doutor.setFontSize(fontSize));
+            Doutor.setFont(indefinido, 'negrito');
+            Doutor.setTextColor(150, 150, 150);
+            const textX = logoX + logoLargura + 1,2;
+
+            const lineEspaçamento = tamanhoFonte * 0,5;
+            const textY1 = cabeçalho Y + fontSize * 0,85;
+            Doutor.texto('I.R COMÉRCIO E', TEXTOX, textoY1);
+
+            const textY2 = textY1 + lineSpacing;
+            Doutor.text('MATERIAIS ELÉTRICOS LTDA', TEXTX, textY2);
+
+            IMPORTANTE: Resetar TODOS os estilos após o cabeçalho
+            Doutor.setTextColor(0, 0, 0);
+            Doutor.setFontSize(10);
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.setDrawColor(0, 0, 0);
+            Doutor.setLarguraLinha(0,2);
+
+            return headerY + logoAltura + 8;
+        }
+
+        Função auxiliar para adicionar nova página com cabeçalho
+        função addPageWithHeader() {
+            Doutor.addPage();
+            const newY = adicionarCabecalho();
+            retorno novo Y;
+        }
+
+        Sobrescrever addTextWithWrap para usar a nova função de página
+        addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
+            Linhas const  = doc.splitTextToSize(texto, maxW);
+            falas.forEach((line, index) => {
+                if (yStart + (índice * linhaH) > páginaAltura - 30) {
+                    yStart = addPageWithHeader();
+                }
+                Doutor.text(line, x, yStart + (índice * lineH));
+            });
+            retorne yStart + (linhas).comprimento * linha H);
+        };
+
+        ============ INÍCIO DO CONTEÚDO DO PDF ============
+
+        // TÍTULO ORDEM DE COMPRA
+        Doutor.setFontSize(18);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.setTextColor(0, 0, 0);
+        Doutor.text('ORDEM DE COMPRA', PAGEWidth / 2, y, { align: 'center' });
+
+        y += 8;
+        Doutor.setFontSize(14);
+        Doutor.text('Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', pageWidth / 2, y, { align: 'center' });
+
+        y += 12;
+
+        // DADOS PARA FATURAMENTO
+        Doutor.setFontSize(11);
+        Doutor.setTextColor(0, 0, 0);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('DADOS PARA FATURAMENTO', MARGIN, Y);
+
+        y += linha Altura + 1;
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margem, y);
+
+        y += linha Altura + 1;
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.texto('CNPJ: 33.149.502/0001-38 | Ou seja: 083.780.74-2', margem, y);
+
+        y += linha Altura + 1;
+        Doutor.texto('RUA TADORNA Nº 472, SALA 2', margem, y);
+
+        y += linha Altura + 1;
+        Doutor.texto('NOVO HORIZONTE - SERRA/ES | CEP: 29,163-318', margem, y);
+
+        y += linha Altura + 1;
+        Doutor.texto('TELEFAX: (27) 3209-4291 | E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margem, y);
+
+        y += 10;
+
+        // DADOS DO FORNECEDOR
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('DADOS DO FORNECEDOR', MARGEM, Y);
+
+        y += linha Altura + 1;
+
+        // RAZÃO SOCIAL
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.text('RAZÃO SOCIAL: ', margem, y);
+        const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
+        Doutor.setFont(indefinido, 'negrito');
+        const razaoSocialTexto = toUpperCase(ordem.razao_social ||  Ordem.razaoSocial);
+        const razaoLines = doc.splitTextToSize(razaoTextoSocial, maxWidth - razaoSocialWidth);
+        Doutor.text(razaoLines[0], margem + razaoSocialWidth, y);
+        y += linha Altura;
+
+        if (razaoLines.comprimento > 1) {
+            para (seja i = 1;  Eu < RazaoLines.comprimento;  eu++) {
+                Doutor.text(razaoLines[i], margem, y);
+                y += linha Altura;
+            }
+        }
+
+        NOME FANTASIA (se existir)
+        se (ordem.nome_fantasia ||  Ordem.nomeFantasia) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('NOME FANTASIA: ', margem, y);
+            const nomeFantasiaWidth = doc.getTextWidth('NOME FANTASIA: ');
+            Doutor.setFont(indefinido, 'normal');
+            const  nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia ||  Ordem.nomeFantasia);
+            const nomeLines = doc.splitTextToSize(nomeFantasiaTexto, maxWidth - nomeFantasiaWidth);
+            Doutor.text(nomeLinhas[0], margem + nomeLarguraFantasia, y);
+            y += linha Altura;
+
+            if (nomeLines.comprimento > 1) {
+                para (seja i = 1;  Eu < NomeLines.comprimento;  eu++) {
+                    Doutor.text(nomeLines[i], margin, y);
+                    y += linha Altura;
+                }
+            }
+        }
+
+        CNPJ
+        y += 1;
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.text('CNPJ: ', margem, y);
+        const cnpjWidth = doc.getTextWidth('CNPJ: ');
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.texto('${ordem.cnpj}', margem + cnpjLargura, y);
+        y += linha Altura;
+
+        ENDEREÇO (se existir)
+        se (ordem.endereco_fornecedor ||  Ordem.enderecoFornecedor) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('ENDEREÇO: ', margem, y);
+            const enderecoWidth = doc.getTextWidth('ENDEREÇO: ');
+            const  enderecoTexto = toUpperCase(ordem.endereco_fornecedor ||  Ordem.enderecoFornecedor);
+            const enderecoLines = doc.splitTextToSize(enderecoTexto, maxWidth - enderecoWidth);
+            Doutor.text(enderecoLines[0], margin + enderecoWidth, y);
+            y += linha Altura;
+
+            if (enderecoLines.comprimento > 1) {
+                para (seja i = 1;  Eu < enderecoLines.comprimento;  eu++) {
+                    Doutor.text(enderecoLines[i], margin, y);
+                    y += linha Altura;
+                }
+            }
+        }
+
+        SITE (se existir)
+        se (ordem.Site) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('SITE: ', margem, y);
+            const siteWidth = doc.getTextWidth('SITE: ');
+            Doutor.Texto (ordem.site, margem + siteWidth, y);
+            y += linha Altura;
+        }
+
+        CONTATO (se existir)
+        se (ordem.contato) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('CONTATO: ', margem, y);
+            const contatoWidth = doc.getTextWidth('CONTATO: ');
+            const  contatoTexto = toUpperCase(ordem.contato);
+            const contatoLines = doc.splitTextToSize(contatoTexto, maxWidth - contatoWidth);
+            Doutor.text(contatoLines[0], margin + contatoWidth, y);
+            y += linha Altura;
+
+            if (contatoLines.comprimento > 1) {
+                para (seja i = 1;  Eu < contatoLines.comprimento;  eu++) {
+                    Doutor.text(contatoLines[i], margin, y);
+                    y += linha Altura;
+                }
+            }
+        }
+
+        TELEFONE (se existir)
+        se (ordem.telefone) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('TELEFONE: ', margem, y);
+            const telefoneWidth = doc.getTextWidth('TELEFONE:');
+            Doutor.texto('${ordem.telefone}', margem + telefoneLargura, y);
+            y += linha Altura;
+        }
+
+        E-MAIL (se existir)
+        se (ordem.Email) {
+            y += 1;
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('E-MAIL: ', margem, y);
+            const emailWidth = doc.getTextWidth('E-MAIL: ');
+            Doutor.Texto (ordem.email, margem + emailLargura, y);
+            y += linha Altura;
+        }
+
+        y += 8;
+
+        if (y > páginaAltura - 50) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        // ITENS DO PEDIDO
+        Doutor.setFontSize(11);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('ITENS DO PEDIDO', MARGEM, Y);
+
+        y += 6;
+
+         const tableWidth = pageWidth - (2 * margem);
+        const colWidths = {
+            item: mesaLargura * 0,05,
+            especificacao: tableWidth * 0,35,
+            qtd: Largura da tabela * 0,08,
+            unid: tableWidth * 0,08,
+            valorUn: LarguraTablaMesa * 0,12,
+            ipi: largura da tabela * 0,10,
+            st: largura da mesa * 0,10,
+            total: largura da tabela * 0,12
+        };
+
+        const itemRowHeight = 10;
+
+        Cabeçalho da tabela
+        Doutor.setPreenchidoCor(108, 117, 125);
+        Doutor.setDrawColor(180, 180, 180);
+        Doutor.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+
+        Doutor.setTextColor(255, 255, 255);
+        Doutor.setFontSize(9);
+        Doutor.setFont(indefinido, 'negrito');
+
+        seja xPos = margem;
+
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        Doutor.text('ITEM', xPos + (colWidths.item / 2), y + 6,5, { alinhar: 'centro' });
+        xPos += colLarguras.Item;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('ESPECIFICAÇÃO', xPos + (colWidths.especificação / 2), y + 6,5, { alinhar: 'centro' });
+        xPos += colLarguras.especificação;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('QTD', xPos + (colWidths.qtd / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.QTD;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('UNID', xPos + (colWidths.unid / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.UNID;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.valorUn;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('IPI', xPos + (colWidths.ipi / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.IPI;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('ST', xPos + (colWidths.st / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.St;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        Doutor.text('TOTAL', xPos + (colWidths.total / 2), y + 6,5, { align: 'center' });
+        xPos += colLarguras.Total;
+        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+
+        y += itemRowHeight;
+
+        Resetar estilos após cabeçalho da tabela
+        Doutor.setTextColor(0, 0, 0);
+        Doutor.setFontSize(8);
+        Doutor.setFont(indefinido, 'normal');
+
+        Linhas dos itens
+        Ordem.itens.forEach((item, índice) => {
+            const  especificacaoUpper = toUpperPoint(item.especificação);
+            const maxWidthEspec = colWidths.especificação - 6;
+            const especLines = doc.splitTextToSize(especificacaoUpper, maxWidthEspec);
+            const lineCount = especLines.Comprimento;
+            const neededHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
+
+            Se não couber, adiciona nova página
+            if (y + necessárioAltura > páginaAltura - 30) {
+                y = adicionarPáginaAmbCabeçalhoT();
+            }
+
+            se (índice % 2 !== 0) {
+                Doutor.PreencherColor(240, 240, 240);
+                Doutor.rect(margin, y, tableWidth, necessaryHeight, 'F');
+            }
+
+            xPos = margem;
+
+            Doutor.setDrawColor(180, 180, 180);
+            Doutor.setLineWidth(0,3);
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.setFontSize(8);
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.texto(item.item.toString(), xPos + (colWidths.item / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.Item;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.text(especLines, xPos + 3, y + 4);
+            xPos += colLarguras.especificação;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.texto(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.QTD;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.texto(paraMajúscula(item.unidade), xPos + (colWidths.unid / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.UNID;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            const valorUn = item.valorUnitario ||  item.valor_unitario ||  0;
+            const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).substituir('.', ',');
+            Doutor.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.valorUn;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.texto(paraMajúscula(item.ipi ||  '-'), xPos + (larguras col.ipi / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.IPI;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.texto(paraMajúscula(item.st ||  '-'), xPos + (larguras col.st / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.St;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.texto(item.valorTotal ||  item.valor_total, xPos + (colWidths.total / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
+            xPos += colLarguras.Total;
+            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+
+            Doutor.line(margem, y + necessárioAltura, margem + tabelaLargura, y + necessárioAltura);
+
+            y += necessário Altura;
+        });
+
+        y += 8;
+
+        if (y > páginaAltura - 40) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        Doutor.setFontSize(11);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.texto('VALOR TOTAL: ${ordem.valor_total ||  Ordem.valorTotal}', margem, y);
+
+        y += 10;
+
+        // Verificar espaço para LOCAL DE ENTREGA
+        if (y > páginaAltura - 60) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        Doutor.setFontSize(11);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('LOCAL DE ENTREGA:', MARGEM, Y);
+        y += 5;
+        Doutor.setFontSize(10);
+        Doutor.setFont(indefinido, 'normal');
+
+        const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES | CEP: 29,163-318';
+        const  localEntregaPDF = (ordem.local_entrega ||  Ordem.localEntrega ||  '').trim() !== '' 
+ ? toUpperPoint(ordem.local_entrega ||  Ordem.localEntrega)
+            : localPadrao;
+
+        y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth);
+
+        y += 10;
+
+        // Verificar espaço para PRAZO/FRETE/TRANSPORTE
+        if (y > páginaAltura - 50) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        Doutor.setFontSize(10);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('PRAZO DE ENTREGA:', MARGEM, Y);
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.texto (paraMajúscula(ordem.prazo_entrega ||  Ordem.prazoEntrega ||  '-'), margem + 42, y);
+
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('FRETE:', pageWidth - margem - 35, y);
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.texto (paraMajúscula(ordem.frete ||  '-'), páginaLargura - margem - 20, y);
+
+        y += 6;
+
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('TRANSPORTE:', margem, y);
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.texto (paraMajúscula(ordem.transporte ||  '-'), margem + 30, y);
+
+        y += 10;
+
+        // Verificar espaço para CONDIÇÕES DE PAGAMENTO
+        if (y > páginaAltura - 60) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        Doutor.setFontSize(11);
+        Doutor.setFont(indefinido, 'negrito');
+        Doutor.text('CONDIÇÕES DE PAGAMENTO:', MARGIN, Y);
+        y += 5;
+        Doutor.setFontSize(10);
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.text('FORMA: ${toUpperCase(ordem.forma_pagamento ||  Ordem.formaPagamento)}', margem, y);
+        y += 5;
+        Doutor.text('PRAZO: ${toUpperCase(ordem.prazo_pagamento ||  Ordem.prazoPagamento)}', margem, y);
+
+        se (ordem.dados_bancarios ||  Ordem.dadosBancarios) {
+            y += 5;
+            Doutor.setFont(indefinido, 'negrito');
+            Doutor.text('DADOS BANCÁRIOS:', margem, y);
+            y += 5;
+            Doutor.setFont(indefinido, 'normal');
+            const bancarioUpper = toUpperCase(ordem.dados_bancarios ||  Ordem.dadosBancarios);
+            y = addTextWithWrap(bancarioUpper, margin, y, maxWidth);
+        }
+
+        y += 15;
+
+        if (y > páginaAltura - 80) {
+            y = adicionarPáginaAmbCabeçalhoT();
+        }
+
+        const  dataOrdem = new Date((ordem.data_ordem ||  Ordem.dataOrdem) + 'T00:00:00');
+        const dia = dataOrdem.getDate();
+        const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
+                       'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+        const mes = meses[dataOrdem.getMonth()];
+        const ano = dataOrdem.getFullYear();
+
+        Doutor.setFontSize(10);
+        Doutor.setFont(indefinido, 'normal');
+        Doutor.text('SERRA/ES, ${dia} DE ${mes} DE ${ano}', pageWidth / 2, y, { align: 'center' });
+
+        y += 5;
+
+        const assinatura = nova Imagem();
+        Assinatura.crossOrigin = 'anônimo';
+        Assinatura.src = 'assinatura.png';
+
+        Assinatura.onload = função() {
+            tente {
+                const imgWidth = 50;
+                const imgHeight = (assinatura.Altura / Assinatura.largura) * imgLargura;
+
+                Doutor.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
+
+                seja yFinal = y + imgAltura + 5;
+
+                yFinal += 5;
+                Doutor.setFontSize(10);
+                Doutor.setFont(indefinido, 'negrito');
+                Doutor.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', PAGEWidth / 2, yFinal, { align: 'center' });
+
+                yFinal += 5;
+                Doutor.setFontSize(9);
+                Doutor.setFont(indefinido, 'normal');
+                Doutor.text('MG-10.078.568 / CPF: 045.160.616-78',  pageWidth / 2, yFinal, { align: 'center' });
+
+                yFinal += 5;
+                Doutor.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+
+                yFinal += 12;
+
+                if (yPágina > Final  -  30) {
+                    yFinal = addPageWithHeader();
+                }
+
+                Doutor.PreencherColor(240, 240, 240);
+                Doutor.rect(margem, yFinal, pageWidth - (2* margem), 22, 'F');
+                Doutor.setDrawColor(200, 200, 200);
+                Doutor.rect(margem, yFinal, pageWidth - (2 * margem), 22, 'S');
+
+                yFinal += 6;
+                Doutor.setFontSize(10);
+                Doutor.setFont(indefinido, 'negrito');
+                Doutor.setTextColor(204, 112, 0);
+                Doutor.texto('ATENÇÃO SR. FORNECEDOR:', MARGEM + 5, yFinal);
+
+                yFinal += 5;
+                Doutor.setTextColor(0, 0, 0);
+                Doutor.setFont(indefinido, 'normal');
+                Doutor.setFontSize(9);
+                Doutor.text('1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', margem + 5, yFinal);
+
+                yFinal += 5;
+                Doutor.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margem + 5, yFinal);
+
+                Doutor.save('${toUpperCase(ordem.razao_social ||  Ordem.razaoSocial)}-${ordem.numero_ordem ||  Ordem.numeroOrdem}.pdf');
+                showToast('PDF gerado com sucesso!', 'sucesso');
+
+            } Captura (e) {
+                Console.log('Erro ao adicionar assinatura:', e);
+                gerarPDFSemAssinatura();
+            }
+        };
+
+        Assinatura.onerror = função() {
+            Console.log('Erro ao carregar assinatura, gerando PDF sem ela');
+            gerarPDFSemAssinatura();
+        };
+
+        function gerarPDFSemAssinatura() {
+            seja yFinal = y + 5;
+
+            yFinal += 5;
+            Doutor.setFontSize(10);
+            Doutor.setFont(indefinido, 'negrito');
+            Doutor.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', PAGEWidth / 2, yFinal, { align: 'center' });
+
+            yFinal += 5;
+            Doutor.setFontSize(9);
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.text('MG-10.078.568 / CPF: 045.160.616-78',  pageWidth / 2, yFinal, { align: 'center' });
+
+            yFinal += 5;
+            Doutor.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+
+            yFinal += 12;
+
+            if (yPágina > Final  -  30) {
+                yFinal = addPageWithHeader();
+            }
+
+            Doutor.PreencherColor(240, 240, 240);
+            Doutor.rect(margem, yFinal, pageWidth - (2* margem), 22, 'F');
+            Doutor.setDrawColor(200, 200, 200);
+            Doutor.rect(margem, yFinal, pageWidth - (2 * margem), 22, 'S');
+
+            yFinal += 6;
+            Doutor.setFontSize(10);
+            Doutor.setFont(indefinido, 'negrito');
+            Doutor.setTextColor(204, 112, 0);
+            Doutor.texto('ATENÇÃO SR. FORNECEDOR:', MARGEM + 5, yFinal);
+
+            yFinal += 5;
+            Doutor.setTextColor(0, 0, 0);
+            Doutor.setFont(indefinido, 'normal');
+            Doutor.setFontSize(9);
+            Doutor.text('1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', margem + 5, yFinal);
+
+            yFinal += 5;
+            Doutor.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margem + 5, yFinal);
+
+            Doutor.save('${toUpperCase(ordem.razao_social ||  Ordem.razaoSocial)}-${ordem.numero_ordem ||  Ordem.numeroOrdem}.pdf');
+            showToast('PDF gerado (sem assinatura)', 'sucesso');
+        }
+    } Fechamento da função gerarPDFComCabecalho
 }

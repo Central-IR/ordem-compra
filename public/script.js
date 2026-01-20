@@ -65,14 +65,14 @@ function verificarAutenticacao() {
     inicializarApp();
 }
 
-function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
-    document.body.innerHTML = \`
+function mostrarTelaAcessoNegado(mensagem = 'NAO AUTORIZADO') {
+    document.body.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">\${mensagem}</h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
-            <a href="\${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
+            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuarios autenticados podem acessar esta area.</p>
+            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
         </div>
-    \`;
+    `;
 }
 
 function inicializarApp() {
@@ -92,7 +92,7 @@ async function checkServerStatus() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(\`\${API_URL}/ordens\`, {
+        const response = await fetch(`${API_URL}/ordens`, {
             method: 'GET',
             headers: headers,
             mode: 'cors'
@@ -100,7 +100,7 @@ async function checkServerStatus() {
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            mostrarTelaAcessoNegado('Sua sessao expirou');
             return false;
         }
 
@@ -148,7 +148,7 @@ async function loadOrdens() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(\`\${API_URL}/ordens\`, {
+        const response = await fetch(`${API_URL}/ordens`, {
             method: 'GET',
             headers: headers,
             mode: 'cors'
@@ -156,7 +156,7 @@ async function loadOrdens() {
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            mostrarTelaAcessoNegado('Sua sessao expirou');
             return;
         }
 
@@ -181,11 +181,11 @@ async function loadOrdens() {
 }
 
 async function syncData() {
-    console.log('🔄 Iniciando sincronização...');
+    console.log('🔄 Iniciando sincronizacao...');
 
     if (!isOnline && !DEVELOPMENT_MODE) {
-        showToast('Servidor offline. Não é possível sincronizar.', 'error');
-        console.log('❌ Sincronização cancelada: servidor offline');
+        showToast('Servidor offline. Nao e possivel sincronizar.', 'error');
+        console.log('❌ Sincronizacao cancelada: servidor offline');
         return;
     }
 
@@ -200,7 +200,7 @@ async function syncData() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(\`\${API_URL}/ordens\`, {
+        const response = await fetch(`${API_URL}/ordens`, {
             method: 'GET',
             headers: headers,
             mode: 'cors',
@@ -209,12 +209,12 @@ async function syncData() {
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
+            mostrarTelaAcessoNegado('Sua sessao expirou');
             return;
         }
 
         if (!response.ok) {
-            throw new Error(\`Erro ao sincronizar: \${response.status}\`);
+            throw new Error(`Erro ao sincronizar: ${response.status}`);
         }
 
         const data = await response.json();
@@ -225,11 +225,11 @@ async function syncData() {
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
 
-        console.log(\`✅ Sincronização concluída: \${ordens.length} ordens carregadas\`);
-        showToast(\`Dados sincronizados com sucesso! \${ordens.length} ordens encontradas\`, 'success');
+        console.log(`✅ Sincronizacao concluida: ${ordens.length} ordens carregadas`);
+        showToast(`Dados sincronizados com sucesso! ${ordens.length} ordens encontradas`, 'success');
 
     } catch (error) {
-        console.error('❌ Erro na sincronização:', error);
+        console.error('❌ Erro na sincronizacao:', error);
         showToast('Erro ao sincronizar dados. Tente novamente.', 'error');
     }
 }
@@ -254,7 +254,7 @@ function atualizarCacheFornecedores(ordens) {
         }
     });
 
-    console.log(\`📋 Cache de fornecedores atualizado: \${Object.keys(fornecedoresCache).length} fornecedores\`);
+    console.log(`📋 Cache de fornecedores atualizado: ${Object.keys(fornecedoresCache).length} fornecedores`);
 }
 
 function getNextOrderNumber() {
@@ -315,7 +315,7 @@ function formatCurrency(value, decimals = 2) {
     const formatted = num.toFixed(decimals);
     const [integerPart, decimalPart] = formatted.split('.');
     const integerFormatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return \`R$ \${integerFormatted},\${decimalPart}\`;
+    return `R$ ${integerFormatted},${decimalPart}`;
 }
 
 function parseCurrency(currencyString) {
@@ -333,7 +333,7 @@ function showToast(message, type = 'success') {
     oldMessages.forEach(msg => msg.remove());
 
     const messageDiv = document.createElement('div');
-    messageDiv.className = \`floating-message \${type}\`;
+    messageDiv.className = `floating-message ${type}`;
     messageDiv.textContent = message;
 
     document.body.appendChild(messageDiv);
@@ -363,11 +363,11 @@ function changeMonth(direction) {
 }
 
 function updateMonthDisplay() {
-    const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+    const months = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthName = months[currentMonth.getMonth()];
     const year = currentMonth.getFullYear();
-    document.getElementById('currentMonth').textContent = \`\${monthName} \${year}\`;
+    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
 }
 
 function updateDisplay() {
@@ -402,13 +402,13 @@ function updateTable() {
     }
 
     if (filteredOrdens.length === 0) {
-        container.innerHTML = \`
+        container.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align: center; padding: 2rem;">
                     Nenhuma ordem encontrada
                 </td>
             </tr>
-        \`;
+        `;
         return;
     }
 
@@ -418,38 +418,38 @@ function updateTable() {
         return numA - numB;
     });
 
-    container.innerHTML = filteredOrdens.map(ordem => \`
-        <tr class="\${ordem.status === 'fechada' ? 'row-fechada' : ''}">
+    container.innerHTML = filteredOrdens.map(ordem => `
+        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
             <td style="text-align: center; padding: 8px;">
                 <div class="checkbox-wrapper">
                     <input 
                         type="checkbox" 
-                        id="check-\${ordem.id}"
-                        \${ordem.status === 'fechada' ? 'checked' : ''}
-                        onchange="toggleStatus('\${ordem.id}')"
+                        id="check-${ordem.id}"
+                        ${ordem.status === 'fechada' ? 'checked' : ''}
+                        onchange="toggleStatus('${ordem.id}')"
                         class="styled-checkbox"
                     >
-                    <label for="check-\${ordem.id}" class="checkbox-label-styled"></label>
+                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
                 </div>
             </td>
-            <td><strong>\${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
-            <td>\${toUpperCase(ordem.responsavel)}</td>
-            <td>\${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
-            <td style="white-space: nowrap;">\${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
-            <td><strong>\${ordem.valor_total || ordem.valorTotal}</strong></td>
+            <td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
+            <td>${toUpperCase(ordem.responsavel)}</td>
+            <td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
+            <td style="white-space: nowrap;">${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
+            <td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td>
             <td>
-                <span class="badge \${ordem.status}">\${ordem.status.toUpperCase()}</span>
+                <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
             </td>
             <td class="actions-cell">
                 <div class="actions">
-                    <button onclick="viewOrdem('\${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
-                    <button onclick="editOrdem('\${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                    <button onclick="generatePDFFromTable('\${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
-                    <button onclick="deleteOrdem('\${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
+                    <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
+                    <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
+                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
+                    <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
                 </div>
             </td>
         </tr>
-    \`).join('');
+    `).join('');
 }
 
 function updateResponsaveisFilter() {

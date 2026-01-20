@@ -982,8 +982,9 @@ button.small {
     margin: 0;
 }
 
+/* BOTÃO X SEM COR DE PREENCHIMENTO */
 .close-modal {
-    background: none;
+    background: transparent;
     border: none;
     font-size: 1.5rem;
     color: var(--text-secondary);
@@ -992,10 +993,15 @@ button.small {
     margin: 0;
     width: 32px;
     height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
 }
 
 .close-modal:hover {
     color: var(--text-primary);
+    background: transparent;
 }
 
 /* SISTEMA DE ABAS */

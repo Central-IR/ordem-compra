@@ -181,21 +181,17 @@ async function loadOrdens() {
     }
 }
 
-// FUNÇÃO DE SINCRONIZAÇÃO DE DADOS
+// FUNÇÃO DE SINCRONIZAÇÃO DE DADOS - MENSAGENS SIMPLIFICADAS
 async function syncData() {
     console.log('🔄 Iniciando sincronização...');
     
     if (!isOnline && !DEVELOPMENT_MODE) {
-        showToast('Servidor offline. Não é possível sincronizar.', 'error');
+        showToast('Erro ao sincronizar', 'error');
         console.log('❌ Sincronização cancelada: servidor offline');
         return;
     }
 
     try {
-        // Mostrar mensagem de sincronização iniciada
-        showToast('Sincronizando dados...', 'info');
-        
-        // Forçar recarregamento dos dados
         const headers = {
             'Accept': 'application/json'
         };
@@ -208,7 +204,7 @@ async function syncData() {
             method: 'GET',
             headers: headers,
             mode: 'cors',
-            cache: 'no-cache' // Força buscar dados frescos
+            cache: 'no-cache'
         });
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
@@ -224,19 +220,17 @@ async function syncData() {
         const data = await response.json();
         ordens = data;
         
-        // Atualizar cache de fornecedores
         atualizarCacheFornecedores(data);
         
-        // Atualizar hash e display
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
         
         console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas`);
-        showToast(`Dados sincronizados com sucesso! ${ordens.length} ordens encontradas`, 'success');
+        showToast('Dados sincronizados', 'success');
         
     } catch (error) {
         console.error('❌ Erro na sincronização:', error);
-        showToast('Erro ao sincronizar dados. Tente novamente.', 'error');
+        showToast('Erro ao sincronizar', 'error');
     }
 }
 
@@ -409,14 +403,12 @@ function updateNavigationButtons() {
     
     if (!btnPrevious || !btnNext || !btnSave) return;
     
-    // Botão Anterior: mostrar a partir da segunda aba
     if (currentTab > 0) {
         btnPrevious.style.display = 'inline-flex';
     } else {
         btnPrevious.style.display = 'none';
     }
     
-    // Botão Próximo: mostrar até a penúltima aba
     if (currentTab < tabs.length - 1) {
         btnNext.style.display = 'inline-flex';
         btnSave.style.display = 'none';
@@ -475,23 +467,20 @@ function updateInfoNavigationButtons() {
     
     if (!btnInfoPrevious || !btnInfoNext || !btnInfoClose) return;
     
-    const totalTabs = 5; // Total de abas no modal de visualização
+    const totalTabs = 5;
     
-    // Botão Anterior: mostrar a partir da segunda aba
     if (currentInfoTab > 0) {
         btnInfoPrevious.style.display = 'inline-flex';
     } else {
         btnInfoPrevious.style.display = 'none';
     }
     
-    // Botão Próximo: mostrar até a penúltima aba
     if (currentInfoTab < totalTabs - 1) {
         btnInfoNext.style.display = 'inline-flex';
     } else {
         btnInfoNext.style.display = 'none';
     }
     
-    // Botão Fechar: sempre visível
     btnInfoClose.style.display = 'inline-flex';
 }
 
@@ -524,6 +513,7 @@ function openFormModal() {
             <div class="modal-content" style="max-width: 1200px;">
                 <div class="modal-header">
                     <h3 class="modal-title">Nova Ordem de Compra</h3>
+                    <button class="close-modal" onclick="closeFormModal(true)">✕</button>
                 </div>
                 
                 <div class="tabs-container">
@@ -732,7 +722,6 @@ function addItem() {
     `;
     tbody.appendChild(row);
     
-    // Aplicar conversão para maiúsculas nos novos campos
     setTimeout(() => {
         setupUpperCaseInputs();
     }, 50);
@@ -896,6 +885,7 @@ async function editOrdem(id) {
             <div class="modal-content" style="max-width: 1200px;">
                 <div class="modal-header">
                     <h3 class="modal-title">Editar Ordem de Compra</h3>
+                    <button class="close-modal" onclick="closeFormModal(true)">✕</button>
                 </div>
                 
                 <div class="tabs-container">
@@ -1122,7 +1112,6 @@ async function toggleStatus(id) {
     ordem.status = novoStatus;
     updateDisplay();
     
-    // Mensagem verde ao fechar (marcar), vermelha ao abrir (desmarcar)
     if (novoStatus === 'fechada') {
         showToast(`Ordem marcada como ${novoStatus}!`, 'success');
     } else {
@@ -1170,7 +1159,7 @@ function viewOrdem(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) return;
     
-    currentInfoTab = 0; // Resetar para primeira aba
+    currentInfoTab = 0;
     
     document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
     
@@ -1221,7 +1210,7 @@ function viewOrdem(id) {
                                 <td>${toUpperCase(item.especificacao)}</td>
                                 <td>${item.quantidade}</td>
                                 <td>${toUpperCase(item.unidade)}</td>
-                                <td>R$ ${(item.valorUnitario || item.valor_unitario || 0).toFixed(2)}</td>
+                                <td>${formatCurrency(item.valorUnitario || item.valor_unitario || 0)}</td>
                                 <td>${toUpperCase(item.ipi || '-')}</td>
                                 <td>${toUpperCase(item.st || '-')}</td>
                                 <td>${item.valorTotal || item.valor_total}</td>
@@ -1260,7 +1249,6 @@ function viewOrdem(id) {
     
     document.getElementById('infoModal').classList.add('show');
     
-    // Atualizar botões de navegação após um pequeno delay para garantir que o modal está renderizado
     setTimeout(() => {
         updateInfoNavigationButtons();
     }, 100);
@@ -1294,8 +1282,6 @@ function updateDashboard() {
         .filter(n => !isNaN(n));
     const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
     
-    // ===== INÍCIO DA MODIFICAÇÃO =====
-    // Calcular o valor total das ordens do mês
     let valorTotalMes = 0;
     monthOrdens.forEach(ordem => {
         const valorStr = (ordem.valor_total || ordem.valorTotal || 'R$ 0,00')
@@ -1306,12 +1292,11 @@ function updateDashboard() {
         const valor = parseFloat(valorStr) || 0;
         valorTotalMes += valor;
     });
-    // ===== FIM DA MODIFICAÇÃO =====
     
     document.getElementById('totalOrdens').textContent = ultimoNumero;
     document.getElementById('totalFechadas').textContent = totalFechadas;
     document.getElementById('totalAbertas').textContent = totalAbertas;
-    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes); // ← NOVA LINHA
+    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes);
     
     const cardAbertas = document.getElementById('cardAbertas');
     if (!cardAbertas) return;
@@ -1442,7 +1427,6 @@ function getOrdensForCurrentMonth() {
 }
 
 function getNextOrderNumber() {
-    // Buscar o maior número de ordem existente de todos os tempos (não apenas do mês atual)
     const existingNumbers = ordens
         .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
@@ -1456,8 +1440,10 @@ function formatDate(dateString) {
     return date.toLocaleDateString('pt-BR');
 }
 
+// FORMATO MONETÁRIO BRASILEIRO
 function formatCurrency(value) {
-    return `R$ ${parseFloat(value).toFixed(2).replace('.', ',')}`;
+    const num = parseFloat(value);
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function showToast(message, type = 'success') {
@@ -1476,7 +1462,8 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// GERAÇÃO DE PDF (mantido igual ao original)
+
+// GERAÇÃO DE PDF
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) {
@@ -1508,7 +1495,7 @@ function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    let y = 3; // Diminuído de 5 para 3 (mais próximo do topo)
+    let y = 3;
     const margin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -1527,58 +1514,45 @@ function generatePDFForOrdem(ordem) {
         return yStart + (lines.length * lineH);
     }
     
-    // CABEÇALHO COM LOGO E TEXTO TRANSLÚCIDO
     const logoHeader = new Image();
     logoHeader.crossOrigin = 'anonymous';
     logoHeader.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
     
     logoHeader.onload = function() {
         try {
-            // Adicionar logo no canto superior esquerdo
             const logoWidth = 40;
             const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
-            const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
-            const logoY = y; // y começa em 5
+            const logoX = 5;
+            const logoY = y;
             
-            // Definir opacidade para a imagem (translúcido)
             doc.setGState(new doc.GState({ opacity: 0.3 }));
             doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
             
-            // Restaurar opacidade normal
             doc.setGState(new doc.GState({ opacity: 1.0 }));
             
-            // Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoHeight * 0.5; // 50% da altura da logo
+            const fontSize = logoHeight * 0.5;
             
-            // Adicionar texto em duas linhas ao lado da logo
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
-            doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
-            const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
             
-            // Calcular espaçamento entre linhas
             const lineSpacing = fontSize * 0.5;
             
-            // Alinhar a primeira linha com o topo das letras "iR"
-            const textY1 = logoY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
+            const textY1 = logoY + fontSize * 0.85;
             doc.text('I.R COMÉRCIO E', textX, textY1);
             
-            // Segunda linha
             const textY2 = textY1 + lineSpacing;
             doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
-            // Resetar cor do texto para preto
             doc.setTextColor(0, 0, 0);
             
-            // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
             y = logoY + logoHeight + 8;
             
-            // Continuar com a geração do PDF
             continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
             
         } catch (e) {
             console.log('Erro ao adicionar logo no cabeçalho:', e);
-            // Se falhar, continuar sem o cabeçalho
             y = 25;
             continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
         }
@@ -1592,28 +1566,25 @@ function generatePDFForOrdem(ordem) {
 }
 
 function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
-    // Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
     const logoHeaderImg = new Image();
     logoHeaderImg.crossOrigin = 'anonymous';
     logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
     
-    // Aguardar carregamento da logo antes de continuar
     logoHeaderImg.onload = function() {
         gerarPDFComCabecalho();
     };
     
     logoHeaderImg.onerror = function() {
         console.log('Erro ao carregar logo do cabeçalho');
-        gerarPDFComCabecalho(); // Continuar mesmo sem a logo
+        gerarPDFComCabecalho();
     };
     
     function gerarPDFComCabecalho() {
         const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
         
-        // Função para adicionar cabeçalho em qualquer página
         function adicionarCabecalho() {
             if (!logoCarregada) {
-                return 20; // Retorna posição padrão se logo não estiver carregada
+                return 20;
             }
             
             const headerY = 3;
@@ -1621,15 +1592,12 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
             const logoX = 5;
             
-            // Adicionar logo translúcida
             doc.setGState(new doc.GState({ opacity: 0.3 }));
             doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
             doc.setGState(new doc.GState({ opacity: 1.0 }));
             
-            // Calcular tamanho da fonte baseado na altura da logo
             const fontSize = logoHeight * 0.5;
             
-            // Adicionar texto em duas linhas ao lado da logo
             doc.setFontSize(fontSize);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(150, 150, 150);
@@ -1642,7 +1610,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             const textY2 = textY1 + lineSpacing;
             doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
             
-            // IMPORTANTE: Resetar TODOS os estilos após o cabeçalho
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
@@ -1652,14 +1619,12 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             return headerY + logoHeight + 8;
         }
         
-        // Função auxiliar para adicionar nova página com cabeçalho
         function addPageWithHeader() {
             doc.addPage();
             const newY = adicionarCabecalho();
             return newY;
         }
         
-        // Sobrescrever addTextWithWrap para usar a nova função de página
         addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
             const lines = doc.splitTextToSize(text, maxW);
             lines.forEach((line, index) => {
@@ -1670,10 +1635,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             });
             return yStart + (lines.length * lineH);
         };
-        
-        // ============ INÍCIO DO CONTEÚDO DO PDF ============
     
-        // TÍTULO ORDEM DE COMPRA
         doc.setFontSize(18);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(0, 0, 0);
@@ -1685,7 +1647,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += 12;
         
-        // DADOS PARA FATURAMENTO
         doc.setFontSize(11);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'bold');
@@ -1710,13 +1671,11 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += 10;
         
-        // DADOS DO FORNECEDOR
         doc.setFont(undefined, 'bold');
         doc.text('DADOS DO FORNECEDOR', margin, y);
         
         y += lineHeight + 1;
         
-        // RAZÃO SOCIAL
         doc.setFont(undefined, 'normal');
         doc.text('RAZÃO SOCIAL: ', margin, y);
         const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
@@ -1733,7 +1692,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             }
         }
 
-        // NOME FANTASIA (se existir)
         if (ordem.nome_fantasia || ordem.nomeFantasia) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1753,7 +1711,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             }
         }
 
-        // CNPJ
         y += 1;
         doc.setFont(undefined, 'normal');
         doc.text('CNPJ: ', margin, y);
@@ -1762,7 +1719,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         doc.text(`${ordem.cnpj}`, margin + cnpjWidth, y);
         y += lineHeight;
 
-        // ENDEREÇO (se existir)
         if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1781,7 +1737,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             }
         }
 
-        // SITE (se existir)
         if (ordem.site) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1791,7 +1746,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             y += lineHeight;
         }
 
-        // CONTATO (se existir)
         if (ordem.contato) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1810,7 +1764,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             }
         }
 
-        // TELEFONE (se existir)
         if (ordem.telefone) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1820,7 +1773,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             y += lineHeight;
         }
 
-        // E-MAIL (se existir)
         if (ordem.email) {
             y += 1;
             doc.setFont(undefined, 'normal');
@@ -1836,7 +1788,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             y = addPageWithHeader();
         }
         
-        // ITENS DO PEDIDO
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
         doc.text('ITENS DO PEDIDO', margin, y);
@@ -1857,7 +1808,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         const itemRowHeight = 10;
         
-        // Cabeçalho da tabela
         doc.setFillColor(108, 117, 125);
         doc.setDrawColor(180, 180, 180);
         doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
@@ -1903,12 +1853,10 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += itemRowHeight;
         
-        // Resetar estilos após cabeçalho da tabela
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(8);
         doc.setFont(undefined, 'normal');
         
-        // Linhas dos itens
         ordem.items.forEach((item, index) => {
             const especificacaoUpper = toUpperCase(item.especificacao);
             const maxWidthEspec = colWidths.especificacao - 6;
@@ -1916,7 +1864,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             const lineCount = especLines.length;
             const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
             
-            // Se não couber, adiciona nova página
             if (y + necessaryHeight > pageHeight - 30) {
                 y = addPageWithHeader();
             }
@@ -1951,7 +1898,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             doc.line(xPos, y, xPos, y + necessaryHeight);
             
             const valorUn = item.valorUnitario || item.valor_unitario || 0;
-            const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).replace('.', ',');
+            const valorUnFormatted = parseFloat(valorUn).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
             xPos += colWidths.valorUn;
             doc.line(xPos, y, xPos, y + necessaryHeight);
@@ -1985,7 +1932,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += 10;
         
-        // Verificar espaço para LOCAL DE ENTREGA
         if (y > pageHeight - 60) {
             y = addPageWithHeader();
         }
@@ -2006,7 +1952,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += 10;
         
-        // Verificar espaço para PRAZO/FRETE/TRANSPORTE
         if (y > pageHeight - 50) {
             y = addPageWithHeader();
         }
@@ -2031,7 +1976,6 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
         
         y += 10;
         
-        // Verificar espaço para CONDIÇÕES DE PAGAMENTO
         if (y > pageHeight - 60) {
             y = addPageWithHeader();
         }
@@ -2062,12 +2006,13 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             y = addPageWithHeader();
         }
         
-        const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
-        const dia = dataOrdem.getDate();
+        // DATA ATUAL (NÃO A DATA DA ORDEM) - CORREÇÃO PRINCIPAL
+        const dataAtual = new Date();
+        const dia = dataAtual.getDate();
         const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
                        'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-        const mes = meses[dataOrdem.getMonth()];
-        const ano = dataOrdem.getFullYear();
+        const mes = meses[dataAtual.getMonth()];
+        const ano = dataAtual.getFullYear();
         
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
@@ -2186,5 +2131,5 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
             showToast('PDF gerado (sem assinatura)', 'success');
         }
-    } // Fechamento da função gerarPDFComCabecalho
+    }
 }

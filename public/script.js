@@ -1,17 +1,14 @@
-// ============================================
-// CONFIGURAÇÃO
-// ============================================
-const DEVELOPMENT_MODE = true;
+const DEVELOPMENT_MODE = verdadeiro;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
-const API_URL = 'https://ordem-compra.onrender.com/api';
+const API_URL = 'https://ordem-compra.onrender.com/api'; // USAR RENDER
 
 let ordens = [];
-let currentMonth = new Date();
-let editingId = null;
-let itemCounter = 0;
-let currentTab = 0;
-let currentInfoTab = 0;
-let isOnline = false;
+seja currentMonth =  nova Data();
+deixe editingId = null;
+seja itemContador = 0;
+seja currentTab = 0;
+seja currentInfoTab = 0;
+seja isOnline = falso;
 let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};
@@ -22,7 +19,7 @@ console.log('🚀 Ordem de Compra iniciada');
 console.log('📍 API URL:', API_URL);
 console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
 
-function toUpperCase(value) {
+função toMajúscula(valor)) {
     return value ? String(value).toUpperCase() : '';
 }
 
@@ -195,8 +192,10 @@ async function syncData() {
     }
 
     try {
+        // Mostrar mensagem de sincronização iniciada
         showToast('Sincronizando dados...', 'info');
 
+        // Forçar recarregamento dos dados
         const headers = {
             'Accept': 'application/json'
         };
@@ -209,7 +208,7 @@ async function syncData() {
             method: 'GET',
             headers: headers,
             mode: 'cors',
-            cache: 'no-cache'
+            cache: 'no-cache' // Força buscar dados frescos
         });
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
@@ -225,8 +224,10 @@ async function syncData() {
         const data = await response.json();
         ordens = data;
 
+        // Atualizar cache de fornecedores
         atualizarCacheFornecedores(data);
 
+        // Atualizar hash e display
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
 
@@ -408,12 +409,14 @@ function updateNavigationButtons() {
 
     if (!btnPrevious || !btnNext || !btnSave) return;
 
+    // Botão Anterior: mostrar a partir da segunda aba
     if (currentTab > 0) {
         btnPrevious.style.display = 'inline-flex';
     } else {
         btnPrevious.style.display = 'none';
     }
 
+    // Botão Próximo: mostrar até a penúltima aba
     if (currentTab < tabs.length - 1) {
         btnNext.style.display = 'inline-flex';
         btnSave.style.display = 'none';
@@ -472,20 +475,23 @@ function updateInfoNavigationButtons() {
 
     if (!btnInfoPrevious || !btnInfoNext || !btnInfoClose) return;
 
-    const totalTabs = 5;
+    const totalTabs = 5; // Total de abas no modal de visualização
 
+    // Botão Anterior: mostrar a partir da segunda aba
     if (currentInfoTab > 0) {
         btnInfoPrevious.style.display = 'inline-flex';
     } else {
         btnInfoPrevious.style.display = 'none';
     }
 
+    // Botão Próximo: mostrar até a penúltima aba
     if (currentInfoTab < totalTabs - 1) {
         btnInfoNext.style.display = 'inline-flex';
     } else {
         btnInfoNext.style.display = 'none';
     }
 
+    // Botão Fechar: sempre visível
     btnInfoClose.style.display = 'inline-flex';
 }
 
@@ -709,8 +715,7 @@ function addItem() {
             <input type="text" class="item-unid" value="UN" placeholder="UN">
         </td>
         <td>
-            <input type="number" class="item-valor" min="0" step="0.0001" value="0" onchange="calculateItemTotal(this)">
-        </td>
+<input type="number" class="item-valor" min="0" step="0.0001" value="0" onchange="calculateItemTotal(this)">
         <td>
             <input type="text" class="item-ipi" placeholder="Ex: Isento">
         </td>
@@ -726,6 +731,7 @@ function addItem() {
     `;
     tbody.appendChild(row);
 
+    // Aplicar conversão para maiúsculas nos novos campos
     setTimeout(() => {
         setupUpperCaseInputs();
     }, 50);
@@ -1114,6 +1120,7 @@ async function toggleStatus(id) {
     ordem.status = novoStatus;
     updateDisplay();
 
+    // Mensagem verde ao fechar (marcar), vermelha ao abrir (desmarcar)
     if (novoStatus === 'fechada') {
         showToast(`Ordem marcada como ${novoStatus}!`, 'success');
     } else {
@@ -1161,7 +1168,7 @@ function viewOrdem(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) return;
 
-    currentInfoTab = 0;
+    currentInfoTab = 0; // Resetar para primeira aba
 
     document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
 
@@ -1251,6 +1258,7 @@ function viewOrdem(id) {
 
     document.getElementById('infoModal').classList.add('show');
 
+    // Atualizar botões de navegação após um pequeno delay para garantir que o modal está renderizado
     setTimeout(() => {
         updateInfoNavigationButtons();
     }, 100);
@@ -1277,28 +1285,26 @@ function updateDisplay() {
 function updateDashboard() {
     const monthOrdens = getOrdensForCurrentMonth();
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
-    const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
+    const totalAbertas = monthOrdens.filter(o => o.Status === 'Aberta').Comprimento;
 
     const numeros = ordens
-        .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
+        .map(o => parseint(o.numero_ordem ||  o.numeroOrdem))
         .filter(n => !isNaN(n));
-    
-    const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
-    
-    let valorTotalMes = 0;
-    monthOrdens.forEach(ordem => {
-        valorTotalMes += parseCurrency(ordem.valor_total || ordem.valorTotal);
-    });
+seja valorTotalMes = 0;
+Ordens do mês.forEach(ordem => {
+    valorTotalMes += parseCurrency(ordem.valor_total ||  Ordem.valorTotal);
+});
+===== FIM DA MODIFICAÇÃO =====
 
-    document.getElementById('totalOrdens').textContent = ultimoNumero;
-    document.getElementById('totalFechadas').textContent = totalFechadas;
-    document.getElementById('totalAbertas').textContent = totalAbertas;
-    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes, 2);
+documentar.getElementById('totalOrdens').textContent = ultimoNumero;
+documentar.getElementById('totalFechadas').textContent = totalFechadas;
+documentar.getElementById('totalAbertas').textContent = totalAbertas;
+document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes, 2); // ← Adicionar o ", 2"// ← NOVA LINHA
 
-    const cardAbertas = document.querySelector('.stat-card-warning');
-    if (!cardAbertas) return;
+    const cardAbertas = document.getElementById('cardAbertas');
+    se (!cardAbertas) retorno;
 
-    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
+    seja pulseBadge = cardAbertas.consultySelector('.pulse-badge');
 
     if (totalAbertas > 0) {
         cardAbertas.classList.add('has-alert');
@@ -1385,7 +1391,7 @@ function updateTable() {
                 <div class="actions">
                     <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
                     <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
-                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn pdf" title="Gerar PDF">PDF</button>
+                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
                     <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
                 </div>
             </td>
@@ -1424,6 +1430,7 @@ function getOrdensForCurrentMonth() {
 }
 
 function getNextOrderNumber() {
+    // Buscar o maior número de ordem existente de todos os tempos (não apenas do mês atual)
     const existingNumbers = ordens
         .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
@@ -1471,7 +1478,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// GERAÇÃO DE PDF
+// GERAÇÃO DE PDF (mantido igual ao original)
 function generatePDFFromTable(id) {
     const ordem = ordens.find(o => String(o.id) === String(id));
     if (!ordem) {
@@ -1496,505 +1503,505 @@ function generatePDFFromTable(id) {
         return;
     }
 
-    generatePDFFordem(ordem);
+    generatePDFForOrdem(ordem);
 }
 
-função generatePDFFordem(ordem) {
+function generatePDFForOrdem(ordem) {
     const { jsPDF } = window.jspdf;
-    const  doc = novo jsPDF();
+    const doc = new jsPDF();
 
-    seja y = 3;   Diminuído de 5 para 3 (mais próximo do topo)
-    margem const = 15;
-    const pageWidth = doc.interno.Tamanho da página.Largura;
-    const pageHeight = doc.interno.Tamanho da página.Altura;
-    linha const Altura = 5;
-    const  maxWidth = LarguraPágina - (2 * margem);
+    let y = 3; // Diminuído de 5 para 3 (mais próximo do topo)
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const lineHeight = 5;
+    const maxWidth = pageWidth - (2 * margin);
 
-    função addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
-        Linhas const  = doc.splitTextToSize(texto, maxW);
-        falas.forEach((line, index) => {
-            if (yStart + (índice * linhaH) > páginaAltura - 30) {
-                Doutor.addPage();
+    function addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
+        const lines = doc.splitTextToSize(text, maxW);
+        lines.forEach((line, index) => {
+            if (yStart + (index * lineH) > pageHeight - 30) {
+                doc.addPage();
                 yStart = 20;
             }
-            Doutor.text(line, x, yStart + (índice * lineH));
+            doc.text(line, x, yStart + (index * lineH));
         });
-        retorne yStart + (linhas).comprimento * linha H);
+        return yStart + (lines.length * lineH);
     }
 
     // CABEÇALHO COM LOGO E TEXTO TRANSLÚCIDO
-    const logoCabeçalho = nova Imagem();
-    logoHeader.crossOrigin = 'anônimo';
-    logoHeader.SRC = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    const logoHeader = new Image();
+    logoHeader.crossOrigin = 'anonymous';
+    logoHeader.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
 
-    logoHeader.onload = função() {
-        tente {
-            Adicionar logo no canto superior esquerdo
-             const logoLargura = 40;
-            const logoHeight = (logoHeader.altura / logoCabeçalho.largura) * logoLargura;
-            const logoX = 5;   Diminuído de 10 para 5 (mais próximo da esquerda)
-            const logoY = y;   y começa em 5
+    logoHeader.onload = function() {
+        try {
+            // Adicionar logo no canto superior esquerdo
+            const logoWidth = 40;
+            const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
+            const logoX = 5; // Diminuído de 10 para 5 (mais próximo da esquerda)
+            const logoY = y; // y começa em 5
 
-            Definir opacidade para a imagem (translúcido)
-            Doutor.setGState(novo doutor.GState({ opacidade: 0.3 }));
-            Doutor.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
+            // Definir opacidade para a imagem (translúcido)
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
 
-            Restaurar opacidade normal
-            Doutor.setGState(novo doutor.GState({ opacidade: 1.0 }));
+            // Restaurar opacidade normal
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
 
-            Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoAltura * 0,5;   50% da altura da logo
+            // Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoHeight * 0.5; // 50% da altura da logo
 
-            Adicionar texto em duas linhas ao lado da logo
-            Doutor.setFontSize(fontSize));
-            Doutor.setFont(indefinido, 'negrito');
-            Doutor.setTextColor(150, 150, 150);   Cor cinza para efeito translúcido
-            const textX = logoX + logoLargura + 1,2;   Ajustado para 1,2mm (espaçamento moderadamente curto)
+            // Adicionar texto em duas linhas ao lado da logo
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150); // Cor cinza para efeito translúcido
+            const textX = logoX + logoWidth + 1.2; // Ajustado para 1.2mm (espaçamento moderadamente curto)
 
-            Calcular espaçamento entre linhas
-            const lineEspaçamento = tamanhoFonte * 0,5;
+            // Calcular espaçamento entre linhas
+            const lineSpacing = fontSize * 0.5;
 
-            Alinhar a primeira linha com o topo das letras "iR"
-            const textY1 = logoY + fontSize * 0,85;   Primeira linha alinhada com o topo da logo
-            Doutor.texto('I.R COMÉRCIO E', TEXTOX, textoY1);
+            // Alinhar a primeira linha com o topo das letras "iR"
+            const textY1 = logoY + fontSize * 0.85; // Primeira linha alinhada com o topo da logo
+            doc.text('I.R COMÉRCIO E', textX, textY1);
 
-            Segunda linha
+            // Segunda linha
             const textY2 = textY1 + lineSpacing;
-            Doutor.text('MATERIAIS ELÉTRICOS LTDA', TEXTX, textY2);
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
 
-            Resetar cor do texto para preto
-            Doutor.setTextColor(0, 0, 0);
+            // Resetar cor do texto para preto
+            doc.setTextColor(0, 0, 0);
 
-            Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
-            y = logoY + logoAltura + 8;
+            // Ajustar posição Y para começar o conteúdo abaixo do cabeçalho
+            y = logoY + logoHeight + 8;
 
             // Continuar com a geração do PDF
-            continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
 
-        } Captura (e) {
-            Console.log('Erro ao adicionar logo no cabeçalho:', e);
-            Se falhar, continuar sem o cabeçalho
+        } catch (e) {
+            console.log('Erro ao adicionar logo no cabeçalho:', e);
+            // Se falhar, continuar sem o cabeçalho
             y = 25;
-            continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
         }
     };
 
-    logoHeader.onerror = função() {
-        Console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
+    logoHeader.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
         y = 25;
-        continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+        continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
     };
 }
 
-função continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
-    Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
-    const logoHeaderImg = nova Imagem();
-    logoHeaderImg.crossOrigin = 'anônimo';
-    logoHeaderImg.SRC = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
+    // Carregar a imagem do cabeçalho uma vez para usar em todas as páginas
+    const logoHeaderImg = new Image();
+    logoHeaderImg.crossOrigin = 'anonymous';
+    logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
 
-    Aguardar carregamento da logo antes de continuar
-    logoHeaderImg.onload = função() {
+    // Aguardar carregamento da logo antes de continuar
+    logoHeaderImg.onload = function() {
         gerarPDFComCabecalho();
     };
 
-    logoHeaderImg.onerror = função() {
-        Console.log('Erro ao carregar logo do cabeçalho');
-        gerarPDFComCabecalho();   Continuar mesmo sem a logo
+    logoHeaderImg.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho');
+        gerarPDFComCabecalho(); // Continuar mesmo sem a logo
     };
 
     function gerarPDFComCabecalho() {
         const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
 
-        Função para adicionar cabeçalho em qualquer página
-        função adicionarCabecalho() {
-            se (!logoCarregada) {
-                retorno 20;   Retorna posição padrão se logo não estiver carregada
+        // Função para adicionar cabeçalho em qualquer página
+        function adicionarCabecalho() {
+            if (!logoCarregada) {
+                return 20; // Retorna posição padrão se logo não estiver carregada
             }
 
-            cabeçalho const Y = 3;
-             const logoLargura = 40;
-            const logoHeight = (logoHeaderImg.altura / logoCabeçalhoImg.largura) * logoLargura;
+            const headerY = 3;
+            const logoWidth = 40;
+            const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
             const logoX = 5;
 
-            Adicionar logo translúcida
-            Doutor.setGState(novo doutor.GState({ opacidade: 0.3 }));
-            Doutor.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
-            Doutor.setGState(novo doutor.GState({ opacidade: 1.0 }));
+            // Adicionar logo translúcida
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
 
-            Calcular tamanho da fonte baseado na altura da logo
-            const fontSize = logoAltura * 0,5;
+            // Calcular tamanho da fonte baseado na altura da logo
+            const fontSize = logoHeight * 0.5;
 
-            Adicionar texto em duas linhas ao lado da logo
-            Doutor.setFontSize(fontSize));
-            Doutor.setFont(indefinido, 'negrito');
-            Doutor.setTextColor(150, 150, 150);
-            const textX = logoX + logoLargura + 1,2;
+            // Adicionar texto em duas linhas ao lado da logo
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
 
-            const lineEspaçamento = tamanhoFonte * 0,5;
-            const textY1 = cabeçalho Y + fontSize * 0,85;
-            Doutor.texto('I.R COMÉRCIO E', TEXTOX, textoY1);
+            const lineSpacing = fontSize * 0.5;
+            const textY1 = headerY + fontSize * 0.85;
+            doc.text('I.R COMÉRCIO E', textX, textY1);
 
             const textY2 = textY1 + lineSpacing;
-            Doutor.text('MATERIAIS ELÉTRICOS LTDA', TEXTX, textY2);
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
 
-            IMPORTANTE: Resetar TODOS os estilos após o cabeçalho
-            Doutor.setTextColor(0, 0, 0);
-            Doutor.setFontSize(10);
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.setDrawColor(0, 0, 0);
-            Doutor.setLarguraLinha(0,2);
+            // IMPORTANTE: Resetar TODOS os estilos após o cabeçalho
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
 
-            return headerY + logoAltura + 8;
+            return headerY + logoHeight + 8;
         }
 
-        Função auxiliar para adicionar nova página com cabeçalho
-        função addPageWithHeader() {
-            Doutor.addPage();
+        // Função auxiliar para adicionar nova página com cabeçalho
+        function addPageWithHeader() {
+            doc.addPage();
             const newY = adicionarCabecalho();
-            retorno novo Y;
+            return newY;
         }
 
-        Sobrescrever addTextWithWrap para usar a nova função de página
+        // Sobrescrever addTextWithWrap para usar a nova função de página
         addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
-            Linhas const  = doc.splitTextToSize(texto, maxW);
-            falas.forEach((line, index) => {
-                if (yStart + (índice * linhaH) > páginaAltura - 30) {
+            const lines = doc.splitTextToSize(text, maxW);
+            lines.forEach((line, index) => {
+                if (yStart + (index * lineH) > pageHeight - 30) {
                     yStart = addPageWithHeader();
                 }
-                Doutor.text(line, x, yStart + (índice * lineH));
+                doc.text(line, x, yStart + (index * lineH));
             });
-            retorne yStart + (linhas).comprimento * linha H);
+            return yStart + (lines.length * lineH);
         };
 
-        ============ INÍCIO DO CONTEÚDO DO PDF ============
+        // ============ INÍCIO DO CONTEÚDO DO PDF ============
 
         // TÍTULO ORDEM DE COMPRA
-        Doutor.setFontSize(18);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.setTextColor(0, 0, 0);
-        Doutor.text('ORDEM DE COMPRA', PAGEWidth / 2, y, { align: 'center' });
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
 
         y += 8;
-        Doutor.setFontSize(14);
-        Doutor.text('Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', pageWidth / 2, y, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
 
         y += 12;
 
         // DADOS PARA FATURAMENTO
-        Doutor.setFontSize(11);
-        Doutor.setTextColor(0, 0, 0);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('DADOS PARA FATURAMENTO', MARGIN, Y);
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('DADOS PARA FATURAMENTO', margin, y);
 
-        y += linha Altura + 1;
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margem, y);
+        y += lineHeight + 1;
+        doc.setFont(undefined, 'bold');
+        doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
 
-        y += linha Altura + 1;
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.texto('CNPJ: 33.149.502/0001-38 | Ou seja: 083.780.74-2', margem, y);
+        y += lineHeight + 1;
+        doc.setFont(undefined, 'normal');
+        doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
 
-        y += linha Altura + 1;
-        Doutor.texto('RUA TADORNA Nº 472, SALA 2', margem, y);
+        y += lineHeight + 1;
+        doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
 
-        y += linha Altura + 1;
-        Doutor.texto('NOVO HORIZONTE - SERRA/ES | CEP: 29,163-318', margem, y);
+        y += lineHeight + 1;
+        doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
 
-        y += linha Altura + 1;
-        Doutor.texto('TELEFAX: (27) 3209-4291 | E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margem, y);
+        y += lineHeight + 1;
+        doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
 
         y += 10;
 
         // DADOS DO FORNECEDOR
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('DADOS DO FORNECEDOR', MARGEM, Y);
+        doc.setFont(undefined, 'bold');
+        doc.text('DADOS DO FORNECEDOR', margin, y);
 
-        y += linha Altura + 1;
+        y += lineHeight + 1;
 
         // RAZÃO SOCIAL
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.text('RAZÃO SOCIAL: ', margem, y);
+        doc.setFont(undefined, 'normal');
+        doc.text('RAZÃO SOCIAL: ', margin, y);
         const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
-        Doutor.setFont(indefinido, 'negrito');
-        const razaoSocialTexto = toUpperCase(ordem.razao_social ||  Ordem.razaoSocial);
-        const razaoLines = doc.splitTextToSize(razaoTextoSocial, maxWidth - razaoSocialWidth);
-        Doutor.text(razaoLines[0], margem + razaoSocialWidth, y);
-        y += linha Altura;
+        doc.setFont(undefined, 'bold');
+        const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial);
+        const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - razaoSocialWidth);
+        doc.text(razaoLines[0], margin + razaoSocialWidth, y);
+        y += lineHeight;
 
-        if (razaoLines.comprimento > 1) {
-            para (seja i = 1;  Eu < RazaoLines.comprimento;  eu++) {
-                Doutor.text(razaoLines[i], margem, y);
-                y += linha Altura;
+        if (razaoLines.length > 1) {
+            for (let i = 1; i < razaoLines.length; i++) {
+                doc.text(razaoLines[i], margin, y);
+                y += lineHeight;
             }
         }
 
-        NOME FANTASIA (se existir)
-        se (ordem.nome_fantasia ||  Ordem.nomeFantasia) {
+        // NOME FANTASIA (se existir)
+        if (ordem.nome_fantasia || ordem.nomeFantasia) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('NOME FANTASIA: ', margem, y);
+            doc.setFont(undefined, 'normal');
+            doc.text('NOME FANTASIA: ', margin, y);
             const nomeFantasiaWidth = doc.getTextWidth('NOME FANTASIA: ');
-            Doutor.setFont(indefinido, 'normal');
-            const  nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia ||  Ordem.nomeFantasia);
+            doc.setFont(undefined, 'normal');
+            const nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia);
             const nomeLines = doc.splitTextToSize(nomeFantasiaTexto, maxWidth - nomeFantasiaWidth);
-            Doutor.text(nomeLinhas[0], margem + nomeLarguraFantasia, y);
-            y += linha Altura;
+            doc.text(nomeLines[0], margin + nomeFantasiaWidth, y);
+            y += lineHeight;
 
-            if (nomeLines.comprimento > 1) {
-                para (seja i = 1;  Eu < NomeLines.comprimento;  eu++) {
-                    Doutor.text(nomeLines[i], margin, y);
-                    y += linha Altura;
+            if (nomeLines.length > 1) {
+                for (let i = 1; i < nomeLines.length; i++) {
+                    doc.text(nomeLines[i], margin, y);
+                    y += lineHeight;
                 }
             }
         }
 
-        CNPJ
+        // CNPJ
         y += 1;
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.text('CNPJ: ', margem, y);
+        doc.setFont(undefined, 'normal');
+        doc.text('CNPJ: ', margin, y);
         const cnpjWidth = doc.getTextWidth('CNPJ: ');
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.texto('${ordem.cnpj}', margem + cnpjLargura, y);
-        y += linha Altura;
+        doc.setFont(undefined, 'bold');
+        doc.text(`${ordem.cnpj}`, margin + cnpjWidth, y);
+        y += lineHeight;
 
-        ENDEREÇO (se existir)
-        se (ordem.endereco_fornecedor ||  Ordem.enderecoFornecedor) {
+        // ENDEREÇO (se existir)
+        if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('ENDEREÇO: ', margem, y);
+            doc.setFont(undefined, 'normal');
+            doc.text('ENDEREÇO: ', margin, y);
             const enderecoWidth = doc.getTextWidth('ENDEREÇO: ');
-            const  enderecoTexto = toUpperCase(ordem.endereco_fornecedor ||  Ordem.enderecoFornecedor);
+            const enderecoTexto = toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor);
             const enderecoLines = doc.splitTextToSize(enderecoTexto, maxWidth - enderecoWidth);
-            Doutor.text(enderecoLines[0], margin + enderecoWidth, y);
-            y += linha Altura;
+            doc.text(enderecoLines[0], margin + enderecoWidth, y);
+            y += lineHeight;
 
-            if (enderecoLines.comprimento > 1) {
-                para (seja i = 1;  Eu < enderecoLines.comprimento;  eu++) {
-                    Doutor.text(enderecoLines[i], margin, y);
-                    y += linha Altura;
+            if (enderecoLines.length > 1) {
+                for (let i = 1; i < enderecoLines.length; i++) {
+                    doc.text(enderecoLines[i], margin, y);
+                    y += lineHeight;
                 }
             }
         }
 
-        SITE (se existir)
-        se (ordem.Site) {
+        // SITE (se existir)
+        if (ordem.site) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('SITE: ', margem, y);
+            doc.setFont(undefined, 'normal');
+            doc.text('SITE: ', margin, y);
             const siteWidth = doc.getTextWidth('SITE: ');
-            Doutor.Texto (ordem.site, margem + siteWidth, y);
-            y += linha Altura;
+            doc.text(ordem.site, margin + siteWidth, y);
+            y += lineHeight;
         }
 
-        CONTATO (se existir)
-        se (ordem.contato) {
+        // CONTATO (se existir)
+        if (ordem.contato) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('CONTATO: ', margem, y);
+            doc.setFont(undefined, 'normal');
+            doc.text('CONTATO: ', margin, y);
             const contatoWidth = doc.getTextWidth('CONTATO: ');
-            const  contatoTexto = toUpperCase(ordem.contato);
+            const contatoTexto = toUpperCase(ordem.contato);
             const contatoLines = doc.splitTextToSize(contatoTexto, maxWidth - contatoWidth);
-            Doutor.text(contatoLines[0], margin + contatoWidth, y);
-            y += linha Altura;
+            doc.text(contatoLines[0], margin + contatoWidth, y);
+            y += lineHeight;
 
-            if (contatoLines.comprimento > 1) {
-                para (seja i = 1;  Eu < contatoLines.comprimento;  eu++) {
-                    Doutor.text(contatoLines[i], margin, y);
-                    y += linha Altura;
+            if (contatoLines.length > 1) {
+                for (let i = 1; i < contatoLines.length; i++) {
+                    doc.text(contatoLines[i], margin, y);
+                    y += lineHeight;
                 }
             }
         }
 
-        TELEFONE (se existir)
-        se (ordem.telefone) {
+        // TELEFONE (se existir)
+        if (ordem.telefone) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('TELEFONE: ', margem, y);
-            const telefoneWidth = doc.getTextWidth('TELEFONE:');
-            Doutor.texto('${ordem.telefone}', margem + telefoneLargura, y);
-            y += linha Altura;
+            doc.setFont(undefined, 'normal');
+            doc.text('TELEFONE: ', margin, y);
+            const telefoneWidth = doc.getTextWidth('TELEFONE: ');
+            doc.text(`${ordem.telefone}`, margin + telefoneWidth, y);
+            y += lineHeight;
         }
 
-        E-MAIL (se existir)
-        se (ordem.Email) {
+        // E-MAIL (se existir)
+        if (ordem.email) {
             y += 1;
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('E-MAIL: ', margem, y);
+            doc.setFont(undefined, 'normal');
+            doc.text('E-MAIL: ', margin, y);
             const emailWidth = doc.getTextWidth('E-MAIL: ');
-            Doutor.Texto (ordem.email, margem + emailLargura, y);
-            y += linha Altura;
+            doc.text(ordem.email, margin + emailWidth, y);
+            y += lineHeight;
         }
 
         y += 8;
 
-        if (y > páginaAltura - 50) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 50) {
+            y = addPageWithHeader();
         }
 
         // ITENS DO PEDIDO
-        Doutor.setFontSize(11);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('ITENS DO PEDIDO', MARGEM, Y);
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('ITENS DO PEDIDO', margin, y);
 
         y += 6;
 
-         const tableWidth = pageWidth - (2 * margem);
+        const tableWidth = pageWidth - (2 * margin);
         const colWidths = {
-            item: mesaLargura * 0,05,
-            especificacao: tableWidth * 0,35,
-            qtd: Largura da tabela * 0,08,
-            unid: tableWidth * 0,08,
-            valorUn: LarguraTablaMesa * 0,12,
-            ipi: largura da tabela * 0,10,
-            st: largura da mesa * 0,10,
-            total: largura da tabela * 0,12
+            item: tableWidth * 0.05,
+            especificacao: tableWidth * 0.35,
+            qtd: tableWidth * 0.08,
+            unid: tableWidth * 0.08,
+            valorUn: tableWidth * 0.12,
+            ipi: tableWidth * 0.10,
+            st: tableWidth * 0.10,
+            total: tableWidth * 0.12
         };
 
         const itemRowHeight = 10;
 
-        Cabeçalho da tabela
-        Doutor.setPreenchidoCor(108, 117, 125);
-        Doutor.setDrawColor(180, 180, 180);
-        Doutor.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+        // Cabeçalho da tabela
+        doc.setFillColor(108, 117, 125);
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
 
-        Doutor.setTextColor(255, 255, 255);
-        Doutor.setFontSize(9);
-        Doutor.setFont(indefinido, 'negrito');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
 
-        seja xPos = margem;
+        let xPos = margin;
 
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
-        Doutor.text('ITEM', xPos + (colWidths.item / 2), y + 6,5, { alinhar: 'centro' });
-        xPos += colLarguras.Item;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.item;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('ESPECIFICAÇÃO', xPos + (colWidths.especificação / 2), y + 6,5, { alinhar: 'centro' });
-        xPos += colLarguras.especificação;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.especificacao;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('QTD', xPos + (colWidths.qtd / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.QTD;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.qtd;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('UNID', xPos + (colWidths.unid / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.UNID;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.unid;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.valorUn;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.valorUn;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('IPI', xPos + (colWidths.ipi / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.IPI;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.ipi;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('ST', xPos + (colWidths.st / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.St;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.st;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
-        Doutor.text('TOTAL', xPos + (colWidths.total / 2), y + 6,5, { align: 'center' });
-        xPos += colLarguras.Total;
-        Doutor.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.total;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
 
         y += itemRowHeight;
 
-        Resetar estilos após cabeçalho da tabela
-        Doutor.setTextColor(0, 0, 0);
-        Doutor.setFontSize(8);
-        Doutor.setFont(indefinido, 'normal');
+        // Resetar estilos após cabeçalho da tabela
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
 
-        Linhas dos itens
-        Ordem.itens.forEach((item, índice) => {
-            const  especificacaoUpper = toUpperPoint(item.especificação);
-            const maxWidthEspec = colWidths.especificação - 6;
+        // Linhas dos itens
+        ordem.items.forEach((item, index) => {
+            const especificacaoUpper = toUpperCase(item.especificacao);
+            const maxWidthEspec = colWidths.especificacao - 6;
             const especLines = doc.splitTextToSize(especificacaoUpper, maxWidthEspec);
-            const lineCount = especLines.Comprimento;
-            const neededHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
+            const lineCount = especLines.length;
+            const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
 
-            Se não couber, adiciona nova página
-            if (y + necessárioAltura > páginaAltura - 30) {
-                y = adicionarPáginaAmbCabeçalhoT();
+            // Se não couber, adiciona nova página
+            if (y + necessaryHeight > pageHeight - 30) {
+                y = addPageWithHeader();
             }
 
-            se (índice % 2 !== 0) {
-                Doutor.PreencherColor(240, 240, 240);
-                Doutor.rect(margin, y, tableWidth, necessaryHeight, 'F');
+            if (index % 2 !== 0) {
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
             }
 
-            xPos = margem;
+            xPos = margin;
 
-            Doutor.setDrawColor(180, 180, 180);
-            Doutor.setLineWidth(0,3);
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.setDrawColor(180, 180, 180);
+            doc.setLineWidth(0.3);
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.setFontSize(8);
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.texto(item.item.toString(), xPos + (colWidths.item / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.Item;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.item;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.text(especLines, xPos + 3, y + 4);
-            xPos += colLarguras.especificação;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(especLines, xPos + 3, y + 4);
+            xPos += colWidths.especificacao;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.texto(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.QTD;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.qtd;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.texto(paraMajúscula(item.unidade), xPos + (colWidths.unid / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.UNID;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.unid;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            const valorUn = item.valorUnitario ||  item.valor_unitario ||  0;
-            const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).substituir('.', ',');
-            Doutor.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.valorUn;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            const valorUn = item.valorUnitario || item.valor_unitario || 0;
+            const valorUnFormatted = 'R$ ' + parseFloat(valorUn).toFixed(2).replace('.', ',');
+            doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.valorUn;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.texto(paraMajúscula(item.ipi ||  '-'), xPos + (larguras col.ipi / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.IPI;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.ipi;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.texto(paraMajúscula(item.st ||  '-'), xPos + (larguras col.st / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.St;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.st;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.texto(item.valorTotal ||  item.valor_total, xPos + (colWidths.total / 2), y + (necessárioAltura / 2) + 1,5, { alinhar: 'centro' });
-            xPos += colLarguras.Total;
-            Doutor.line(xPos, y, xPos, y + necessárioAltura);
+            doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.total;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
 
-            Doutor.line(margem, y + necessárioAltura, margem + tabelaLargura, y + necessárioAltura);
+            doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
 
-            y += necessário Altura;
+            y += necessaryHeight;
         });
 
         y += 8;
 
-        if (y > páginaAltura - 40) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 40) {
+            y = addPageWithHeader();
         }
 
-        Doutor.setFontSize(11);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.texto('VALOR TOTAL: ${ordem.valor_total ||  Ordem.valorTotal}', margem, y);
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y);
 
         y += 10;
 
         // Verificar espaço para LOCAL DE ENTREGA
-        if (y > páginaAltura - 60) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 60) {
+            y = addPageWithHeader();
         }
 
-        Doutor.setFontSize(11);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('LOCAL DE ENTREGA:', MARGEM, Y);
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('LOCAL DE ENTREGA:', margin, y);
         y += 5;
-        Doutor.setFontSize(10);
-        Doutor.setFont(indefinido, 'normal');
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
 
-        const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES | CEP: 29,163-318';
-        const  localEntregaPDF = (ordem.local_entrega ||  Ordem.localEntrega ||  '').trim() !== '' 
- ? toUpperPoint(ordem.local_entrega ||  Ordem.localEntrega)
+        const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
+        const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' 
+            ? toUpperCase(ordem.local_entrega || ordem.localEntrega)
             : localPadrao;
 
         y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth);
@@ -2002,184 +2009,184 @@ função continuarGeracaoPDF(doc, ordem, y, margem, pageWidth, pageHeight, lineH
         y += 10;
 
         // Verificar espaço para PRAZO/FRETE/TRANSPORTE
-        if (y > páginaAltura - 50) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 50) {
+            y = addPageWithHeader();
         }
 
-        Doutor.setFontSize(10);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('PRAZO DE ENTREGA:', MARGEM, Y);
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.texto (paraMajúscula(ordem.prazo_entrega ||  Ordem.prazoEntrega ||  '-'), margem + 42, y);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text('PRAZO DE ENTREGA:', margin, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
 
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('FRETE:', pageWidth - margem - 35, y);
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.texto (paraMajúscula(ordem.frete ||  '-'), páginaLargura - margem - 20, y);
+        doc.setFont(undefined, 'bold');
+        doc.text('FRETE:', pageWidth - margin - 35, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
 
         y += 6;
 
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('TRANSPORTE:', margem, y);
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.texto (paraMajúscula(ordem.transporte ||  '-'), margem + 30, y);
+        doc.setFont(undefined, 'bold');
+        doc.text('TRANSPORTE:', margin, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y);
 
         y += 10;
 
         // Verificar espaço para CONDIÇÕES DE PAGAMENTO
-        if (y > páginaAltura - 60) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 60) {
+            y = addPageWithHeader();
         }
 
-        Doutor.setFontSize(11);
-        Doutor.setFont(indefinido, 'negrito');
-        Doutor.text('CONDIÇÕES DE PAGAMENTO:', MARGIN, Y);
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
         y += 5;
-        Doutor.setFontSize(10);
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.text('FORMA: ${toUpperCase(ordem.forma_pagamento ||  Ordem.formaPagamento)}', margem, y);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
         y += 5;
-        Doutor.text('PRAZO: ${toUpperCase(ordem.prazo_pagamento ||  Ordem.prazoPagamento)}', margem, y);
+        doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
 
-        se (ordem.dados_bancarios ||  Ordem.dadosBancarios) {
+        if (ordem.dados_bancarios || ordem.dadosBancarios) {
             y += 5;
-            Doutor.setFont(indefinido, 'negrito');
-            Doutor.text('DADOS BANCÁRIOS:', margem, y);
+            doc.setFont(undefined, 'bold');
+            doc.text('DADOS BANCÁRIOS:', margin, y);
             y += 5;
-            Doutor.setFont(indefinido, 'normal');
-            const bancarioUpper = toUpperCase(ordem.dados_bancarios ||  Ordem.dadosBancarios);
+            doc.setFont(undefined, 'normal');
+            const bancarioUpper = toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios);
             y = addTextWithWrap(bancarioUpper, margin, y, maxWidth);
         }
 
         y += 15;
 
-        if (y > páginaAltura - 80) {
-            y = adicionarPáginaAmbCabeçalhoT();
+        if (y > pageHeight - 80) {
+            y = addPageWithHeader();
         }
 
-        const  dataOrdem = new Date((ordem.data_ordem ||  Ordem.dataOrdem) + 'T00:00:00');
+        const dataOrdem = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
         const dia = dataOrdem.getDate();
         const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
                        'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
         const mes = meses[dataOrdem.getMonth()];
         const ano = dataOrdem.getFullYear();
 
-        Doutor.setFontSize(10);
-        Doutor.setFont(indefinido, 'normal');
-        Doutor.text('SERRA/ES, ${dia} DE ${mes} DE ${ano}', pageWidth / 2, y, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
 
         y += 5;
 
-        const assinatura = nova Imagem();
-        Assinatura.crossOrigin = 'anônimo';
-        Assinatura.src = 'assinatura.png';
+        const assinatura = new Image();
+        assinatura.crossOrigin = 'anonymous';
+        assinatura.src = 'assinatura.png';
 
-        Assinatura.onload = função() {
-            tente {
+        assinatura.onload = function() {
+            try {
                 const imgWidth = 50;
-                const imgHeight = (assinatura.Altura / Assinatura.largura) * imgLargura;
+                const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
 
-                Doutor.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
+                doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
 
-                seja yFinal = y + imgAltura + 5;
-
-                yFinal += 5;
-                Doutor.setFontSize(10);
-                Doutor.setFont(indefinido, 'negrito');
-                Doutor.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', PAGEWidth / 2, yFinal, { align: 'center' });
+                let yFinal = y + imgHeight + 5;
 
                 yFinal += 5;
-                Doutor.setFontSize(9);
-                Doutor.setFont(indefinido, 'normal');
-                Doutor.text('MG-10.078.568 / CPF: 045.160.616-78',  pageWidth / 2, yFinal, { align: 'center' });
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
 
                 yFinal += 5;
-                Doutor.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
+
+                yFinal += 5;
+                doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
 
                 yFinal += 12;
 
-                if (yPágina > Final  -  30) {
+                if (yFinal > pageHeight - 30) {
                     yFinal = addPageWithHeader();
                 }
 
-                Doutor.PreencherColor(240, 240, 240);
-                Doutor.rect(margem, yFinal, pageWidth - (2* margem), 22, 'F');
-                Doutor.setDrawColor(200, 200, 200);
-                Doutor.rect(margem, yFinal, pageWidth - (2 * margem), 22, 'S');
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
 
                 yFinal += 6;
-                Doutor.setFontSize(10);
-                Doutor.setFont(indefinido, 'negrito');
-                Doutor.setTextColor(204, 112, 0);
-                Doutor.texto('ATENÇÃO SR. FORNECEDOR:', MARGEM + 5, yFinal);
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(204, 112, 0);
+                doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
 
                 yFinal += 5;
-                Doutor.setTextColor(0, 0, 0);
-                Doutor.setFont(indefinido, 'normal');
-                Doutor.setFontSize(9);
-                Doutor.text('1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', margem + 5, yFinal);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9);
+                doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
 
                 yFinal += 5;
-                Doutor.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margem + 5, yFinal);
+                doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
 
-                Doutor.save('${toUpperCase(ordem.razao_social ||  Ordem.razaoSocial)}-${ordem.numero_ordem ||  Ordem.numeroOrdem}.pdf');
-                showToast('PDF gerado com sucesso!', 'sucesso');
+                doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
+                showToast('PDF gerado com sucesso!', 'success');
 
-            } Captura (e) {
-                Console.log('Erro ao adicionar assinatura:', e);
+            } catch (e) {
+                console.log('Erro ao adicionar assinatura:', e);
                 gerarPDFSemAssinatura();
             }
         };
 
-        Assinatura.onerror = função() {
-            Console.log('Erro ao carregar assinatura, gerando PDF sem ela');
+        assinatura.onerror = function() {
+            console.log('Erro ao carregar assinatura, gerando PDF sem ela');
             gerarPDFSemAssinatura();
         };
 
         function gerarPDFSemAssinatura() {
-            seja yFinal = y + 5;
+            let yFinal = y + 5;
 
             yFinal += 5;
-            Doutor.setFontSize(10);
-            Doutor.setFont(indefinido, 'negrito');
-            Doutor.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', PAGEWidth / 2, yFinal, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
 
             yFinal += 5;
-            Doutor.setFontSize(9);
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.text('MG-10.078.568 / CPF: 045.160.616-78',  pageWidth / 2, yFinal, { align: 'center' });
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
 
             yFinal += 5;
-            Doutor.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
 
             yFinal += 12;
 
-            if (yPágina > Final  -  30) {
+            if (yFinal > pageHeight - 30) {
                 yFinal = addPageWithHeader();
             }
 
-            Doutor.PreencherColor(240, 240, 240);
-            Doutor.rect(margem, yFinal, pageWidth - (2* margem), 22, 'F');
-            Doutor.setDrawColor(200, 200, 200);
-            Doutor.rect(margem, yFinal, pageWidth - (2 * margem), 22, 'S');
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
 
             yFinal += 6;
-            Doutor.setFontSize(10);
-            Doutor.setFont(indefinido, 'negrito');
-            Doutor.setTextColor(204, 112, 0);
-            Doutor.texto('ATENÇÃO SR. FORNECEDOR:', MARGEM + 5, yFinal);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(204, 112, 0);
+            doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
 
             yFinal += 5;
-            Doutor.setTextColor(0, 0, 0);
-            Doutor.setFont(indefinido, 'normal');
-            Doutor.setFontSize(9);
-            Doutor.text('1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem ||  Ordem.numeroOrdem}', margem + 5, yFinal);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+            doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
 
             yFinal += 5;
-            Doutor.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margem + 5, yFinal);
+            doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
 
             Doutor.save('${toUpperCase(ordem.razao_social ||  Ordem.razaoSocial)}-${ordem.numero_ordem ||  Ordem.numeroOrdem}.pdf');
-            showToast('PDF gerado (sem assinatura)', 'sucesso');
+            showToast('PDF gerado (sem assinatura)', 'success');
         }
     } Fechamento da função gerarPDFComCabecalho
 }

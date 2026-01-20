@@ -23,7 +23,6 @@
     --btn-edit: #6B7280;
     --btn-view: #F59E0B;
     --btn-save: #22C55E;
-    --btn-pdf: #1E3A8A;
     --alert-color: #EF4444;
 }
 
@@ -843,15 +842,6 @@ button.view, .action-btn.view {
 
 button.success, button.save, button[type="submit"], .action-btn.success {
     background: var(--btn-save);
-}
-
-/* BOTÃO PDF - AZUL ESCURO */
-.action-btn.pdf, button[onclick*="generatePDF"] {
-    background: var(--btn-pdf) !important;
-}
-
-.action-btn.pdf:hover, button[onclick*="generatePDF"]:hover {
-    background: #1E40AF !important;
 }
 
 button.secondary {

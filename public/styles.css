@@ -1042,6 +1042,7 @@ button.small {
 .modal-delete {
     position: relative;
     padding: 2.5rem 2rem 2rem 2rem;
+    max-width: 500px !important;
 }
 
 .modal-delete .close-modal {
@@ -1051,17 +1052,18 @@ button.small {
 }
 
 .modal-message-delete {
-    margin: 2rem 0 2.5rem 0;
+    margin: 3rem 0 2.5rem 0;
     color: var(--text-primary);
-    font-size: 1.25rem;
+    font-size: 1rem;
     line-height: 1.6;
     text-align: center;
-    font-weight: 500;
+    font-weight: 400;
 }
 
 .modal-actions-no-border {
-    border-top: none;
-    padding-top: 0;
+    border-top: none !important;
+    padding-top: 0 !important;
+    justify-content: center !important;
 }
 
 /* SISTEMA DE ABAS */

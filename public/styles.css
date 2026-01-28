@@ -962,6 +962,12 @@ button.small {
     }
 }
 
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+    }
+}
+
 .modal-content {
     background: var(--bg-card);
     border-radius: 16px;
@@ -1030,6 +1036,32 @@ button.small {
 .close-modal:focus {
     background: transparent !important;
     outline: none;
+}
+
+/* MODAL DELETE - IDÊNTICO À TABELA DE PREÇOS */
+.modal-delete {
+    position: relative;
+    padding: 2.5rem 2rem 2rem 2rem;
+}
+
+.modal-delete .close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+}
+
+.modal-message-delete {
+    margin: 2rem 0 2.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    line-height: 1.6;
+    text-align: center;
+    font-weight: 500;
+}
+
+.modal-actions-no-border {
+    border-top: none;
+    padding-top: 0;
 }
 
 /* SISTEMA DE ABAS */

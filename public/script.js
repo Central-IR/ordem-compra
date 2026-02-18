@@ -11,6 +11,7 @@ let currentInfoTab = 0;
 let isOnline = false;
 let sessionToken = null;
 let lastDataHash = '';
+let isLoadingMonth = false;
 let fornecedoresCache = {};
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
@@ -93,20 +94,16 @@ async function checkServerStatus() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
+        // Usar health para verificar status do servidor (sem carregar dados)
+        const healthResponse = await fetch(`${API_URL.replace('/api', '')}/health`, {
             method: 'GET',
             headers: headers,
-            mode: 'cors'
+            mode: 'cors',
+            cache: 'no-cache'
         });
 
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return false;
-        }
-
         const wasOffline = !isOnline;
-        isOnline = response.ok;
+        isOnline = healthResponse.ok;
         
         if (wasOffline && isOnline) {
             console.log('✅ SERVIDOR ONLINE');
@@ -132,27 +129,31 @@ function updateConnectionStatus() {
 
 function startPolling() {
     loadOrdens();
+    // Atualiza a cada 30s para reduzir carga (os dados são por mês)
     setInterval(() => {
-        if (isOnline) loadOrdens();
-    }, 10000);
+        if (isOnline && !isLoadingMonth) loadOrdens();
+    }, 30000);
 }
 
 async function loadOrdens() {
     if (!isOnline && !DEVELOPMENT_MODE) return;
 
     try {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
+        const headers = { 'Accept': 'application/json' };
         if (!DEVELOPMENT_MODE && sessionToken) {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
+        // Buscar apenas o mês/ano atual — sem acumular dados
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const url = `${API_URL}/ordens?mes=${mes}&ano=${ano}`;
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: headers,
-            mode: 'cors'
+            mode: 'cors',
+            cache: 'no-cache'
         });
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
@@ -167,15 +168,12 @@ async function loadOrdens() {
         }
 
         const data = await response.json();
+        // Substituir completamente — sem acúmulo de meses anteriores
         ordens = data;
-        
+
         atualizarCacheFornecedores(data);
-        
-        const newHash = JSON.stringify(ordens.map(o => o.id));
-        if (newHash !== lastDataHash) {
-            lastDataHash = newHash;
-            updateDisplay();
-        }
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
     } catch (error) {
         console.error('❌ Erro ao carregar:', error);
     }
@@ -200,7 +198,11 @@ async function syncData() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const syncUrl = `${API_URL}/ordens?mes=${mes}&ano=${ano}`;
+
+        const response = await fetch(syncUrl, {
             method: 'GET',
             headers: headers,
             mode: 'cors',
@@ -218,6 +220,7 @@ async function syncData() {
         }
 
         const data = await response.json();
+        // Substituir completamente os dados do mês
         ordens = data;
         
         atualizarCacheFornecedores(data);
@@ -225,7 +228,7 @@ async function syncData() {
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
         
-        console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas`);
+        console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas para o mês selecionado`);
         showToast('Dados sincronizados', 'success');
         
     } catch (error) {
@@ -365,7 +368,12 @@ function setupFornecedorAutocomplete() {
 
 function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
-    updateDisplay();
+    // Descartar dados do mês anterior e buscar o novo mês
+    ordens = [];
+    lastDataHash = '';
+    isLoadingMonth = true;
+    updateDisplay(); // Atualiza UI imediatamente com indicador de carregamento
+    loadOrdens().finally(() => { isLoadingMonth = false; });
 }
 
 function updateMonthDisplay() {
@@ -500,12 +508,13 @@ function previousInfoTab() {
     }
 }
 
-function openFormModal() {
+async function openFormModal() {
     editingId = null;
     currentTab = 0;
     itemCounter = 0;
     
-    const nextNumber = getNextOrderNumber();
+    // Buscar próximo número global no servidor (evita duplicatas entre meses)
+    const nextNumber = await fetchProximoNumero() || getNextOrderNumber();
     const today = new Date().toISOString().split('T')[0];
     
     const modalHTML = `
@@ -1308,10 +1317,8 @@ function updateDashboard() {
     const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
     const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
     
-    const numeros = ordens
-        .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
-        .filter(n => !isNaN(n));
-    const ultimoNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
+    // Total de ordens no mês atual (ordens[] já está filtrado pelo mês)
+    const ultimoNumero = monthOrdens.length;
     
     let valorTotalMes = 0;
     monthOrdens.forEach(ordem => {
@@ -1377,10 +1384,13 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
+        const msg = isLoadingMonth
+            ? '<span style="opacity:0.6;">Carregando...</span>'
+            : 'Nenhuma ordem encontrada';
         container.innerHTML = `
             <tr>
                 <td colspan="8" style="text-align: center; padding: 2rem;">
-                    Nenhuma ordem encontrada
+                    ${msg}
                 </td>
             </tr>
         `;
@@ -1450,20 +1460,36 @@ function updateResponsaveisFilter() {
 }
 
 function getOrdensForCurrentMonth() {
-    return ordens.filter(ordem => {
-        const ordemDate = new Date((ordem.data_ordem || ordem.dataOrdem) + 'T00:00:00');
-        return ordemDate.getMonth() === currentMonth.getMonth() &&
-               ordemDate.getFullYear() === currentMonth.getFullYear();
-    });
+    // Os dados em `ordens` já foram buscados filtrados pelo mês/ano atual no servidor
+    return ordens;
 }
 
 function getNextOrderNumber() {
+    // Usa o número máximo dos dados em memória (mês atual)
+    // O servidor pode ter ordens em outros meses com números maiores,
+    // mas o campo número da ordem é editável, então serve como base inicial
     const existingNumbers = ordens
         .map(o => parseInt(o.numero_ordem || o.numeroOrdem))
         .filter(n => !isNaN(n));
     
-    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1250;
-    return nextNum.toString();
+    const nextNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : null;
+    return nextNum ? nextNum.toString() : '...';
+}
+
+// Busca o próximo número global no servidor para preencher o campo ao abrir nova ordem
+async function fetchProximoNumero() {
+    try {
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+        const res = await fetch(`${API_URL}/ordens/proximo-numero`, { headers, mode: 'cors' });
+        if (!res.ok) return null;
+        const json = await res.json();
+        return json.proximo ? json.proximo.toString() : null;
+    } catch (e) {
+        return null;
+    }
 }
 
 function formatDate(dateString) {

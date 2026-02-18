@@ -108,7 +108,40 @@ async function verificarAutenticacao(req, res, next) {
 // ROTAS DA API
 app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
-        console.log('📋 Listando ordens...');
+        const { mes, ano } = req.query;
+
+        // Se mês e ano forem fornecidos, filtrar por período
+        if (mes !== undefined && ano !== undefined) {
+            const month = parseInt(mes); // 0-based (Janeiro = 0)
+            const year = parseInt(ano);
+
+            // Calcular primeiro e último dia do mês
+            const startDate = new Date(year, month, 1);
+            const endDate = new Date(year, month + 1, 0); // último dia do mês
+
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
+
+            console.log(`📋 Listando ordens de ${startStr} a ${endStr}...`);
+
+            const { data, error } = await supabase
+                .from('ordens_compra')
+                .select('*')
+                .gte('data_ordem', startStr)
+                .lte('data_ordem', endStr)
+                .order('data_ordem', { ascending: true });
+
+            if (error) {
+                console.error('❌ Erro Supabase ao listar por mês:', error);
+                throw error;
+            }
+
+            console.log(`✅ ${data?.length || 0} ordens encontradas para ${startStr} ~ ${endStr}`);
+            return res.json(data || []);
+        }
+
+        // Sem filtro: retornar todos (compatibilidade retroativa)
+        console.log('📋 Listando todas as ordens...');
         const { data, error } = await supabase
             .from('ordens_compra')
             .select('*')
@@ -128,6 +161,29 @@ app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
             error: 'Erro ao listar ordens',
             message: error.message
         });
+    }
+});
+
+// Rota para buscar o maior número de ordem global (para numerar nova ordem)
+app.get('/api/ordens/proximo-numero', verificarAutenticacao, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('numero_ordem')
+            .order('numero_ordem', { ascending: false })
+            .limit(100);
+
+        if (error) throw error;
+
+        const numeros = (data || [])
+            .map(o => parseInt(o.numero_ordem))
+            .filter(n => !isNaN(n));
+
+        const proximo = numeros.length > 0 ? Math.max(...numeros) + 1 : 1250;
+        res.json({ proximo });
+    } catch (error) {
+        console.error('❌ Erro ao buscar próximo número:', error.message);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

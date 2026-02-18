@@ -1384,16 +1384,36 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
-        const msg = isLoadingMonth
-            ? '<span style="opacity:0.6;">Carregando...</span>'
-            : 'Nenhuma ordem encontrada';
-        container.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem;">
-                    ${msg}
-                </td>
-            </tr>
-        `;
+        if (isLoadingMonth) {
+            container.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2.5rem;">
+                        <div style="display: inline-flex; align-items: center; gap: 12px; color: var(--text-secondary, #aaa);">
+                            <div style="
+                                width: 22px; height: 22px;
+                                border-radius: 50%;
+                                border: 2.5px solid transparent;
+                                border-top-color: #e07b00;
+                                border-right-color: #f5a623;
+                                border-bottom-color: transparent;
+                                border-left-color: transparent;
+                                animation: spinLoader 0.75s linear infinite;
+                                flex-shrink: 0;
+                            "></div>
+                            <span style="font-size: 0.95rem; letter-spacing: 0.01em;">Carregando...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            container.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem;">
+                        Nenhuma ordem encontrada
+                    </td>
+                </tr>
+            `;
+        }
         return;
     }
     

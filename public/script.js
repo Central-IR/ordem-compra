@@ -1409,7 +1409,7 @@ function updateTable() {
             container.innerHTML = `
                 <tr>
                     <td colspan="8" style="text-align: center; padding: 2rem;">
-                        Nenhuma ordem encontrada
+                        Nenhum registro encontrado
                     </td>
                 </tr>
             `;

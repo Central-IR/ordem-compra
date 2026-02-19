@@ -251,7 +251,9 @@ async function syncData() {
             headers['X-Session-Token'] = sessionToken;
         }
 
-        const response = await fetch(`${API_URL}/ordens`, {
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const response = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
             method: 'GET',
             headers: headers,
             mode: 'cors',
@@ -270,13 +272,13 @@ async function syncData() {
 
         const data = await response.json();
         ordens = data;
-        
+
         mesclarCacheFornecedores(data);
-        
+
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
         updateDisplay();
-        
-        console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas`);
+
+        console.log(`✅ Sincronização concluída: ${ordens.length} ordens em ${mes + 1}/${ano}`);
         showToast('Dados sincronizados', 'success');
         
     } catch (error) {

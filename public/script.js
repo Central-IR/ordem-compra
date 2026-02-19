@@ -111,7 +111,7 @@ async function checkServerStatus() {
         
         if (wasOffline && isOnline) {
             console.log('✅ SERVIDOR ONLINE');
-            await loadOrdens();
+            await Promise.all([loadOrdens(), loadUltimoNumero(), loadFornecedoresGlobal()]);
         }
         
         updateConnectionStatus();

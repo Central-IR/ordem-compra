@@ -1,83 +1,53 @@
-// ============================================
-// CONFIGURAÇÃO
-// ============================================
+const DEVELOPMENT_MODE = false;
 const PORTAL_URL = 'https://ir-comercio-portal-zcan.onrender.com';
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3004/api'
+    ? 'http://localhost:10000/api'
     : `${window.location.origin}/api`;
 
-let pedidos = [];
-let isOnline = false;
-let itemCounter = 0;
-let clientesCache = {};   // cache completo de fornecedores (todos os meses)
-let estoqueCache = {};
+let ordens = [];
+let currentMonth = new Date();
 let editingId = null;
+let itemCounter = 0;
+let currentTab = 0;
+let currentInfoTab = 0;
+let isOnline = false;
 let sessionToken = null;
-let currentTabIndex = 0;
-let currentMonth = new Date(); // Mês atual para navegação
+let lastDataHash = '';
+let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
 let isLoadingMonth = false;
-let ultimoCodigoGlobal = 0;   // maior código de pedido de todo o banco
-const tabs = ['tab-geral', 'tab-faturamento', 'tab-itens', 'tab-entrega', 'tab-transporte'];
+let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
 
-// ============================================
-// FUNÇÕES AUXILIARES
-// ============================================
+const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
+
+console.log('🚀 Ordem de Compra iniciada');
+console.log('📍 API URL:', API_URL);
+console.log('🔧 Modo desenvolvimento:', DEVELOPMENT_MODE);
+
 function toUpperCase(value) {
     return value ? String(value).toUpperCase() : '';
 }
 
-function formatarCNPJ(cnpj) {
-    cnpj = cnpj.replace(/\D/g, '');
-    if (cnpj.length <= 14) {
-        return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
-    }
-    return cnpj;
+// Converter input para maiúsculo automaticamente
+function setupUpperCaseInputs() {
+    const textInputs = document.querySelectorAll('input[type="text"]:not([readonly]), textarea');
+    textInputs.forEach(input => {
+        input.addEventListener('input', function(e) {
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = toUpperCase(this.value);
+            this.setSelectionRange(start, end);
+        });
+    });
 }
 
-function formatarMoeda(valor) {
-    if (typeof valor === 'string' && valor.startsWith('R$')) return valor;
-    const num = parseFloat(valor) || 0;
-    return 'R$ ' + num.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-function parseMoeda(valor) {
-    if (!valor) return 0;
-    return parseFloat(valor.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-}
-
-function showMessage(message, type = 'success') {
-    const div = document.createElement('div');
-    div.className = `floating-message ${type}`;
-    div.textContent = message;
-    document.body.appendChild(div);
-    setTimeout(() => {
-        div.style.animation = 'slideOut 0.3s ease forwards';
-        setTimeout(() => div.remove(), 300);
-    }, 2000);
-}
-
-function formatarData(data) {
-    if (!data) return '';
-    const d = new Date(data);
-    const dia = String(d.getDate()).padStart(2, '0');
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const ano = d.getFullYear();
-    return `${dia}/${mes}/${ano}`;
-}
-
-function getDataAtual() {
-    const hoje = new Date();
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
-    return `${dia}/${mes}/${ano}`;
-}
-
-// ============================================
-// INICIALIZAÇÃO E AUTENTICAÇÃO
-// ============================================
 document.addEventListener('DOMContentLoaded', () => {
-    verificarAutenticacao();
+    if (DEVELOPMENT_MODE) {
+        console.log('⚠️ MODO DESENVOLVIMENTO ATIVADO');
+        sessionToken = 'dev-mode';
+        inicializarApp();
+    } else {
+        verificarAutenticacao();
+    }
 });
 
 function verificarAutenticacao() {
@@ -86,10 +56,10 @@ function verificarAutenticacao() {
 
     if (tokenFromUrl) {
         sessionToken = tokenFromUrl;
-        sessionStorage.setItem('pedidosSession', tokenFromUrl);
+        sessionStorage.setItem('ordemCompraSession', tokenFromUrl);
         window.history.replaceState({}, document.title, window.location.pathname);
     } else {
-        sessionToken = sessionStorage.getItem('pedidosSession');
+        sessionToken = sessionStorage.getItem('ordemCompraSession');
     }
 
     if (!sessionToken) {
@@ -102,122 +72,52 @@ function verificarAutenticacao() {
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
     document.body.innerHTML = `
-        <div style="
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            text-align: center;
-            padding: 2rem;
-        ">
-            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">
-                ${mensagem}
-            </h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-                Somente usuários autenticados podem acessar esta área.
-            </p>
-            <a href="${PORTAL_URL}" style="
-                display: inline-block;
-                background: var(--btn-register);
-                color: white;
-                padding: 14px 32px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-weight: 600;
-                text-transform: uppercase;
-            ">IR PARA O PORTAL</a>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
+            <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Somente usuários autenticados podem acessar esta área.</p>
+            <a href="${PORTAL_URL}" style="display: inline-block; background: var(--btn-register); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ir para o Portal</a>
         </div>
     `;
 }
 
-async function inicializarApp() {
-    await checkConnection();
-    
-    // Carrega em paralelo: pedidos do mês atual + estoque + fornecedores globais + último código
-    await Promise.all([loadPedidos(), loadEstoque(), loadFornecedores(), loadUltimoCodigo()]);
-    
-    document.getElementById('cnpj')?.addEventListener('input', (e) => {
-        e.target.value = formatarCNPJ(e.target.value);
-    });
-    
-    const fieldsToUppercase = [
-        'razaoSocial', 'inscricaoEstadual', 'endereco', 'telefone', 
-        'contato', 'documento', 'localEntrega', 'setor', 
-        'transportadora', 'valorFrete'
-    ];
-    
-    fieldsToUppercase.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.addEventListener('input', (e) => {
-                const start = e.target.selectionStart;
-                const end = e.target.selectionEnd;
-                e.target.value = e.target.value.toUpperCase();
-                e.target.setSelectionRange(start, end);
-            });
-        }
-    });
-    
-    document.addEventListener('input', (e) => {
-        if (e.target.id && e.target.id.startsWith('especificacao-')) {
-            const start = e.target.selectionStart;
-            const end = e.target.selectionEnd;
-            e.target.value = e.target.value.toUpperCase();
-            e.target.setSelectionRange(start, end);
-        }
-        if (e.target.id && e.target.id.startsWith('codigoEstoque-')) {
-            const start = e.target.selectionStart;
-            const end = e.target.selectionEnd;
-            e.target.value = e.target.value.toUpperCase();
-            e.target.setSelectionRange(start, end);
-        }
-        if (e.target.id && e.target.id.startsWith('ncm-')) {
-            const start = e.target.selectionStart;
-            const end = e.target.selectionEnd;
-            e.target.value = e.target.value.toUpperCase();
-            e.target.setSelectionRange(start, end);
-        }
-    });
-    
-    setInterval(checkConnection, 30000);
+function inicializarApp() {
+    updateDisplay();
+    checkServerStatus();
+    setInterval(checkServerStatus, 15000);
+    loadFornecedoresGlobal();
+    loadUltimoNumero();
+    startPolling();
 }
 
-// ============================================
-// CONEXÃO COM A API
-// ============================================
-async function checkConnection() {
+async function checkServerStatus() {
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
 
-        const response = await fetch(`${API_URL}/health`, {
+        const response = await fetch(`${API_URL.replace('/api', '')}/health`, {
             method: 'GET',
-            headers: { 'X-Session-Token': sessionToken },
-            signal: controller.signal,
+            headers: headers,
+            mode: 'cors',
             cache: 'no-cache'
         });
-
-        clearTimeout(timeoutId);
 
         const wasOffline = !isOnline;
         isOnline = response.ok;
         
         if (wasOffline && isOnline) {
-            console.log('✅ Servidor ONLINE');
-            await loadPedidos();
-        } else if (!wasOffline && !isOnline) {
-            console.log('❌ Servidor OFFLINE');
+            console.log('✅ SERVIDOR ONLINE');
+            await loadOrdens();
         }
         
         updateConnectionStatus();
         return isOnline;
     } catch (error) {
-        if (isOnline) {
-            console.log('❌ Erro de conexão:', error.message);
-        }
+        console.error('❌ Erro ao verificar servidor:', error);
         isOnline = false;
         updateConnectionStatus();
         return false;
@@ -225,339 +125,302 @@ async function checkConnection() {
 }
 
 function updateConnectionStatus() {
-    const status = document.getElementById('connectionStatus');
-    if (status) {
-        status.className = isOnline ? 'connection-status online' : 'connection-status offline';
+    const statusElement = document.getElementById('connectionStatus');
+    if (statusElement) {
+        statusElement.className = isOnline ? 'connection-status online' : 'connection-status offline';
     }
 }
 
-async function syncData() {
-    if (!isOnline) {
-        showMessage('Você está offline. Não é possível sincronizar.', 'error');
-        return;
-    }
-    
-    const btnSync = document.getElementById('btnSync');
-    if (btnSync) {
-        btnSync.disabled = true;
-        btnSync.style.opacity = '0.5';
-        const svg = btnSync.querySelector('svg');
-        if (svg) {
-            svg.style.animation = 'spin 1s linear infinite';
-        }
-    }
-    
-    try {
-        await Promise.all([loadPedidos(), loadEstoque()]);
-        showMessage('Dados sincronizados', 'success');
-    } catch (error) {
-        showMessage('Erro ao sincronizar', 'error');
-    } finally {
-        if (btnSync) {
-            btnSync.disabled = false;
-            btnSync.style.opacity = '1';
-            const svg = btnSync.querySelector('svg');
-            if (svg) {
-                svg.style.animation = '';
-            }
-        }
-    }
+function startPolling() {
+    loadOrdens();
+    setInterval(() => {
+        if (isOnline) loadOrdens();
+    }, 10000);
 }
 
-// ============================================
-// CARREGAR PEDIDOS (apenas o mês navegado)
-// ============================================
-async function loadPedidos() {
-    if (!isOnline) return;
+async function loadOrdens() {
+    if (!isOnline && !DEVELOPMENT_MODE) return;
+
     try {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
         const mes = currentMonth.getMonth();
         const ano = currentMonth.getFullYear();
-        const response = await fetch(`${API_URL}/pedidos?mes=${mes}&ano=${ano}`, {
-            headers: { 'X-Session-Token': sessionToken },
+        const response = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
+            method: 'GET',
+            headers: headers,
+            mode: 'cors',
             cache: 'no-cache'
         });
 
-        if (response.status === 401) {
-            sessionStorage.removeItem('pedidosSession');
-            mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
-        if (response.ok) {
-            pedidos = await response.json();
-            // Mesclar no cache global — não apaga fornecedores de outros meses
-            mesclarCacheClientes(pedidos);
+        if (!response.ok) {
+            console.error('❌ Erro ao carregar ordens:', response.status);
+            return;
+        }
+
+        const data = await response.json();
+        ordens = data;
+
+        mesclarCacheFornecedores(data);
+
+        const newHash = JSON.stringify(ordens.map(o => o.id));
+        if (newHash !== lastDataHash) {
+            lastDataHash = newHash;
             updateDisplay();
         }
     } catch (error) {
-        console.error('Erro ao carregar pedidos:', error);
+        console.error('❌ Erro ao carregar:', error);
     }
 }
 
 // ============================================
-// CARREGAR FORNECEDORES GLOBAIS (para autocomplete)
+// FORNECEDORES GLOBAIS — autocomplete todos os meses
 // ============================================
-async function loadFornecedores() {
-    if (!isOnline) return;
+async function loadFornecedoresGlobal() {
+    if (!isOnline && !DEVELOPMENT_MODE) return;
     try {
-        // Endpoint leve: retorna apenas campos necessários para o autocomplete
-        const response = await fetch(`${API_URL}/fornecedores`, {
-            headers: { 'X-Session-Token': sessionToken },
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+        const response = await fetch(`${API_URL}/fornecedores`, { headers, cache: 'no-cache' });
+        if (!response.ok) return;
+        const lista = await response.json();
+        lista.forEach(f => {
+            const razao = (f.razao_social || '').trim().toUpperCase();
+            if (razao && !fornecedoresCache[razao]) {
+                fornecedoresCache[razao] = {
+                    razaoSocial: (f.razao_social || '').toUpperCase(),
+                    nomeFantasia: (f.nome_fantasia || '').toUpperCase(),
+                    cnpj: f.cnpj || '',
+                    enderecoFornecedor: (f.endereco_fornecedor || '').toUpperCase(),
+                    site: f.site || '',
+                    contato: (f.contato || '').toUpperCase(),
+                    telefone: f.telefone || '',
+                    email: f.email || ''
+                };
+            }
+        });
+        console.log(`👥 ${Object.keys(fornecedoresCache).length} fornecedores em cache global`);
+    } catch (e) { console.error('❌ loadFornecedoresGlobal:', e); }
+}
+
+// ============================================
+// ÚLTIMO NÚMERO GLOBAL — contador do dashboard
+// ============================================
+async function loadUltimoNumero() {
+    if (!isOnline && !DEVELOPMENT_MODE) return;
+    try {
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+        const response = await fetch(`${API_URL}/ordens/ultimo-numero`, { headers, cache: 'no-cache' });
+        if (!response.ok) return;
+        const data = await response.json();
+        ultimoNumeroGlobal = data.ultimoNumero || 0;
+        console.log(`🔢 Último número global: ${ultimoNumeroGlobal}`);
+        updateDashboard();
+    } catch (e) { console.error('❌ loadUltimoNumero:', e); }
+}
+
+// FUNÇÃO DE SINCRONIZAÇÃO DE DADOS - MENSAGENS SIMPLIFICADAS
+async function syncData() {
+    console.log('🔄 Iniciando sincronização...');
+    
+    if (!isOnline && !DEVELOPMENT_MODE) {
+        showToast('Erro ao sincronizar', 'error');
+        console.log('❌ Sincronização cancelada: servidor offline');
+        return;
+    }
+
+    try {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens`, {
+            method: 'GET',
+            headers: headers,
+            mode: 'cors',
             cache: 'no-cache'
         });
-        if (response.ok) {
-            const lista = await response.json();
-            // Constrói o cache a partir da lista de fornecedores únicos
-            lista.forEach(f => {
-                const cnpj = f.cnpj?.trim();
-                if (cnpj && !clientesCache[cnpj]) {
-                    clientesCache[cnpj] = {
-                        razaoSocial: f.razao_social,
-                        inscricaoEstadual: f.inscricao_estadual,
-                        endereco: f.endereco,
-                        telefone: f.telefone,
-                        contato: f.contato,
-                        email: f.email || '',
-                        documento: f.documento,
-                        localEntrega: f.local_entrega,
-                        setor: f.setor,
-                        transportadora: f.transportadora,
-                        valorFrete: f.valor_frete,
-                        vendedor: f.vendedor,
-                        peso: f.peso,
-                        quantidade: f.quantidade,
-                        volumes: f.volumes,
-                        previsaoEntrega: f.previsao_entrega
-                    };
-                }
-            });
-            console.log(`👥 ${Object.keys(clientesCache).length} fornecedores em cache global`);
-        }
-    } catch (error) {
-        console.error('Erro ao carregar fornecedores:', error);
-    }
-}
 
-// ============================================
-// CARREGAR ÚLTIMO CÓDIGO GLOBAL
-// ============================================
-async function loadUltimoCodigo() {
-    if (!isOnline) return;
-    try {
-        const response = await fetch(`${API_URL}/pedidos/ultimo-codigo`, {
-            headers: { 'X-Session-Token': sessionToken },
-            cache: 'no-cache'
-        });
-        if (response.ok) {
-            const data = await response.json();
-            ultimoCodigoGlobal = data.ultimoCodigo || 0;
-            console.log(`🔢 Último código global: ${ultimoCodigoGlobal}`);
-        }
-    } catch (error) {
-        console.error('Erro ao carregar último código:', error);
-    }
-}
-
-// ============================================
-// CARREGAR ESTOQUE
-// ============================================
-async function loadEstoque() {
-    try {
-        const response = await fetch(`${API_URL}/estoque`, {
-            headers: { 'X-Session-Token': sessionToken }
-        });
-
-        if (response.status === 401) {
-            sessionStorage.removeItem('pedidosSession');
-            mostrarTelaAcessoNegado('SUA SESSÃO EXPIROU');
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
 
-        if (response.ok) {
-            const items = await response.json();
-            estoqueCache = {};
-            items.forEach(item => {
-                estoqueCache[item.codigo.toString()] = item;
-            });
-            console.log(`📦 ${items.length} itens carregados do estoque`);
+        if (!response.ok) {
+            throw new Error(`Erro ao sincronizar: ${response.status}`);
         }
+
+        const data = await response.json();
+        ordens = data;
+        
+        mesclarCacheFornecedores(data);
+        
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
+        
+        console.log(`✅ Sincronização concluída: ${ordens.length} ordens carregadas`);
+        showToast('Dados sincronizados', 'success');
+        
     } catch (error) {
-        console.error('Erro ao carregar estoque:', error);
+        console.error('❌ Erro na sincronização:', error);
+        showToast('Erro ao sincronizar', 'error');
     }
 }
 
-// ============================================
-// CACHE DE CLIENTES — mescla, nunca apaga
-// ============================================
-function mesclarCacheClientes(lista) {
-    // Atualiza entradas existentes com dados mais recentes; adiciona novas
-    lista.forEach(pedido => {
-        const cnpj = pedido.cnpj?.trim();
-        if (!cnpj) return;
-        // Sempre atualiza com o registro mais recente do mês carregado
-        clientesCache[cnpj] = {
-            razaoSocial: pedido.razao_social,
-            inscricaoEstadual: pedido.inscricao_estadual,
-            endereco: pedido.endereco,
-            telefone: pedido.telefone,
-            contato: pedido.contato,
-            email: pedido.email || '',
-            documento: pedido.documento,
-            localEntrega: pedido.local_entrega,
-            setor: pedido.setor,
-            transportadora: pedido.transportadora,
-            valorFrete: pedido.valor_frete,
-            vendedor: pedido.vendedor,
-            peso: pedido.peso,
-            quantidade: pedido.quantidade,
-            volumes: pedido.volumes,
-            previsaoEntrega: pedido.previsao_entrega
+// Mescla no cache global — nunca apaga fornecedores de outros meses
+function mesclarCacheFornecedores(lista) {
+    lista.forEach(ordem => {
+        const razaoSocial = toUpperCase(ordem.razao_social || ordem.razaoSocial || '').trim();
+        if (!razaoSocial) return;
+        fornecedoresCache[razaoSocial] = {
+            razaoSocial: toUpperCase(ordem.razao_social || ordem.razaoSocial),
+            nomeFantasia: toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || ''),
+            cnpj: ordem.cnpj || '',
+            enderecoFornecedor: toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || ''),
+            site: ordem.site || '',
+            contato: toUpperCase(ordem.contato || ''),
+            telefone: ordem.telefone || '',
+            email: ordem.email || ''
         };
     });
-    console.log(`👥 ${Object.keys(clientesCache).length} fornecedores em cache`);
+    console.log(`📋 ${Object.keys(fornecedoresCache).length} fornecedores em cache`);
 }
 
-// Alias mantido por compatibilidade com chamadas antigas
-function atualizarCacheClientes(lista) { mesclarCacheClientes(lista); }
+// Alias de compatibilidade
+function atualizarCacheFornecedores(lista) { mesclarCacheFornecedores(lista); }
 
-function buscarClientePorCNPJ(cnpj) {
-    cnpj = cnpj.replace(/\D/g, '');
+function buscarFornecedoresSimilares(termo) {
+    termo = toUpperCase(termo).trim();
+    if (termo.length < 2) return [];
     
-    const suggestionsDiv = document.getElementById('cnpjSuggestions');
-    if (!suggestionsDiv) return;
+    return Object.keys(fornecedoresCache)
+        .filter(key => key.includes(termo))
+        .map(key => fornecedoresCache[key])
+        .slice(0, 5);
+}
+
+function preencherDadosFornecedor(fornecedor) {
+    document.getElementById('razaoSocial').value = fornecedor.razaoSocial;
+    document.getElementById('nomeFantasia').value = fornecedor.nomeFantasia;
+    document.getElementById('cnpj').value = fornecedor.cnpj;
+    document.getElementById('enderecoFornecedor').value = fornecedor.enderecoFornecedor;
+    document.getElementById('site').value = fornecedor.site;
+    document.getElementById('contato').value = fornecedor.contato;
+    document.getElementById('telefone').value = fornecedor.telefone;
+    document.getElementById('email').value = fornecedor.email;
     
-    if (cnpj.length < 3) {
-        suggestionsDiv.innerHTML = '';
-        suggestionsDiv.style.display = 'none';
-        return;
-    }
+    const suggestionsDiv = document.getElementById('fornecedorSuggestions');
+    if (suggestionsDiv) suggestionsDiv.remove();
     
-    const matches = Object.keys(clientesCache).filter(key => 
-        key.replace(/\D/g, '').includes(cnpj)
-    );
+    showToast('Dados do fornecedor preenchidos!', 'success');
+}
+
+function setupFornecedorAutocomplete() {
+    const razaoSocialInput = document.getElementById('razaoSocial');
+    if (!razaoSocialInput) return;
     
-    if (matches.length === 0) {
-        suggestionsDiv.innerHTML = '';
-        suggestionsDiv.style.display = 'none';
-        return;
-    }
+    const newInput = razaoSocialInput.cloneNode(true);
+    razaoSocialInput.parentNode.replaceChild(newInput, razaoSocialInput);
     
-    suggestionsDiv.innerHTML = '';
-    matches.forEach(cnpjKey => {
-        const cliente = clientesCache[cnpjKey];
-        const div = document.createElement('div');
-        div.className = 'autocomplete-item';
-        div.innerHTML = `<strong>${formatarCNPJ(cnpjKey)}</strong><br>${cliente.razaoSocial}`;
-        div.onclick = () => preencherDadosClienteCompleto(cnpjKey);
-        suggestionsDiv.appendChild(div);
+    newInput.addEventListener('input', function(e) {
+        const termo = e.target.value;
+        
+        let suggestionsDiv = document.getElementById('fornecedorSuggestions');
+        if (suggestionsDiv) suggestionsDiv.remove();
+        
+        if (termo.length < 2) return;
+        
+        const fornecedores = buscarFornecedoresSimilares(termo);
+        
+        if (fornecedores.length === 0) return;
+        
+        suggestionsDiv = document.createElement('div');
+        suggestionsDiv.id = 'fornecedorSuggestions';
+        suggestionsDiv.style.cssText = `
+            position: absolute;
+            z-index: 1000;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            width: 100%;
+            margin-top: 4px;
+        `;
+        
+        fornecedores.forEach(fornecedor => {
+            const item = document.createElement('div');
+            item.style.cssText = `
+                padding: 12px;
+                cursor: pointer;
+                border-bottom: 1px solid var(--border-color);
+                transition: background 0.2s;
+            `;
+            
+            item.innerHTML = `
+                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                    ${fornecedor.razaoSocial}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    ${fornecedor.cnpj}${fornecedor.nomeFantasia ? ' | ' + fornecedor.nomeFantasia : ''}
+                </div>
+            `;
+            
+            item.addEventListener('mouseenter', () => {
+                item.style.background = 'var(--table-hover)';
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                item.style.background = 'transparent';
+            });
+            
+            item.addEventListener('click', () => {
+                preencherDadosFornecedor(fornecedor);
+            });
+            
+            suggestionsDiv.appendChild(item);
+        });
+        
+        const formGroup = newInput.closest('.form-group');
+        formGroup.style.position = 'relative';
+        formGroup.appendChild(suggestionsDiv);
     });
     
-    suggestionsDiv.style.display = 'block';
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.form-group')) {
+            const suggestionsDiv = document.getElementById('fornecedorSuggestions');
+            if (suggestionsDiv) suggestionsDiv.remove();
+        }
+    });
 }
 
-function preencherDadosClienteCompleto(cnpj) {
-    const pedidosComCNPJ = pedidos.filter(p => p.cnpj === cnpj);
-    
-    if (pedidosComCNPJ.length === 0) {
-        preencherDadosCliente(cnpj);
-        return;
-    }
-    
-    const ultimoPedido = pedidosComCNPJ.sort((a, b) => 
-        new Date(b.created_at) - new Date(a.created_at)
-    )[0];
-    
-    document.getElementById('cnpj').value = formatarCNPJ(cnpj);
-    document.getElementById('razaoSocial').value = ultimoPedido.razao_social || '';
-    document.getElementById('inscricaoEstadual').value = ultimoPedido.inscricao_estadual || '';
-    document.getElementById('endereco').value = ultimoPedido.endereco || '';
-    document.getElementById('telefone').value = ultimoPedido.telefone || '';
-    document.getElementById('contato').value = ultimoPedido.contato || '';
-    document.getElementById('email').value = ultimoPedido.email || '';
-    document.getElementById('documento').value = ultimoPedido.documento || '';
-    
-    if (ultimoPedido.valor_total) {
-        document.getElementById('valorTotalPedido').value = ultimoPedido.valor_total;
-    }
-    if (ultimoPedido.peso) {
-        document.getElementById('peso').value = ultimoPedido.peso;
-    }
-    if (ultimoPedido.quantidade) {
-        document.getElementById('quantidade').value = ultimoPedido.quantidade;
-    }
-    if (ultimoPedido.volumes) {
-        document.getElementById('volumes').value = ultimoPedido.volumes;
-    }
-    
-    document.getElementById('localEntrega').value = ultimoPedido.local_entrega || '';
-    document.getElementById('setor').value = ultimoPedido.setor || '';
-    if (ultimoPedido.previsao_entrega) {
-        document.getElementById('previsaoEntrega').value = ultimoPedido.previsao_entrega;
-    }
-    
-    document.getElementById('transportadora').value = ultimoPedido.transportadora || '';
-    document.getElementById('valorFrete').value = ultimoPedido.valor_frete || '';
-    
-    const vendedorSelect = document.getElementById('vendedor');
-    if (vendedorSelect && ultimoPedido.vendedor) {
-        vendedorSelect.value = ultimoPedido.vendedor;
-    }
-    
-    document.getElementById('cnpjSuggestions').style.display = 'none';
-    showMessage('Dados do último pedido preenchidos automaticamente!', 'success');
-}
-
-function preencherDadosCliente(cnpj) {
-    const cliente = clientesCache[cnpj];
-    if (!cliente) return;
-    
-    document.getElementById('cnpj').value = formatarCNPJ(cnpj);
-    document.getElementById('razaoSocial').value = cliente.razaoSocial;
-    document.getElementById('inscricaoEstadual').value = cliente.inscricaoEstadual || '';
-    document.getElementById('endereco').value = cliente.endereco;
-    document.getElementById('telefone').value = cliente.telefone || '';
-    document.getElementById('contato').value = cliente.contato || '';
-    document.getElementById('email').value = cliente.email || '';
-    document.getElementById('documento').value = cliente.documento || '';
-    
-    if (cliente.peso) {
-        document.getElementById('peso').value = cliente.peso;
-    }
-    if (cliente.quantidade) {
-        document.getElementById('quantidade').value = cliente.quantidade;
-    }
-    if (cliente.volumes) {
-        document.getElementById('volumes').value = cliente.volumes;
-    }
-    
-    document.getElementById('localEntrega').value = cliente.localEntrega || '';
-    document.getElementById('setor').value = cliente.setor || '';
-    if (cliente.previsaoEntrega) {
-        document.getElementById('previsaoEntrega').value = cliente.previsaoEntrega;
-    }
-    
-    document.getElementById('transportadora').value = cliente.transportadora || '';
-    document.getElementById('valorFrete').value = cliente.valorFrete || '';
-    
-    const vendedorSelect = document.getElementById('vendedor');
-    if (vendedorSelect && cliente.vendedor) {
-        vendedorSelect.value = cliente.vendedor;
-    }
-    
-    document.getElementById('cnpjSuggestions').style.display = 'none';
-    showMessage('Dados do cliente preenchidos automaticamente!', 'success');
-}
-
-// ============================================
-// NAVEGAÇÃO DE MESES
-// ============================================
 function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
-    pedidos = [];          // descarta apenas os pedidos do mês anterior
-    // clientesCache e ultimoCodigoGlobal permanecem intactos
+    ordens = [];           // descarta apenas as ordens do mês anterior
+    lastDataHash = '';
     isLoadingMonth = true;
-    updateDisplay();       // mostra spinner imediatamente
-    loadPedidos().finally(() => { isLoadingMonth = false; });
+    updateDisplay();       // mostra "Carregando..." imediatamente
+    loadOrdens().finally(() => { isLoadingMonth = false; });
+    // fornecedoresCache e ultimoNumeroGlobal permanecem intactos
 }
 
 function updateMonthDisplay() {
@@ -565,264 +428,27 @@ function updateMonthDisplay() {
                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthName = months[currentMonth.getMonth()];
     const year = currentMonth.getFullYear();
-    const element = document.getElementById('currentMonth');
-    if (element) {
-        element.textContent = `${monthName} ${year}`;
-    }
+    document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
 }
 
-function getPedidosForCurrentMonth() {
-    return pedidos; // já filtrados pelo servidor via ?mes=&ano=
-}
-
-function formatDate(dateString) {
-    if (!dateString) return '-';
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR');
-}
-
-// ============================================
-// ATUALIZAR DISPLAY
-// ============================================
-function updateDisplay() {
-    updateMonthDisplay();
-    updateDashboard();
-    updateTable();
-    updateVendedoresFilter();
-}
-
-// ============================================
-// ATUALIZAR DASHBOARD (POR MÊS)
-// ============================================
-function updateDashboard() {
-    const monthPedidos = getPedidosForCurrentMonth();
-    const totalEmitidos = monthPedidos.filter(p => p.status === 'emitida').length;
-    const totalPendentes = monthPedidos.filter(p => p.status === 'pendente').length;
-    
-    // Usa o contador global (não zera ao navegar entre meses)
-    const ultimoCodigo = ultimoCodigoGlobal;
-    
-    const valorTotalMes = monthPedidos.reduce((acc, p) => {
-        const valor = parseMoeda(p.valor_total);
-        return acc + valor;
-    }, 0);
-    
-    document.getElementById('totalPedidos').textContent = ultimoCodigo;
-    document.getElementById('totalEmitidos').textContent = totalEmitidos;
-    document.getElementById('totalPendentes').textContent = totalPendentes;
-    document.getElementById('valorTotal').textContent = formatarMoeda(valorTotalMes);
-}
-function updateVendedoresFilter() {
-    const vendedores = new Set();
-    pedidos.forEach(p => {
-        if (p.responsavel?.trim()) {
-            vendedores.add(p.responsavel.trim());
-        } else if (p.vendedor?.trim()) {
-            vendedores.add(p.vendedor.trim());
-        }
-    });
-
-    const select = document.getElementById('filterVendedor');
-    if (select) {
-        const currentValue = select.value;
-        select.innerHTML = '<option value="">Responsável</option>';
-        Array.from(vendedores).sort().forEach(v => {
-            const option = document.createElement('option');
-            option.value = v;
-            option.textContent = v;
-            select.appendChild(option);
-        });
-        select.value = currentValue;
-    }
-}
-
-// ============================================
-// FILTRAR PEDIDOS
-// ============================================
-function filterPedidos() {
-    updateTable();
-}
-
-// ============================================
-// ATUALIZAR TABELA
-// ============================================
-function updateTable() {
-    const container = document.getElementById('pedidosContainer');
-    let filtered = getPedidosForCurrentMonth(); // Filtrar por mês primeiro
-    
-    const search = document.getElementById('search').value.toLowerCase();
-    const filterVendedor = document.getElementById('filterVendedor').value;
-    const filterStatus = document.getElementById('filterStatus').value;
-    
-    if (search) {
-        filtered = filtered.filter(p => 
-            p.codigo?.toString().includes(search) ||
-            (p.cnpj || '').toLowerCase().includes(search) ||
-            (p.razao_social || '').toLowerCase().includes(search)
-        );
-    }
-    
-    if (filterVendedor) {
-        filtered = filtered.filter(p => 
-            (p.responsavel || '') === filterVendedor || 
-            (p.vendedor || '') === filterVendedor
-        );
-    }
-    
-    if (filterStatus) {
-        filtered = filtered.filter(p => p.status === filterStatus);
-    }
-    
-    if (filtered.length === 0) {
-        if (isLoadingMonth) {
-            container.innerHTML = `
-                <tr><td colspan="8" style="text-align:center;padding:2.5rem;">
-                    <div style="display:inline-flex;align-items:center;gap:12px;color:var(--text-secondary,#aaa);">
-                        <div style="width:22px;height:22px;border-radius:50%;border:2.5px solid transparent;border-top-color:#e07b00;border-right-color:#f5a623;animation:spinLoader 0.75s linear infinite;flex-shrink:0;"></div>
-                        <span style="font-size:0.95rem;">Carregando...</span>
-                    </div>
-                </td></tr>`;
-        } else {
-            container.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhum registro encontrado</td></tr>';
-        }
-        return;
-    }
-    
-    // Ordenar por código (crescente)
-    filtered.sort((a, b) => {
-        const numA = parseInt(a.codigo);
-        const numB = parseInt(b.codigo);
-        return numA - numB;
-    });
-    
-    container.innerHTML = filtered.map(pedido => `
-        <tr class="${pedido.status === 'emitida' ? 'row-fechada' : ''}">
-            <td style="text-align: center;">
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" 
-                           class="styled-checkbox" 
-                           id="check-${pedido.id}"
-                           ${pedido.status === 'emitida' ? 'checked' : ''}
-                           onchange="toggleEmissao('${pedido.id}', this.checked)">
-                    <label for="check-${pedido.id}" class="checkbox-label-styled"></label>
-                </div>
-            </td>
-            <td><strong>${pedido.codigo}</strong></td>
-            <td>${pedido.razao_social}</td>
-            <td>${formatarCNPJ(pedido.cnpj)}</td>
-            <td>${pedido.documento || '-'}</td>
-            <td><strong>${pedido.valor_total || 'R$ 0,00'}</strong></td>
-            <td>
-                <span class="badge ${pedido.status === 'emitida' ? 'fechada' : 'aberta'}">
-                    ${pedido.status === 'emitida' ? 'EMITIDO' : 'PENDENTE'}
-                </span>
-            </td>
-            <td>
-                <div class="actions">
-                    <button onclick="viewPedido('${pedido.id}')" class="action-btn" style="background: #F59E0B;">
-                        Ver
-                    </button>
-                    <button onclick="editPedido('${pedido.id}')" class="action-btn" style="background: #6B7280;">
-                        Editar
-                    </button>
-                    <button onclick="gerarEtiqueta('${pedido.id}')" class="action-btn" style="background: #22C55E;">
-                        Etiqueta
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-}
-
-// ============================================
-// MODAL DE FORMULÁRIO
-// ============================================
-function openFormModal() {
-    editingId = null;
-    currentTabIndex = 0;
-    document.getElementById('formTitle').textContent = 'Novo Pedido de Faturamento';
-    resetForm();
-    
-    // Usa o código global para garantir sequência correta mesmo em outros meses
-    document.getElementById('codigo').value = (ultimoCodigoGlobal + 1).toString();
-    
-    // Set data atual
-    document.getElementById('dataRegistro').value = getDataAtual();
-    
-    activateTab(0);
-    document.getElementById('formModal').classList.add('show');
-}
-
-function closeFormModal() {
-    const isEditing = editingId !== null;
-    document.getElementById('formModal').classList.remove('show');
-    resetForm();
-    
-    if (isEditing) {
-        showMessage('Atualização cancelada', 'error');
-    } else {
-        showMessage('Pedido cancelado', 'error');
-    }
-}
-
-function resetForm() {
-    document.querySelectorAll('#formModal input:not([type="checkbox"]), #formModal textarea, #formModal select').forEach(input => {
-        if (input.type === 'checkbox') {
-            input.checked = false;
-        } else if (input.id !== 'codigo' && input.id !== 'dataRegistro') {
-            input.value = '';
-        }
-    });
-    
-    // Reabilitar responsavel se estava desabilitado
-    const responsavelSelect = document.getElementById('responsavel');
-    if (responsavelSelect) {
-        responsavelSelect.disabled = false;
-    }
-    
-    document.getElementById('itemsContainer').innerHTML = '';
-    itemCounter = 0;
-    addItem();
-    hideStockWarning();
-}
-
-// ============================================
-// NAVEGAÇÃO ENTRE ABAS
-// ============================================
 function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    
-    document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
-    
-    currentTabIndex = tabs.indexOf(tabId);
-    updateNavigationButtons();
-}
-
-function nextTab() {
-    if (currentTabIndex < tabs.length - 1) {
-        currentTabIndex++;
-        activateTab(currentTabIndex);
+    const tabIndex = tabs.indexOf(tabId);
+    if (tabIndex !== -1) {
+        currentTab = tabIndex;
+        showTab(currentTab);
+        updateNavigationButtons();
     }
 }
 
-function previousTab() {
-    if (currentTabIndex > 0) {
-        currentTabIndex--;
-        activateTab(currentTabIndex);
-    }
-}
-
-function activateTab(index) {
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+function showTab(index) {
+    const tabButtons = document.querySelectorAll('#formModal .tab-btn');
+    const tabContents = document.querySelectorAll('#formModal .tab-content');
     
-    const tabId = tabs[index];
-    document.getElementById(tabId).classList.add('active');
-    document.querySelectorAll('.tab-btn')[index].classList.add('active');
+    tabButtons.forEach(btn => btn.classList.remove('active'));
+    tabContents.forEach(content => content.classList.remove('active'));
     
-    updateNavigationButtons();
+    if (tabButtons[index]) tabButtons[index].classList.add('active');
+    if (tabContents[index]) tabContents[index].classList.add('active');
 }
 
 function updateNavigationButtons() {
@@ -830,939 +456,1761 @@ function updateNavigationButtons() {
     const btnNext = document.getElementById('btnNext');
     const btnSave = document.getElementById('btnSave');
     
-    btnPrevious.style.display = currentTabIndex === 0 ? 'none' : 'inline-block';
-    btnNext.style.display = currentTabIndex === tabs.length - 1 ? 'none' : 'inline-block';
-    btnSave.style.display = currentTabIndex === tabs.length - 1 ? 'inline-block' : 'none';
-}
-
-// ============================================
-// GERENCIAMENTO DE ITENS
-// ============================================
-function addItem() {
-    itemCounter++;
-    const container = document.getElementById('itemsContainer');
-    const tr = document.createElement('tr');
-    tr.id = `item-${itemCounter}`;
-    tr.innerHTML = `
-        <td><input type="text" value="${itemCounter}" readonly style="text-align: center; width: 50px;"></td>
-        <td>
-            <input type="text" 
-                   id="codigoEstoque-${itemCounter}" 
-                   class="codigo-estoque"
-                   placeholder="CÓDIGO"
-                   onblur="verificarEstoque(${itemCounter}); checkStockReferences()"
-                   onchange="buscarDadosEstoque(${itemCounter})">
-        </td>
-        <td><textarea id="especificacao-${itemCounter}" rows="2"></textarea></td>
-        <td>
-            <select id="unidade-${itemCounter}">
-                <option value="">-</option>
-                <option value="UN">UN</option>
-                <option value="MT">MT</option>
-                <option value="KG">KG</option>
-                <option value="PC">PC</option>
-                <option value="CX">CX</option>
-                <option value="LT">LT</option>
-            </select>
-        </td>
-        <td>
-            <input type="number" 
-                   id="quantidade-${itemCounter}" 
-                   min="0" 
-                   step="1"
-                   onchange="calcularValorItem(${itemCounter}); verificarEstoque(${itemCounter})">
-        </td>
-        <td>
-            <input type="number" 
-                   id="valorUnitario-${itemCounter}" 
-                   min="0" 
-                   step="0.01"
-                   placeholder="0.00"
-                   onchange="calcularValorItem(${itemCounter})">
-        </td>
-        <td><input type="text" id="valorTotal-${itemCounter}" readonly></td>
-        <td><input type="text" id="ncm-${itemCounter}"></td>
-        <td>
-            <button type="button" onclick="removeItem(${itemCounter}); checkStockReferences()" class="danger small" style="padding: 6px 10px;">
-                ✕
-            </button>
-        </td>
-    `;
-    container.appendChild(tr);
-}
-
-function removeItem(id) {
-    const item = document.getElementById(`item-${id}`);
-    if (item) {
-        item.remove();
-        calcularTotais();
-    }
-}
-
-function calcularValorItem(id) {
-    const quantidade = parseFloat(document.getElementById(`quantidade-${id}`).value) || 0;
-    const valorUnitario = parseFloat(document.getElementById(`valorUnitario-${id}`).value) || 0;
-    const valorTotal = quantidade * valorUnitario;
+    if (!btnPrevious || !btnNext || !btnSave) return;
     
-    document.getElementById(`valorTotal-${id}`).value = formatarMoeda(valorTotal);
-    calcularTotais();
-}
-
-function calcularTotais() {
-    let valorTotal = 0;
-    
-    document.querySelectorAll('[id^="item-"]').forEach(item => {
-        const id = item.id.replace('item-', '');
-        const valor = parseMoeda(document.getElementById(`valorTotal-${id}`).value);
-        
-        valorTotal += valor;
-    });
-    
-    document.getElementById('valorTotalPedido').value = formatarMoeda(valorTotal);
-}
-
-function buscarDadosEstoque(itemId) {
-    const codigoInput = document.getElementById(`codigoEstoque-${itemId}`);
-    const especificacaoInput = document.getElementById(`especificacao-${itemId}`);
-    const ncmInput = document.getElementById(`ncm-${itemId}`);
-    
-    if (!codigoInput || !especificacaoInput || !ncmInput) return;
-    
-    const codigo = codigoInput.value.trim();
-    
-    if (!codigo) return;
-    
-    const itemEstoque = estoqueCache[codigo];
-    
-    if (itemEstoque) {
-        especificacaoInput.value = itemEstoque.descricao;
-        ncmInput.value = itemEstoque.ncm;
+    if (currentTab > 0) {
+        btnPrevious.style.display = 'inline-flex';
     } else {
-        showMessage('O item não foi encontrado', 'error');
-    }
-}
-
-function verificarEstoque(itemId) {
-    const codigoInput = document.getElementById(`codigoEstoque-${itemId}`);
-    const quantidadeInput = document.getElementById(`quantidade-${itemId}`);
-    
-    if (!codigoInput || !quantidadeInput) return;
-    
-    const codigo = codigoInput.value.trim();
-    const quantidadeSolicitada = parseFloat(quantidadeInput.value) || 0;
-    
-    if (!codigo || quantidadeSolicitada === 0) {
-        return;
+        btnPrevious.style.display = 'none';
     }
     
-    const itemEstoque = estoqueCache[codigo];
-    
-    if (!itemEstoque) {
-        return;
-    }
-    
-    const quantidadeDisponivel = parseFloat(itemEstoque.quantidade) || 0;
-    
-    if (quantidadeSolicitada > quantidadeDisponivel) {
-        showMessage(`Esta quantidade não corresponde ao estoque do item ${codigo}`, 'error');
-    }
-}
-
-function checkStockReferences() {
-    let allItemsHaveStockCode = true;
-    let hasItems = false;
-    
-    document.querySelectorAll('[id^="item-"]').forEach(item => {
-        const id = item.id.replace('item-', '');
-        const codigoInput = document.getElementById(`codigoEstoque-${id}`);
-        const unidadeSelect = document.getElementById(`unidade-${id}`);
-        const quantidadeInput = document.getElementById(`quantidade-${id}`);
-        
-        if (unidadeSelect?.value && quantidadeInput?.value && parseFloat(quantidadeInput.value) > 0) {
-            hasItems = true;
-            if (!codigoInput?.value.trim()) {
-                allItemsHaveStockCode = false;
-            }
-        }
-    });
-    
-    if (hasItems && !allItemsHaveStockCode) {
-        showStockWarning();
+    if (currentTab < tabs.length - 1) {
+        btnNext.style.display = 'inline-flex';
+        btnSave.style.display = 'none';
     } else {
-        hideStockWarning();
+        btnNext.style.display = 'none';
+        btnSave.style.display = 'inline-flex';
+    }
+}
+
+function nextTab() {
+    if (currentTab < tabs.length - 1) {
+        currentTab++;
+        showTab(currentTab);
+        updateNavigationButtons();
+    }
+}
+
+function previousTab() {
+    if (currentTab > 0) {
+        currentTab--;
+        showTab(currentTab);
+        updateNavigationButtons();
+    }
+}
+
+function switchInfoTab(tabId) {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    const currentIndex = infoTabs.indexOf(tabId);
+    
+    if (currentIndex !== -1) {
+        currentInfoTab = currentIndex;
     }
     
-    return allItemsHaveStockCode || !hasItems;
-}
-
-function showStockWarning() {
-    const warning = document.getElementById('stockWarning');
-    if (warning) {
-        warning.classList.remove('hidden');
-    }
-}
-
-function hideStockWarning() {
-    const warning = document.getElementById('stockWarning');
-    if (warning) {
-        warning.classList.add('hidden');
-    }
-}
-
-function getItems() {
-    const items = [];
-    document.querySelectorAll('[id^="item-"]').forEach(item => {
-        const id = item.id.replace('item-', '');
-        const codigoEstoque = document.getElementById(`codigoEstoque-${id}`).value.trim();
-        const especificacao = document.getElementById(`especificacao-${id}`).value.trim();
-        const unidade = document.getElementById(`unidade-${id}`).value;
-        const quantidade = parseFloat(document.getElementById(`quantidade-${id}`).value) || 0;
-        const valorUnitario = parseFloat(document.getElementById(`valorUnitario-${id}`).value) || 0;
-        const valorTotal = document.getElementById(`valorTotal-${id}`).value;
-        const ncm = document.getElementById(`ncm-${id}`).value.trim();
-        
-        if (codigoEstoque && unidade && quantidade > 0) {
-            items.push({
-                item: items.length + 1,
-                codigoEstoque,
-                especificacao,
-                unidade,
-                quantidade,
-                valorUnitario,
-                valorTotal,
-                ncm
-            });
-        }
+    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
     });
-    return items;
+    document.querySelectorAll('#infoModal .tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    const clickedBtn = event?.target?.closest('.tab-btn');
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    } else {
+        document.querySelectorAll('#infoModal .tab-btn')[currentIndex]?.classList.add('active');
+    }
+    document.getElementById(tabId).classList.add('active');
+    
+    updateInfoNavigationButtons();
 }
 
-// ============================================
-// SALVAR PEDIDO
-// ============================================
-async function savePedido() {
-    // Validação do responsável
-    const responsavel = document.getElementById('responsavel').value.trim();
-    if (!responsavel && !editingId) {
-        showMessage('Por favor, selecione um responsável!', 'error');
-        activateTab(0); // Volta para a aba Geral
-        return;
+function updateInfoNavigationButtons() {
+    const btnInfoPrevious = document.getElementById('btnInfoPrevious');
+    const btnInfoNext = document.getElementById('btnInfoNext');
+    const btnInfoClose = document.getElementById('btnInfoClose');
+    
+    if (!btnInfoPrevious || !btnInfoNext || !btnInfoClose) return;
+    
+    const totalTabs = 5;
+    
+    if (currentInfoTab > 0) {
+        btnInfoPrevious.style.display = 'inline-flex';
+    } else {
+        btnInfoPrevious.style.display = 'none';
     }
     
-    const codigo = document.getElementById('codigo').value.trim();
-    const cnpj = document.getElementById('cnpj').value.replace(/\D/g, '');
-    const razaoSocial = document.getElementById('razaoSocial').value.trim();
-    const endereco = document.getElementById('endereco').value.trim();
-    const vendedor = document.getElementById('vendedor').value.trim();
-    const items = getItems();
-    
-    // Validação de CNPJ para salvar
-    if (!cnpj || !razaoSocial || !endereco) {
-        showMessage('CNPJ, Razão Social e Endereço são obrigatórios!', 'error');
-        return;
+    if (currentInfoTab < totalTabs - 1) {
+        btnInfoNext.style.display = 'inline-flex';
+    } else {
+        btnInfoNext.style.display = 'none';
     }
     
-    const pedido = {
-        codigo,
-        cnpj,
-        razao_social: razaoSocial,
-        inscricao_estadual: document.getElementById('inscricaoEstadual').value.trim(),
-        endereco,
-        bairro: document.getElementById('bairro')?.value.trim() || '',
-        municipio: document.getElementById('municipio')?.value.trim() || '',
-        uf: document.getElementById('uf')?.value.trim() || '',
-        numero: document.getElementById('numero')?.value.trim() || '',
-        telefone: document.getElementById('telefone').value.trim(),
-        contato: document.getElementById('contato').value.trim(),
-        email: document.getElementById('email').value.trim().toLowerCase(),
-        documento: document.getElementById('documento').value.trim(),
-        items,
-        valor_total: document.getElementById('valorTotalPedido').value,
-        peso: document.getElementById('peso').value,
-        quantidade: document.getElementById('quantidade').value,
-        volumes: document.getElementById('volumes').value,
-        local_entrega: document.getElementById('localEntrega').value.trim(),
-        setor: document.getElementById('setor').value.trim(),
-        previsao_entrega: document.getElementById('previsaoEntrega').value || null,
-        transportadora: document.getElementById('transportadora').value.trim(),
-        valor_frete: document.getElementById('valorFrete').value,
-        vendedor,
-        responsavel: editingId ? undefined : responsavel, // Somente adiciona responsável em novos pedidos
-        status: 'pendente'
-    };
-    
-    // Só adiciona data_registro em novos pedidos
-    if (!editingId) {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        pedido.data_registro = hoje.toISOString();
-    }
-    
-    try {
-        const url = editingId ? `${API_URL}/pedidos/${editingId}` : `${API_URL}/pedidos`;
-        const method = editingId ? 'PATCH' : 'POST';
-        
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Token': sessionToken
-            },
-            body: JSON.stringify(pedido)
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Erro do servidor:', errorText);
-            throw new Error('Erro ao salvar pedido');
-        }
-        
-        await Promise.all([loadPedidos(), loadUltimoCodigo()]);
-        closeFormModal();
-        
-        if (editingId) {
-            showMessage(`Pedido ${codigo} atualizado`, 'success');
-        } else {
-            showMessage(`Pedido ${codigo} registrado`, 'success');
-        }
-    } catch (error) {
-        console.error('Erro ao salvar:', error);
-        showMessage('Erro ao salvar pedido!', 'error');
+    btnInfoClose.style.display = 'inline-flex';
+}
+
+function nextInfoTab() {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    if (currentInfoTab < infoTabs.length - 1) {
+        currentInfoTab++;
+        switchInfoTab(infoTabs[currentInfoTab]);
     }
 }
 
-// ============================================
-// EDITAR PEDIDO
-// ============================================
-async function editPedido(id) {
-    const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) return;
-    
-    editingId = id;
-    currentTabIndex = 0;
-    document.getElementById('formTitle').textContent = `Editar Pedido Nº ${pedido.codigo}`;
-    
-    document.getElementById('codigo').value = pedido.codigo;
-    document.getElementById('documento').value = pedido.documento || '';
-    
-    // Preencher responsável (somente visualização, não editável)
-    if (pedido.responsavel) {
-        const responsavelSelect = document.getElementById('responsavel');
-        responsavelSelect.value = pedido.responsavel;
-        responsavelSelect.disabled = true; // Desabilita edição
+function previousInfoTab() {
+    const infoTabs = ['info-tab-geral', 'info-tab-fornecedor', 'info-tab-pedido', 'info-tab-entrega', 'info-tab-pagamento'];
+    if (currentInfoTab > 0) {
+        currentInfoTab--;
+        switchInfoTab(infoTabs[currentInfoTab]);
     }
-    
-    // Preencher data de registro
-    if (pedido.data_registro) {
-        document.getElementById('dataRegistro').value = formatarData(pedido.data_registro);
-    }
-    
-    document.getElementById('cnpj').value = formatarCNPJ(pedido.cnpj);
-    document.getElementById('razaoSocial').value = pedido.razao_social;
-    document.getElementById('inscricaoEstadual').value = pedido.inscricao_estadual || '';
-    document.getElementById('endereco').value = pedido.endereco;
-    document.getElementById('telefone').value = pedido.telefone || '';
-    document.getElementById('contato').value = pedido.contato || '';
-    document.getElementById('email').value = pedido.email || '';
-    document.getElementById('valorTotalPedido').value = pedido.valor_total;
-    document.getElementById('peso').value = pedido.peso || '';
-    document.getElementById('quantidade').value = pedido.quantidade || '';
-    document.getElementById('volumes').value = pedido.volumes || '';
-    document.getElementById('localEntrega').value = pedido.local_entrega || '';
-    document.getElementById('setor').value = pedido.setor || '';
-    document.getElementById('previsaoEntrega').value = pedido.previsao_entrega || '';
-    document.getElementById('transportadora').value = pedido.transportadora || '';
-    document.getElementById('valorFrete').value = pedido.valor_frete || '';
-    
-    const vendedorSelect = document.getElementById('vendedor');
-    if (vendedorSelect && pedido.vendedor) {
-        vendedorSelect.value = pedido.vendedor;
-    }
-    
-    document.getElementById('itemsContainer').innerHTML = '';
+}
+
+function openFormModal() {
+    editingId = null;
+    currentTab = 0;
     itemCounter = 0;
     
-    const items = Array.isArray(pedido.items) ? pedido.items : [];
-    if (items.length === 0) {
-        addItem();
-    } else {
-        items.forEach((item, index) => {
-            itemCounter++;
-            const container = document.getElementById('itemsContainer');
-            const tr = document.createElement('tr');
-            tr.id = `item-${itemCounter}`;
-            tr.innerHTML = `
-                <td><input type="text" value="${index + 1}" readonly style="text-align: center; width: 50px;"></td>
-                <td>
-                    <input type="text" 
-                           id="codigoEstoque-${itemCounter}" 
-                           value="${item.codigoEstoque || ''}"
-                           class="codigo-estoque"
-                           onblur="verificarEstoque(${itemCounter}); checkStockReferences()"
-                           onchange="buscarDadosEstoque(${itemCounter})">
-                </td>
-                <td><textarea id="especificacao-${itemCounter}" rows="2">${item.especificacao || ''}</textarea></td>
-                <td>
-                    <select id="unidade-${itemCounter}">
-                        <option value="">-</option>
-                        <option value="UN" ${item.unidade === 'UN' ? 'selected' : ''}>UN</option>
-                        <option value="MT" ${item.unidade === 'MT' ? 'selected' : ''}>MT</option>
-                        <option value="KG" ${item.unidade === 'KG' ? 'selected' : ''}>KG</option>
-                        <option value="PC" ${item.unidade === 'PC' ? 'selected' : ''}>PC</option>
-                        <option value="CX" ${item.unidade === 'CX' ? 'selected' : ''}>CX</option>
-                        <option value="LT" ${item.unidade === 'LT' ? 'selected' : ''}>LT</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="number" 
-                           id="quantidade-${itemCounter}" 
-                           value="${item.quantidade || 0}"
-                           min="0" 
-                           step="1"
-                           onchange="calcularValorItem(${itemCounter}); verificarEstoque(${itemCounter})">
-                </td>
-                <td>
-                    <input type="number" 
-                           id="valorUnitario-${itemCounter}" 
-                           value="${item.valorUnitario || 0}"
-                           min="0" 
-                           step="0.01"
-                           onchange="calcularValorItem(${itemCounter})">
-                </td>
-                <td><input type="text" id="valorTotal-${itemCounter}" value="${item.valorTotal || 'R$ 0,00'}" readonly></td>
-                <td><input type="text" id="ncm-${itemCounter}" value="${item.ncm || ''}"></td>
-                <td>
-                    <button type="button" onclick="removeItem(${itemCounter}); checkStockReferences()" class="danger small" style="padding: 6px 10px;">
-                        ✕
-                    </button>
-                </td>
-            `;
-            container.appendChild(tr);
-        });
-    }
+    const nextNumber = getNextOrderNumber();
+    const today = new Date().toISOString().split('T')[0];
     
-    activateTab(0);
-    document.getElementById('formModal').classList.add('show');
+    const modalHTML = `
+        <div class="modal-overlay" id="formModal" style="display: flex;">
+            <div class="modal-content" style="max-width: 1200px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Nova Ordem de Compra</h3>
+                    <button class="close-modal" onclick="closeFormModal(true)">✕</button>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
+                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
+                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
+                    </div>
+
+                    <form id="ordemForm" onsubmit="handleSubmit(event)">
+                        <input type="hidden" id="editId" value="">
+                        
+                        <div class="tab-content active" id="tab-geral">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="numeroOrdem">Número da Ordem *</label>
+                                    <input type="text" id="numeroOrdem" value="${nextNumber}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="responsavel">Responsável *</label>
+                                    <select id="responsavel" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO">ROBERTO</option>
+                                        <option value="ISAQUE">ISAQUE</option>
+                                        <option value="MIGUEL">MIGUEL</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dataOrdem">Data da Ordem *</label>
+                                    <input type="date" id="dataOrdem" value="${today}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-fornecedor">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="razaoSocial">Razão Social *</label>
+                                    <input type="text" id="razaoSocial" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nomeFantasia">Nome Fantasia</label>
+                                    <input type="text" id="nomeFantasia">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cnpj">CNPJ *</label>
+                                    <input type="text" id="cnpj" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="enderecoFornecedor">Endereço</label>
+                                    <input type="text" id="enderecoFornecedor">
+                                </div>
+                                <div class="form-group">
+                                    <label for="site">Site</label>
+                                    <input type="text" id="site">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contato">Contato</label>
+                                    <input type="text" id="contato">
+                                </div>
+                                <div class="form-group">
+                                    <label for="telefone">Telefone</label>
+                                    <input type="text" id="telefone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-mail</label>
+                                    <input type="email" id="email">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-pedido">
+                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
+                            <div style="overflow-x: auto;">
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">Item</th>
+                                            <th style="min-width: 200px;">Especificação</th>
+                                            <th style="width: 80px;">QTD</th>
+                                            <th style="width: 80px;">Unid</th>
+                                            <th style="width: 100px;">Valor UN</th>
+                                            <th style="width: 100px;">IPI</th>
+                                            <th style="width: 100px;">ST</th>
+                                            <th style="width: 120px;">Total</th>
+                                            <th style="width: 80px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="itemsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
+                                <input type="text" id="valorTotalOrdem" readonly value="R$ 0,00">
+                            </div>
+                            <div class="form-group">
+                                <label for="frete">Frete</label>
+                                <input type="text" id="frete" value="CIF" placeholder="Ex: CIF, FOB">
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-entrega">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="localEntrega">Local de Entrega</label>
+                                    <input type="text" id="localEntrega" value="RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoEntrega">Prazo de Entrega</label>
+                                    <input type="text" id="prazoEntrega" value="IMEDIATO" placeholder="Ex: 10 dias úteis">
+                                </div>
+                                <div class="form-group">
+                                    <label for="transporte">Transporte</label>
+                                    <input type="text" id="transporte" value="FORNECEDOR" placeholder="Ex: Por conta do fornecedor">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-pagamento">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="formaPagamento">Forma de Pagamento *</label>
+                                    <input type="text" id="formaPagamento" required placeholder="Ex: Boleto, PIX, Cartão">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
+                                    <input type="text" id="prazoPagamento" required placeholder="Ex: 30 dias">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dadosBancarios">Dados Bancários</label>
+                                    <textarea id="dadosBancarios" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
+                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Salvar Ordem</button>
+                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    addItem();
     
-    checkStockReferences();
+    setTimeout(() => {
+        setupFornecedorAutocomplete();
+        setupUpperCaseInputs();
+        updateNavigationButtons();
+        document.getElementById('numeroOrdem')?.focus();
+    }, 100);
 }
 
-// ============================================
-// VISUALIZAR PEDIDO
-// ============================================
-function viewPedido(id) {
-    const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) return;
+function closeFormModal(showCancelMessage = false) {
+    const modal = document.getElementById('formModal');
+    if (modal) {
+        const editId = document.getElementById('editId')?.value;
+        const isEditing = editId && editId !== '';
+        
+        if (showCancelMessage) {
+            showToast(isEditing ? 'Atualização cancelada' : 'Registro cancelado', 'error');
+        }
+        
+        modal.style.animation = 'fadeOut 0.2s ease forwards';
+        setTimeout(() => modal.remove(), 200);
+    }
+}
+
+function addItem() {
+    itemCounter++;
+    const tbody = document.getElementById('itemsBody');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td style="text-align: center;">${itemCounter}</td>
+        <td>
+            <textarea class="item-especificacao" placeholder="Descrição do item..." rows="2"></textarea>
+        </td>
+        <td>
+            <input type="number" class="item-qtd" min="0" step="0.01" value="1" onchange="calculateItemTotal(this)">
+        </td>
+        <td>
+            <input type="text" class="item-unid" value="UN" placeholder="UN">
+        </td>
+        <td>
+            <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
+        </td>
+        <td>
+            <input type="text" class="item-ipi" placeholder="Ex: Isento">
+        </td>
+        <td>
+            <input type="text" class="item-st" placeholder="Ex: Não incluído">
+        </td>
+        <td>
+            <input type="text" class="item-total" readonly value="R$ 0,00">
+        </td>
+        <td style="text-align: center;">
+            <button type="button" class="danger small" onclick="removeItem(this)">Excluir</button>
+        </td>
+    `;
+    tbody.appendChild(row);
     
-    document.getElementById('modalCodigo').textContent = pedido.codigo;
+    setTimeout(() => {
+        setupUpperCaseInputs();
+    }, 50);
+}
+
+function removeItem(btn) {
+    const row = btn.closest('tr');
+    row.remove();
+    recalculateOrderTotal();
+    renumberItems();
+}
+
+function renumberItems() {
+    const rows = document.querySelectorAll('#itemsBody tr');
+    rows.forEach((row, index) => {
+        row.cells[0].textContent = index + 1;
+    });
+    itemCounter = rows.length;
+}
+
+function calculateItemTotal(input) {
+    const row = input.closest('tr');
+    const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
+    const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
+    const total = qtd * valor;
+    row.querySelector('.item-total').value = formatCurrency(total);
+    recalculateOrderTotal();
+}
+
+function recalculateOrderTotal() {
+    const totals = document.querySelectorAll('.item-total');
+    let sum = 0;
+    totals.forEach(input => {
+        const value = input.value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+        sum += parseFloat(value) || 0;
+    });
+    const totalInput = document.getElementById('valorTotalOrdem');
+    if (totalInput) {
+        totalInput.value = formatCurrency(sum);
+    }
+}
+
+async function handleSubmit(event) {
+    event.preventDefault();
     
-    // Formatar status badge
-    const statusClass = pedido.status === 'emitida' ? 'fechada' : 'aberta';
-    const statusText = pedido.status === 'emitida' ? 'FECHADA' : 'ABERTA';
+    const items = [];
+    const rows = document.querySelectorAll('#itemsBody tr');
+    rows.forEach((row, index) => {
+        items.push({
+            item: index + 1,
+            especificacao: toUpperCase(row.querySelector('.item-especificacao').value),
+            quantidade: parseFloat(row.querySelector('.item-qtd').value) || 0,
+            unidade: toUpperCase(row.querySelector('.item-unid').value),
+            valorUnitario: parseFloat(row.querySelector('.item-valor').value) || 0,
+            ipi: toUpperCase(row.querySelector('.item-ipi').value || ''),
+            st: toUpperCase(row.querySelector('.item-st').value || ''),
+            valorTotal: row.querySelector('.item-total').value
+        });
+    });
+    
+    const formData = {
+        numeroOrdem: document.getElementById('numeroOrdem').value,
+        responsavel: toUpperCase(document.getElementById('responsavel').value),
+        dataOrdem: document.getElementById('dataOrdem').value,
+        razaoSocial: toUpperCase(document.getElementById('razaoSocial').value),
+        nomeFantasia: toUpperCase(document.getElementById('nomeFantasia').value),
+        cnpj: document.getElementById('cnpj').value,
+        enderecoFornecedor: toUpperCase(document.getElementById('enderecoFornecedor').value),
+        site: document.getElementById('site').value,
+        contato: toUpperCase(document.getElementById('contato').value),
+        telefone: document.getElementById('telefone').value,
+        email: document.getElementById('email').value,
+        items: items,
+        valorTotal: document.getElementById('valorTotalOrdem').value,
+        frete: toUpperCase(document.getElementById('frete').value),
+        localEntrega: toUpperCase(document.getElementById('localEntrega').value),
+        prazoEntrega: toUpperCase(document.getElementById('prazoEntrega').value),
+        transporte: toUpperCase(document.getElementById('transporte').value),
+        formaPagamento: toUpperCase(document.getElementById('formaPagamento').value),
+        prazoPagamento: toUpperCase(document.getElementById('prazoPagamento').value),
+        dadosBancarios: toUpperCase(document.getElementById('dadosBancarios').value),
+        status: 'aberta'
+    };
+    
+    if (!isOnline && !DEVELOPMENT_MODE) {
+        showToast('Sistema offline. Dados não foram salvos.', 'error');
+        closeFormModal();
+        return;
+    }
+
+    try {
+        const url = editingId ? `${API_URL}/ordens/${editingId}` : `${API_URL}/ordens`;
+        const method = editingId ? 'PUT' : 'POST';
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: headers,
+            body: JSON.stringify(formData),
+            mode: 'cors'
+        });
+
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
+            return;
+        }
+
+        if (!response.ok) {
+            let errorMessage = 'Erro ao salvar';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+                errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const savedData = await response.json();
+
+        if (editingId) {
+            const index = ordens.findIndex(o => String(o.id) === String(editingId));
+            if (index !== -1) ordens[index] = savedData;
+            showToast('Ordem atualizada com sucesso!', 'success');
+        } else {
+            ordens.push(savedData);
+            const novoNum = parseInt(savedData.numero_ordem) || 0;
+            if (novoNum > ultimoNumeroGlobal) ultimoNumeroGlobal = novoNum;
+            showToast('Ordem criada com sucesso!', 'success');
+        }
+
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
+        closeFormModal();
+    } catch (error) {
+        console.error('Erro completo:', error);
+        showToast(`Erro: ${error.message}`, 'error');
+    }
+}
+
+async function editOrdem(id) {
+    const ordem = ordens.find(o => String(o.id) === String(id));
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    
+    editingId = id;
+    currentTab = 0;
+    itemCounter = 0;
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="formModal" style="display: flex;">
+            <div class="modal-content" style="max-width: 1200px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Editar Ordem de Compra</h3>
+                    <button class="close-modal" onclick="closeFormModal(true)">✕</button>
+                </div>
+                
+                <div class="tabs-container">
+                    <div class="tabs-nav">
+                        <button class="tab-btn active" onclick="switchTab('tab-geral')">Geral</button>
+                        <button class="tab-btn" onclick="switchTab('tab-fornecedor')">Fornecedor</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pedido')">Pedido</button>
+                        <button class="tab-btn" onclick="switchTab('tab-entrega')">Entrega</button>
+                        <button class="tab-btn" onclick="switchTab('tab-pagamento')">Pagamento</button>
+                    </div>
+
+                    <form id="ordemForm" onsubmit="handleSubmit(event)">
+                        <input type="hidden" id="editId" value="${ordem.id}">
+                        
+                        <div class="tab-content active" id="tab-geral">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="numeroOrdem">Número da Ordem *</label>
+                                    <input type="text" id="numeroOrdem" value="${ordem.numero_ordem || ordem.numeroOrdem}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="responsavel">Responsável *</label>
+                                    <select id="responsavel" required>
+                                        <option value="">Selecione...</option>
+                                        <option value="ROBERTO" ${toUpperCase(ordem.responsavel) === 'ROBERTO' ? 'selected' : ''}>ROBERTO</option>
+                                        <option value="ISAQUE" ${toUpperCase(ordem.responsavel) === 'ISAQUE' ? 'selected' : ''}>ISAQUE</option>
+                                        <option value="MIGUEL" ${toUpperCase(ordem.responsavel) === 'MIGUEL' ? 'selected' : ''}>MIGUEL</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="dataOrdem">Data da Ordem *</label>
+                                    <input type="date" id="dataOrdem" value="${ordem.data_ordem || ordem.dataOrdem}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-fornecedor">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="razaoSocial">Razão Social *</label>
+                                    <input type="text" id="razaoSocial" value="${toUpperCase(ordem.razao_social || ordem.razaoSocial)}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nomeFantasia">Nome Fantasia</label>
+                                    <input type="text" id="nomeFantasia" value="${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia || '')}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cnpj">CNPJ *</label>
+                                    <input type="text" id="cnpj" value="${ordem.cnpj}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="enderecoFornecedor">Endereço</label>
+                                    <input type="text" id="enderecoFornecedor" value="${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor || '')}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="site">Site</label>
+                                    <input type="text" id="site" value="${ordem.site || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contato">Contato</label>
+                                    <input type="text" id="contato" value="${toUpperCase(ordem.contato || '')}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="telefone">Telefone</label>
+                                    <input type="text" id="telefone" value="${ordem.telefone || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="email">E-mail</label>
+                                    <input type="email" id="email" value="${ordem.email || ''}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-pedido">
+                            <button type="button" onclick="addItem()" class="success small" style="margin-bottom: 1rem;">+ Adicionar Item</button>
+                            <div style="overflow-x: auto;">
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40px;">Item</th>
+                                            <th style="min-width: 200px;">Especificação</th>
+                                            <th style="width: 80px;">QTD</th>
+                                            <th style="width: 80px;">Unid</th>
+                                            <th style="width: 100px;">Valor UN</th>
+                                            <th style="width: 100px;">IPI</th>
+                                            <th style="width: 100px;">ST</th>
+                                            <th style="width: 120px;">Total</th>
+                                            <th style="width: 80px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="itemsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="valorTotalOrdem">Valor Total da Ordem</label>
+                                <input type="text" id="valorTotalOrdem" readonly value="${ordem.valor_total || ordem.valorTotal}">
+                            </div>
+                            <div class="form-group">
+                                <label for="frete">Frete</label>
+                                <input type="text" id="frete" value="${toUpperCase(ordem.frete || 'CIF')}" placeholder="Ex: CIF, FOB">
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-entrega">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="localEntrega">Local de Entrega</label>
+                                    <input type="text" id="localEntrega" value="${toUpperCase(ordem.local_entrega || ordem.localEntrega || 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318')}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoEntrega">Prazo de Entrega</label>
+                                    <input type="text" id="prazoEntrega" value="${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || 'IMEDIATO')}" placeholder="Ex: 10 dias úteis">
+                                </div>
+                                <div class="form-group">
+                                    <label for="transporte">Transporte</label>
+                                    <input type="text" id="transporte" value="${toUpperCase(ordem.transporte || 'FORNECEDOR')}" placeholder="Ex: Por conta do fornecedor">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-pagamento">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="formaPagamento">Forma de Pagamento *</label>
+                                    <input type="text" id="formaPagamento" value="${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}" required placeholder="Ex: Boleto, PIX, Cartão">
+                                </div>
+                                <div class="form-group">
+                                    <label for="prazoPagamento">Prazo de Pagamento *</label>
+                                    <input type="text" id="prazoPagamento" value="${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}" required placeholder="Ex: 30 dias">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dadosBancarios">Dados Bancários</label>
+                                    <textarea id="dadosBancarios" rows="3">${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios || '')}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
+                            <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Atualizar Ordem</button>
+                            <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    setTimeout(() => {
+        setupFornecedorAutocomplete();
+        setupUpperCaseInputs();
+        updateNavigationButtons();
+    }, 100);
+    
+    if (ordem.items && ordem.items.length > 0) {
+        ordem.items.forEach(item => {
+            addItem();
+            const row = document.querySelector('#itemsBody tr:last-child');
+            if (row) {
+                row.querySelector('.item-especificacao').value = toUpperCase(item.especificacao || '');
+                row.querySelector('.item-qtd').value = item.quantidade || 1;
+                row.querySelector('.item-unid').value = toUpperCase(item.unidade || 'UN');
+                row.querySelector('.item-valor').value = item.valorUnitario || item.valor_unitario || 0;
+                row.querySelector('.item-ipi').value = toUpperCase(item.ipi || '');
+                row.querySelector('.item-st').value = toUpperCase(item.st || '');
+                row.querySelector('.item-total').value = item.valorTotal || item.valor_total || 'R$ 0,00';
+            }
+        });
+    } else {
+        addItem();
+    }
+}
+
+async function deleteOrdem(id) {
+    showDeleteModal(id);
+}
+
+function showDeleteModal(id) {
+    const modalHTML = `
+        <div class="modal-overlay" id="deleteModal" style="display: flex;">
+            <div class="modal-content modal-delete">
+                <button class="close-modal" onclick="closeDeleteModal()">✕</button>
+                <div class="modal-message-delete">
+                    Tem certeza que deseja excluir esta ordem?
+                </div>
+                <div class="modal-actions modal-actions-no-border">
+                    <button type="button" onclick="confirmDelete('${id}')" class="danger">Sim</button>
+                    <button type="button" onclick="closeDeleteModal()" class="secondary">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.style.animation = 'fadeOut 0.2s ease forwards';
+        setTimeout(() => modal.remove(), 200);
+    }
+}
+
+async function confirmDelete(id) {
+    closeDeleteModal();
+
+    if (!isOnline && !DEVELOPMENT_MODE) {
+        showToast('Sistema offline. Não foi possível excluir.', 'error');
+        return;
+    }
+
+    try {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        
+        if (!DEVELOPMENT_MODE && sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`${API_URL}/ordens/${id}`, {
+            method: 'DELETE',
+            headers: headers,
+            mode: 'cors'
+        });
+
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
+            return;
+        }
+
+        if (!response.ok) throw new Error('Erro ao deletar');
+
+        ordens = ordens.filter(o => String(o.id) !== String(id));
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
+        showToast('Ordem excluída com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro ao deletar:', error);
+        showToast('Erro ao excluir ordem', 'error');
+    }
+}
+
+async function toggleStatus(id) {
+    const ordem = ordens.find(o => String(o.id) === String(id));
+    if (!ordem) return;
+
+    const novoStatus = ordem.status === 'aberta' ? 'fechada' : 'aberta';
+    const old = { status: ordem.status };
+    ordem.status = novoStatus;
+    updateDisplay();
+    
+    if (novoStatus === 'fechada') {
+        showToast(`Ordem marcada como ${novoStatus}!`, 'success');
+    } else {
+        showToast(`Ordem marcada como ${novoStatus}!`, 'error');
+    }
+
+    if (isOnline || DEVELOPMENT_MODE) {
+        try {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            
+            if (!DEVELOPMENT_MODE && sessionToken) {
+                headers['X-Session-Token'] = sessionToken;
+            }
+
+            const response = await fetch(`${API_URL}/ordens/${id}/status`, {
+                method: 'PATCH',
+                headers: headers,
+                body: JSON.stringify({ status: novoStatus }),
+                mode: 'cors'
+            });
+
+            if (!DEVELOPMENT_MODE && response.status === 401) {
+                sessionStorage.removeItem('ordemCompraSession');
+                mostrarTelaAcessoNegado('Sua sessão expirou');
+                return;
+            }
+
+            if (!response.ok) throw new Error('Erro ao atualizar');
+
+            const data = await response.json();
+            const index = ordens.findIndex(o => String(o.id) === String(id));
+            if (index !== -1) ordens[index] = data;
+        } catch (error) {
+            ordem.status = old.status;
+            updateDisplay();
+            showToast('Erro ao atualizar status', 'error');
+        }
+    }
+}
+
+function viewOrdem(id) {
+    const ordem = ordens.find(o => String(o.id) === String(id));
+    if (!ordem) return;
+    
+    currentInfoTab = 0;
+    
+    document.getElementById('modalNumero').textContent = ordem.numero_ordem || ordem.numeroOrdem;
     
     document.getElementById('info-tab-geral').innerHTML = `
         <div class="info-section">
             <h4>Informações Gerais</h4>
-            <div class="info-row">
-                <span class="info-label">Responsável:</span>
-                <span class="info-value">${pedido.responsavel || pedido.vendedor || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Data:</span>
-                <span class="info-value">${pedido.data_registro ? formatarData(pedido.data_registro) : '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Status:</span>
-                <span class="badge ${statusClass}">${statusText}</span>
-            </div>
+            <p><strong>Responsável:</strong> ${toUpperCase(ordem.responsavel)}</p>
+            <p><strong>Data:</strong> ${formatDate(ordem.data_ordem || ordem.dataOrdem)}</p>
+            <p><strong>Status:</strong> <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span></p>
         </div>
     `;
     
-    document.getElementById('info-tab-faturamento').innerHTML = `
+    document.getElementById('info-tab-fornecedor').innerHTML = `
         <div class="info-section">
-            <h4>Dados de Faturamento</h4>
-            <div class="info-row">
-                <span class="info-label">CNPJ:</span>
-                <span class="info-value">${formatarCNPJ(pedido.cnpj)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Razão Social:</span>
-                <span class="info-value">${pedido.razao_social}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Inscrição Estadual:</span>
-                <span class="info-value">${pedido.inscricao_estadual || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Endereço:</span>
-                <span class="info-value">${pedido.endereco}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Telefone:</span>
-                <span class="info-value">${pedido.telefone || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Contato:</span>
-                <span class="info-value">${pedido.contato || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">E-mail:</span>
-                <span class="info-value">${pedido.email || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Documento:</span>
-                <span class="info-value">${pedido.documento || '-'}</span>
-            </div>
+            <h4>Dados do Fornecedor</h4>
+            <p><strong>Razão Social:</strong> ${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</p>
+            ${ordem.nome_fantasia || ordem.nomeFantasia ? `<p><strong>Nome Fantasia:</strong> ${toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia)}</p>` : ''}
+            <p><strong>CNPJ:</strong> ${ordem.cnpj}</p>
+            ${ordem.endereco_fornecedor || ordem.enderecoFornecedor ? `<p><strong>Endereço:</strong> ${toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor)}</p>` : ''}
+            ${ordem.site ? `<p><strong>Site:</strong> ${ordem.site}</p>` : ''}
+            ${ordem.contato ? `<p><strong>Contato:</strong> ${toUpperCase(ordem.contato)}</p>` : ''}
+            ${ordem.telefone ? `<p><strong>Telefone:</strong> ${ordem.telefone}</p>` : ''}
+            ${ordem.email ? `<p><strong>E-mail:</strong> ${ordem.email}</p>` : ''}
         </div>
     `;
     
-    const items = Array.isArray(pedido.items) ? pedido.items : [];
-    document.getElementById('info-tab-itens').innerHTML = `
+    document.getElementById('info-tab-pedido').innerHTML = `
         <div class="info-section">
             <h4>Itens do Pedido</h4>
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Cód. Estoque</th>
-                        <th>Especificação</th>
-                        <th>UN</th>
-                        <th>Quantidade</th>
-                        <th>Valor Unitário</th>
-                        <th>Valor Total</th>
-                        <th>NCM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${items.map((item, index) => `
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; margin-top: 0.5rem;">
+                    <thead>
                         <tr>
-                            <td>${index + 1}</td>
-                            <td>${item.codigoEstoque || '-'}</td>
-                            <td>${item.especificacao || '-'}</td>
-                            <td>${item.unidade || '-'}</td>
-                            <td>${item.quantidade || 0}</td>
-                            <td>${formatarMoeda(item.valorUnitario || 0)}</td>
-                            <td>${item.valorTotal || 'R$ 0,00'}</td>
-                            <td>${item.ncm || '-'}</td>
+                            <th>Item</th>
+                            <th>Especificação</th>
+                            <th>QTD</th>
+                            <th>Unid</th>
+                            <th>Valor UN</th>
+                            <th>IPI</th>
+                            <th>ST</th>
+                            <th>Total</th>
                         </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-        <div class="info-section" style="margin-top: 1.5rem;">
-            <h4>Totais</h4>
-            <div class="info-row">
-                <span class="info-label">Valor Total:</span>
-                <span class="info-value"><strong>${pedido.valor_total || 'R$ 0,00'}</strong></span>
+                    </thead>
+                    <tbody>
+                        ${ordem.items.map(item => `
+                            <tr>
+                                <td>${item.item}</td>
+                                <td>${toUpperCase(item.especificacao)}</td>
+                                <td>${item.quantidade}</td>
+                                <td>${toUpperCase(item.unidade)}</td>
+                                <td>${formatCurrency(item.valorUnitario || item.valor_unitario || 0)}</td>
+                                <td>${toUpperCase(item.ipi || '-')}</td>
+                                <td>${toUpperCase(item.st || '-')}</td>
+                                <td>${item.valorTotal || item.valor_total}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
-            <div class="info-row">
-                <span class="info-label">Peso (kg):</span>
-                <span class="info-value">${pedido.peso || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Quantidade Total:</span>
-                <span class="info-value">${pedido.quantidade || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Volumes:</span>
-                <span class="info-value">${pedido.volumes || '-'}</span>
-            </div>
+            <p style="margin-top: 1rem; font-size: 1.1rem;"><strong>Valor Total:</strong> ${ordem.valor_total || ordem.valorTotal}</p>
+            ${ordem.frete ? `<p><strong>Frete:</strong> ${toUpperCase(ordem.frete)}</p>` : ''}
         </div>
     `;
     
     document.getElementById('info-tab-entrega').innerHTML = `
         <div class="info-section">
             <h4>Informações de Entrega</h4>
-            <div class="info-row">
-                <span class="info-label">Local de Entrega:</span>
-                <span class="info-value">${pedido.local_entrega || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Setor:</span>
-                <span class="info-value">${pedido.setor || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Previsão de Entrega:</span>
-                <span class="info-value">${pedido.previsao_entrega ? new Date(pedido.previsao_entrega).toLocaleDateString('pt-BR') : '-'}</span>
-            </div>
+            ${ordem.local_entrega || ordem.localEntrega ? `<p><strong>Local de Entrega:</strong> ${toUpperCase(ordem.local_entrega || ordem.localEntrega)}</p>` : ''}
+            ${ordem.prazo_entrega || ordem.prazoEntrega ? `<p><strong>Prazo de Entrega:</strong> ${toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega)}</p>` : ''}
+            ${ordem.transporte ? `<p><strong>Transporte:</strong> ${toUpperCase(ordem.transporte)}</p>` : ''}
         </div>
     `;
     
-    document.getElementById('info-tab-transporte').innerHTML = `
+    document.getElementById('info-tab-pagamento').innerHTML = `
         <div class="info-section">
-            <h4>Informações de Transporte</h4>
-            <div class="info-row">
-                <span class="info-label">Transportadora:</span>
-                <span class="info-value">${pedido.transportadora || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Valor do Frete:</span>
-                <span class="info-value">${pedido.valor_frete || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Vendedor:</span>
-                <span class="info-value">${pedido.vendedor || '-'}</span>
-            </div>
+            <h4>Dados de Pagamento</h4>
+            <p><strong>Forma de Pagamento:</strong> ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}</p>
+            <p><strong>Prazo de Pagamento:</strong> ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}</p>
+            ${ordem.dados_bancarios || ordem.dadosBancarios ? `<p><strong>Dados Bancários:</strong> ${toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios)}</p>` : ''}
         </div>
     `;
     
-    switchInfoTab('info-tab-geral');
+    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('#infoModal .tab-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('#infoModal .tab-btn')[0].classList.add('active');
+    document.getElementById('info-tab-geral').classList.add('active');
+    
     document.getElementById('infoModal').classList.add('show');
+    
+    setTimeout(() => {
+        updateInfoNavigationButtons();
+    }, 100);
 }
 
 function closeInfoModal() {
-    document.getElementById('infoModal').classList.remove('show');
-}
-
-function switchInfoTab(tabId) {
-    document.querySelectorAll('#infoModal .tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('#infoModal .tab-btn').forEach(btn => btn.classList.remove('active'));
-    
-    document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
-}
-
-// ============================================
-// TOGGLE EMISSÃO (DEBITAR ESTOQUE)
-// ============================================
-async function toggleEmissao(id, checked) {
-    const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) return;
-    
-    if (checked && pedido.status === 'pendente') {
-        // Validação 1: Informações básicas
-        if (!pedido.cnpj || !pedido.razao_social || !pedido.endereco) {
-            showMessage(`Não existem informações suficientes para o pedido ${pedido.codigo}`, 'error');
-            document.getElementById(`check-${id}`).checked = false;
-            return;
-        }
-        
-        const items = Array.isArray(pedido.items) ? pedido.items : [];
-        
-        // Validação 2: TODOS os itens devem ter código de estoque
-        let hasItemWithoutStockCode = false;
-        for (const item of items) {
-            if (!item.codigoEstoque || item.codigoEstoque.trim() === '') {
-                hasItemWithoutStockCode = true;
-                break;
-            }
-        }
-        
-        if (hasItemWithoutStockCode || items.length === 0) {
-            showMessage('Não é possível confirmar a emissão deste pedido sem referência ao estoque', 'error');
-            document.getElementById(`check-${id}`).checked = false;
-            return;
-        }
-        
-        // Validação 3: Verificar se códigos existem no estoque e se há quantidade suficiente
-        let estoqueInsuficiente = false;
-        
-        for (const item of items) {
-            const itemEstoque = estoqueCache[item.codigoEstoque];
-            if (!itemEstoque) {
-                showMessage(`Código ${item.codigoEstoque} não encontrado no estoque`, 'error');
-                document.getElementById(`check-${id}`).checked = false;
-                return;
-            }
-            
-            const quantidadeDisponivel = parseFloat(itemEstoque.quantidade) || 0;
-            if (item.quantidade > quantidadeDisponivel) {
-                showMessage(`A quantidade em estoque para o item ${item.codigoEstoque} é insuficiente para atender o pedido`, 'error');
-                estoqueInsuficiente = true;
-            }
-        }
-        
-        if (estoqueInsuficiente) {
-            document.getElementById(`check-${id}`).checked = false;
-            return;
-        }
-        
-        // Confirmação do usuário
-        if (!confirm(`Confirmar emissão para o pedido ${pedido.codigo}?`)) {
-            document.getElementById(`check-${id}`).checked = false;
-            return;
-        }
-        
-        try {
-            const checkboxLabel = document.querySelector(`label[for="check-${id}"]`);
-            if (checkboxLabel) {
-                checkboxLabel.style.opacity = '0.5';
-                checkboxLabel.style.pointerEvents = 'none';
-            }
-            
-            // Debitar estoque
-            for (const item of items) {
-                const itemEstoque = estoqueCache[item.codigoEstoque];
-                const novaQuantidade = parseFloat(itemEstoque.quantidade) - item.quantidade;
-                
-                const response = await fetch(`${API_URL}/estoque/${itemEstoque.codigo}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-Token': sessionToken
-                    },
-                    body: JSON.stringify({
-                        quantidade: novaQuantidade
-                    })
-                });
-                
-                if (!response.ok) throw new Error('Erro ao atualizar estoque');
-            }
-            
-            // Atualizar status do pedido
-            const response = await fetch(`${API_URL}/pedidos/${id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Token': sessionToken
-                },
-                body: JSON.stringify({
-                    status: 'emitida',
-                    data_emissao: new Date().toISOString()
-                })
-            });
-            
-            if (!response.ok) throw new Error('Erro ao atualizar pedido');
-            
-            await Promise.all([loadPedidos(), loadEstoque()]);
-            
-            if (checkboxLabel) {
-                checkboxLabel.style.opacity = '1';
-                checkboxLabel.style.pointerEvents = 'auto';
-            }
-            
-            showMessage(`Pedido de Faturamento ${pedido.codigo} Emitido`, 'success');
-        } catch (error) {
-            console.error('Erro ao emitir:', error);
-            showMessage('Erro ao emitir pedido', 'error');
-            document.getElementById(`check-${id}`).checked = false;
-        }
-    } else if (!checked && pedido.status === 'emitida') {
-        if (!confirm(`Reverter emissão do pedido ${pedido.codigo}?\n\nAs quantidades retornarão ao estoque.`)) {
-            document.getElementById(`check-${id}`).checked = true;
-            return;
-        }
-        
-        try {
-            const items = Array.isArray(pedido.items) ? pedido.items : [];
-            
-            const checkboxLabel = document.querySelector(`label[for="check-${id}"]`);
-            if (checkboxLabel) {
-                checkboxLabel.style.opacity = '0.5';
-                checkboxLabel.style.pointerEvents = 'none';
-            }
-            
-            // Devolver ao estoque
-            for (const item of items) {
-                const itemEstoque = estoqueCache[item.codigoEstoque];
-                if (!itemEstoque) continue;
-                
-                const novaQuantidade = parseFloat(itemEstoque.quantidade) + item.quantidade;
-                
-                const response = await fetch(`${API_URL}/estoque/${itemEstoque.codigo}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-Token': sessionToken
-                    },
-                    body: JSON.stringify({
-                        quantidade: novaQuantidade
-                    })
-                });
-                
-                if (!response.ok) throw new Error('Erro ao atualizar estoque');
-            }
-            
-            const response = await fetch(`${API_URL}/pedidos/${id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Token': sessionToken
-                },
-                body: JSON.stringify({
-                    status: 'pendente',
-                    data_emissao: null
-                })
-            });
-            
-            if (!response.ok) throw new Error('Erro ao atualizar pedido');
-            
-            await Promise.all([loadPedidos(), loadEstoque()]);
-            
-            if (checkboxLabel) {
-                checkboxLabel.style.opacity = '1';
-                checkboxLabel.style.pointerEvents = 'auto';
-            }
-            
-            showMessage(`Emissão do pedido ${pedido.codigo} revertida!`, 'success');
-        } catch (error) {
-            console.error('Erro ao reverter:', error);
-            showMessage('Erro ao reverter emissão!', 'error');
-            document.getElementById(`check-${id}`).checked = true;
-        }
+    const modal = document.getElementById('infoModal');
+    if (modal) {
+        modal.classList.remove('show');
     }
 }
 
-// ============================================
-// GERAR ETIQUETA AUTOMÁTICA
-// ============================================
-function gerarEtiqueta(id) {
-    const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) {
-        showMessage('Pedido não encontrado!', 'error');
-        return;
-    }
+function filterOrdens() {
+    updateTable();
+}
+
+function updateDisplay() {
+    updateMonthDisplay();
+    updateDashboard();
+    updateTable();
+    updateResponsaveisFilter();
+}
+
+function updateDashboard() {
+    const monthOrdens = getOrdensForCurrentMonth();
+    const totalFechadas = monthOrdens.filter(o => o.status === 'fechada').length;
+    const totalAbertas = monthOrdens.filter(o => o.status === 'aberta').length;
     
-    if (!pedido.quantidade || parseInt(pedido.quantidade) === 0) {
-        showMessage('Este pedido não possui quantidade total informada!', 'error');
-        return;
-    }
+    // Contador global — não zera ao navegar entre meses
+    const ultimoNumero = ultimoNumeroGlobal;
     
-    const nf = prompt('Qual é o número da NF para este pedido?');
+    let valorTotalMes = 0;
+    monthOrdens.forEach(ordem => {
+        const valorStr = (ordem.valor_total || ordem.valorTotal || 'R$ 0,00')
+            .replace('R$', '')
+            .replace(/\./g, '')
+            .replace(',', '.')
+            .trim();
+        const valor = parseFloat(valorStr) || 0;
+        valorTotalMes += valor;
+    });
     
-    if (!nf || nf.trim() === '') {
-        return;
-    }
+    document.getElementById('totalOrdens').textContent = ultimoNumero;
+    document.getElementById('totalFechadas').textContent = totalFechadas;
+    document.getElementById('totalAbertas').textContent = totalAbertas;
+    document.getElementById('valorTotal').textContent = formatCurrency(valorTotalMes);
     
-    let municipio = '';
-    const enderecoPartes = pedido.endereco.split(',');
-    if (enderecoPartes.length > 1) {
-        municipio = enderecoPartes[enderecoPartes.length - 1].trim();
+    const cardAbertas = document.getElementById('cardAbertas');
+    if (!cardAbertas) return;
+    
+    let pulseBadge = cardAbertas.querySelector('.pulse-badge');
+    
+    if (totalAbertas > 0) {
+        cardAbertas.classList.add('has-alert');
+        
+        if (!pulseBadge) {
+            pulseBadge = document.createElement('div');
+            pulseBadge.className = 'pulse-badge';
+            cardAbertas.appendChild(pulseBadge);
+        }
+        pulseBadge.textContent = totalAbertas;
+        pulseBadge.style.display = 'flex';
     } else {
-        municipio = pedido.endereco;
+        cardAbertas.classList.remove('has-alert');
+        if (pulseBadge) {
+            pulseBadge.style.display = 'none';
+        }
     }
-    
-    const totalVolumes = parseInt(pedido.quantidade);
-    const destinatario = pedido.razao_social;
-    const endereco = pedido.endereco;
-    const infoAdicional = pedido.local_entrega || '';
-    
-    imprimirEtiquetasAutomatico(nf.trim(), totalVolumes, destinatario, municipio, endereco, infoAdicional);
 }
 
-function imprimirEtiquetasAutomatico(nf, totalVolumes, destinatario, municipio, endereco, infoAdicional) {
-    let labelsContent = '';
+function updateTable() {
+    const container = document.getElementById('ordensContainer');
+    let filteredOrdens = getOrdensForCurrentMonth();
     
-    for (let i = 1; i <= totalVolumes; i++) {
-        labelsContent += `
-            <div class='label-container'>
-                <div class='logo-container'>
-                    <img src='ETIQUETA.png' alt='Logo' style='max-width: 100px; max-height: 100px; margin-right: 15px;'>
-                    <div>
-                        <div class='header'>I.R COMÉRCIO E <br>MATERIAIS ELÉTRICOS LTDA</div>
-                        <div class='cnpj'>CNPJ: 33.149.502/0001-38</div>
-                    </div>
-                </div>
-                <div class='nf-volume-container'>
-                    <div class='nf-volume'>NF: ${nf}</div>
-                    <div class='volume'>VOLUME: ${i}/${totalVolumes}</div>
-                </div>
-                <hr>
-                <div class='section-title'>DESTINATÁRIO:</div>
-                <div class='section'>${destinatario}</div>
-                <div class='section'>${municipio}</div>
-                <div class='section'>${endereco}</div>
-                ${infoAdicional ? `<div class='section-title additional-info'>LOCAL DE ENTREGA:</div><div class='section'>${infoAdicional}</div>` : ""}
-            </div>
-        `;
+    const search = document.getElementById('search').value.toLowerCase();
+    const filterResp = document.getElementById('filterResponsavel').value;
+    const filterStatus = document.getElementById('filterStatus').value;
+    
+    if (search) {
+        filteredOrdens = filteredOrdens.filter(o => 
+            (o.numero_ordem || o.numeroOrdem || '').toLowerCase().includes(search) ||
+            (o.razao_social || o.razaoSocial || '').toLowerCase().includes(search) ||
+            (o.responsavel || '').toLowerCase().includes(search)
+        );
     }
     
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Etiquetas NF ${nf}</title>
-            <style>
-                @page {
-                    size: 100mm 150mm;
-                    margin: 2mm;
-                }
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    font-size: 12px;
-                    text-align: left;
-                    margin: 0;
-                    padding: 0;
-                }
-                .label-container {
-                    width: 94mm;
-                    height: 144mm;
-                    padding: 2mm;
-                    box-sizing: border-box;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-start;
-                    overflow: hidden;
-                    page-break-after: always;
-                }
-                .logo-container {
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 10px;
-                }
-                .logo-container img {
-                    max-width: 100px;
-                    max-height: 100px;
-                    margin-right: 15px;
-                }
-                .header, .cnpj, .section-title {
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                .header {
-                    font-size: 14px;
-                    line-height: 1.2;
-                }
-                .cnpj {
-                    font-size: 12px;
-                }
-                .nf-volume-container {
-                    text-align: center;
-                    border: 1px solid black;
-                    padding: 5px;
-                    margin: 10px 0;
-                }
-                .nf-volume {
-                    font-size: 30px;
-                    font-weight: bold;
-                    margin-bottom: 2px;
-                }
-                .volume {
-                    font-size: 20px;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                .section {
-                    line-height: 1.2;
-                    word-wrap: break-word;
-                    margin-top: 2px;
-                }
-                .additional-info {
-                    margin-top: 10px;
-                }
-                hr {
-                    border: none;
-                    border-top: 1px solid #000;
-                    margin: 10px 0;
-                }
-            </style>
-        </head>
-        <body>
-            ${labelsContent}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.onafterprint = function() { 
-                            window.close(); 
-                        };
-                    }, 500);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
+    if (filterResp) {
+        filteredOrdens = filteredOrdens.filter(o => o.responsavel === filterResp);
+    }
     
-    showMessage(`${totalVolumes} etiqueta(s) gerada(s) para NF ${nf}`, 'success');
+    if (filterStatus) {
+        filteredOrdens = filteredOrdens.filter(o => o.status === filterStatus);
+    }
+    
+    if (filteredOrdens.length === 0) {
+        if (isLoadingMonth) {
+            container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;">
+                <div style="display:inline-flex;align-items:center;gap:12px;color:var(--text-secondary,#aaa);">
+                    <div style="width:22px;height:22px;border-radius:50%;border:2.5px solid transparent;border-top-color:#e07b00;border-right-color:#f5a623;animation:spinLoader 0.75s linear infinite;"></div>
+                    <span style="font-size:0.95rem;">Carregando...</span>
+                </div></td></tr>`;
+        } else {
+            container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
+        }
+        return;
+    }
+    
+    filteredOrdens.sort((a, b) => {
+        const numA = parseInt(a.numero_ordem || a.numeroOrdem);
+        const numB = parseInt(b.numero_ordem || b.numeroOrdem);
+        return numA - numB;
+    });
+    
+    container.innerHTML = filteredOrdens.map(ordem => `
+        <tr class="${ordem.status === 'fechada' ? 'row-fechada' : ''}">
+            <td style="text-align: center; padding: 8px;">
+                <div class="checkbox-wrapper">
+                    <input 
+                        type="checkbox" 
+                        id="check-${ordem.id}"
+                        ${ordem.status === 'fechada' ? 'checked' : ''}
+                        onchange="toggleStatus('${ordem.id}')"
+                        class="styled-checkbox"
+                    >
+                    <label for="check-${ordem.id}" class="checkbox-label-styled"></label>
+                </div>
+            </td>
+            <td><strong>${ordem.numero_ordem || ordem.numeroOrdem}</strong></td>
+            <td>${toUpperCase(ordem.responsavel)}</td>
+            <td>${toUpperCase(ordem.razao_social || ordem.razaoSocial)}</td>
+            <td style="white-space: nowrap;">${formatDate(ordem.data_ordem || ordem.dataOrdem)}</td>
+            <td><strong>${ordem.valor_total || ordem.valorTotal}</strong></td>
+            <td>
+                <span class="badge ${ordem.status}">${ordem.status.toUpperCase()}</span>
+            </td>
+            <td class="actions-cell">
+                <div class="actions">
+                    <button onclick="viewOrdem('${ordem.id}')" class="action-btn view" title="Ver detalhes">Ver</button>
+                    <button onclick="editOrdem('${ordem.id}')" class="action-btn edit" title="Editar">Editar</button>
+                    <button onclick="generatePDFFromTable('${ordem.id}')" class="action-btn success" title="Gerar PDF">PDF</button>
+                    <button onclick="deleteOrdem('${ordem.id}')" class="action-btn delete" title="Excluir">Excluir</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateResponsaveisFilter() {
+    const responsaveis = new Set();
+    ordens.forEach(o => {
+        if (o.responsavel?.trim()) {
+            responsaveis.add(o.responsavel.trim());
+        }
+    });
+
+    const select = document.getElementById('filterResponsavel');
+    if (select) {
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Todos</option>';
+        Array.from(responsaveis).sort().forEach(r => {
+            const option = document.createElement('option');
+            option.value = r;
+            option.textContent = toUpperCase(r);
+            select.appendChild(option);
+        });
+        select.value = currentValue;
+    }
+}
+
+function getOrdensForCurrentMonth() {
+    // Dados já filtrados pelo servidor via ?mes=&ano=
+    return ordens;
+}
+
+function getNextOrderNumber() {
+    // Usa número global para evitar duplicatas entre meses
+    return ultimoNumeroGlobal > 0 ? (ultimoNumeroGlobal + 1).toString() : '1250';
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR');
+}
+
+// FORMATO MONETÁRIO BRASILEIRO
+function formatCurrency(value) {
+    const num = parseFloat(value);
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function showToast(message, type = 'success') {
+    const oldMessages = document.querySelectorAll('.floating-message');
+    oldMessages.forEach(msg => msg.remove());
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `floating-message ${type}`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => messageDiv.remove(), 300);
+    }, 3000);
+}
+
+
+// GERAÇÃO DE PDF
+function generatePDFFromTable(id) {
+    const ordem = ordens.find(o => String(o.id) === String(id));
+    if (!ordem) {
+        showToast('Ordem não encontrada!', 'error');
+        return;
+    }
+    
+    if (typeof window.jspdf === 'undefined') {
+        let attempts = 0;
+        const maxAttempts = 5;
+        const checkInterval = setInterval(() => {
+            attempts++;
+            if (typeof window.jspdf !== 'undefined') {
+                clearInterval(checkInterval);
+                generatePDFForOrdem(ordem);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                showToast('Erro: Biblioteca PDF não carregou. Recarregue a página (F5).', 'error');
+                console.error('jsPDF não encontrado após múltiplas tentativas!');
+            }
+        }, 500);
+        return;
+    }
+    
+    generatePDFForOrdem(ordem);
+}
+
+function generatePDFForOrdem(ordem) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    let y = 3;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const lineHeight = 5;
+    const maxWidth = pageWidth - (2 * margin);
+    
+    function addTextWithWrap(text, x, yStart, maxW, lineH = 5) {
+        const lines = doc.splitTextToSize(text, maxW);
+        lines.forEach((line, index) => {
+            if (yStart + (index * lineH) > pageHeight - 30) {
+                doc.addPage();
+                yStart = 20;
+            }
+            doc.text(line, x, yStart + (index * lineH));
+        });
+        return yStart + (lines.length * lineH);
+    }
+    
+    const logoHeader = new Image();
+    logoHeader.crossOrigin = 'anonymous';
+    logoHeader.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    
+    logoHeader.onload = function() {
+        try {
+            const logoWidth = 40;
+            const logoHeight = (logoHeader.height / logoHeader.width) * logoWidth;
+            const logoX = 5;
+            const logoY = y;
+            
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeader, 'PNG', logoX, logoY, logoWidth, logoHeight);
+            
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+            
+            const fontSize = logoHeight * 0.5;
+            
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
+            
+            const lineSpacing = fontSize * 0.5;
+            
+            const textY1 = logoY + fontSize * 0.85;
+            doc.text('I.R COMÉRCIO E', textX, textY1);
+            
+            const textY2 = textY1 + lineSpacing;
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
+            
+            doc.setTextColor(0, 0, 0);
+            
+            y = logoY + logoHeight + 8;
+            
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+            
+        } catch (e) {
+            console.log('Erro ao adicionar logo no cabeçalho:', e);
+            y = 25;
+            continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+        }
+    };
+    
+    logoHeader.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho, gerando PDF sem ela');
+        y = 25;
+        continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap);
+    };
+}
+
+function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineHeight, maxWidth, addTextWithWrap) {
+    const logoHeaderImg = new Image();
+    logoHeaderImg.crossOrigin = 'anonymous';
+    logoHeaderImg.src = 'I.R.-COMERCIO-E-MATERIAIS-ELETRICOS-LTDA-PDF.png';
+    
+    logoHeaderImg.onload = function() {
+        gerarPDFComCabecalho();
+    };
+    
+    logoHeaderImg.onerror = function() {
+        console.log('Erro ao carregar logo do cabeçalho');
+        gerarPDFComCabecalho();
+    };
+    
+    function gerarPDFComCabecalho() {
+        const logoCarregada = logoHeaderImg.complete && logoHeaderImg.naturalHeight !== 0;
+        
+        function adicionarCabecalho() {
+            if (!logoCarregada) {
+                return 20;
+            }
+            
+            const headerY = 3;
+            const logoWidth = 40;
+            const logoHeight = (logoHeaderImg.height / logoHeaderImg.width) * logoWidth;
+            const logoX = 5;
+            
+            doc.setGState(new doc.GState({ opacity: 0.3 }));
+            doc.addImage(logoHeaderImg, 'PNG', logoX, headerY, logoWidth, logoHeight);
+            doc.setGState(new doc.GState({ opacity: 1.0 }));
+            
+            const fontSize = logoHeight * 0.5;
+            
+            doc.setFontSize(fontSize);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(150, 150, 150);
+            const textX = logoX + logoWidth + 1.2;
+            
+            const lineSpacing = fontSize * 0.5;
+            const textY1 = headerY + fontSize * 0.85;
+            doc.text('I.R COMÉRCIO E', textX, textY1);
+            
+            const textY2 = textY1 + lineSpacing;
+            doc.text('MATERIAIS ELÉTRICOS LTDA', textX, textY2);
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            
+            return headerY + logoHeight + 8;
+        }
+        
+        function addPageWithHeader() {
+            doc.addPage();
+            const newY = adicionarCabecalho();
+            return newY;
+        }
+        
+        addTextWithWrap = function(text, x, yStart, maxW, lineH = 5) {
+            const lines = doc.splitTextToSize(text, maxW);
+            lines.forEach((line, index) => {
+                if (yStart + (index * lineH) > pageHeight - 30) {
+                    yStart = addPageWithHeader();
+                }
+                doc.text(line, x, yStart + (index * lineH));
+            });
+            return yStart + (lines.length * lineH);
+        };
+    
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('ORDEM DE COMPRA', pageWidth / 2, y, { align: 'center' });
+    
+        y += 8;
+        doc.setFontSize(14);
+        doc.text(`Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, pageWidth / 2, y, { align: 'center' });
+        
+        y += 12;
+        
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text('DADOS PARA FATURAMENTO', margin, y);
+        
+        y += lineHeight + 1;
+        doc.setFont(undefined, 'bold');
+        doc.text('I.R. COMÉRCIO E MATERIAIS ELÉTRICOS LTDA', margin, y);
+        
+        y += lineHeight + 1;
+        doc.setFont(undefined, 'normal');
+        doc.text('CNPJ: 33.149.502/0001-38  |  IE: 083.780.74-2', margin, y);
+        
+        y += lineHeight + 1;
+        doc.text('RUA TADORNA Nº 472, SALA 2', margin, y);
+        
+        y += lineHeight + 1;
+        doc.text('NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318', margin, y);
+        
+        y += lineHeight + 1;
+        doc.text('TELEFAX: (27) 3209-4291  |  E-MAIL: COMERCIAL.IRCOMERCIO@GMAIL.COM', margin, y);
+        
+        y += 10;
+        
+        doc.setFont(undefined, 'bold');
+        doc.text('DADOS DO FORNECEDOR', margin, y);
+        
+        y += lineHeight + 1;
+        
+        doc.setFont(undefined, 'normal');
+        doc.text('RAZÃO SOCIAL: ', margin, y);
+        const razaoSocialWidth = doc.getTextWidth('RAZÃO SOCIAL: ');
+        doc.setFont(undefined, 'bold');
+        const razaoSocialTexto = toUpperCase(ordem.razao_social || ordem.razaoSocial);
+        const razaoLines = doc.splitTextToSize(razaoSocialTexto, maxWidth - razaoSocialWidth);
+        doc.text(razaoLines[0], margin + razaoSocialWidth, y);
+        y += lineHeight;
+        
+        if (razaoLines.length > 1) {
+            for (let i = 1; i < razaoLines.length; i++) {
+                doc.text(razaoLines[i], margin, y);
+                y += lineHeight;
+            }
+        }
+
+        if (ordem.nome_fantasia || ordem.nomeFantasia) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('NOME FANTASIA: ', margin, y);
+            const nomeFantasiaWidth = doc.getTextWidth('NOME FANTASIA: ');
+            doc.setFont(undefined, 'normal');
+            const nomeFantasiaTexto = toUpperCase(ordem.nome_fantasia || ordem.nomeFantasia);
+            const nomeLines = doc.splitTextToSize(nomeFantasiaTexto, maxWidth - nomeFantasiaWidth);
+            doc.text(nomeLines[0], margin + nomeFantasiaWidth, y);
+            y += lineHeight;
+            
+            if (nomeLines.length > 1) {
+                for (let i = 1; i < nomeLines.length; i++) {
+                    doc.text(nomeLines[i], margin, y);
+                    y += lineHeight;
+                }
+            }
+        }
+
+        y += 1;
+        doc.setFont(undefined, 'normal');
+        doc.text('CNPJ: ', margin, y);
+        const cnpjWidth = doc.getTextWidth('CNPJ: ');
+        doc.setFont(undefined, 'bold');
+        doc.text(`${ordem.cnpj}`, margin + cnpjWidth, y);
+        y += lineHeight;
+
+        if (ordem.endereco_fornecedor || ordem.enderecoFornecedor) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('ENDEREÇO: ', margin, y);
+            const enderecoWidth = doc.getTextWidth('ENDEREÇO: ');
+            const enderecoTexto = toUpperCase(ordem.endereco_fornecedor || ordem.enderecoFornecedor);
+            const enderecoLines = doc.splitTextToSize(enderecoTexto, maxWidth - enderecoWidth);
+            doc.text(enderecoLines[0], margin + enderecoWidth, y);
+            y += lineHeight;
+            
+            if (enderecoLines.length > 1) {
+                for (let i = 1; i < enderecoLines.length; i++) {
+                    doc.text(enderecoLines[i], margin, y);
+                    y += lineHeight;
+                }
+            }
+        }
+
+        if (ordem.site) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('SITE: ', margin, y);
+            const siteWidth = doc.getTextWidth('SITE: ');
+            doc.text(ordem.site, margin + siteWidth, y);
+            y += lineHeight;
+        }
+
+        if (ordem.contato) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('CONTATO: ', margin, y);
+            const contatoWidth = doc.getTextWidth('CONTATO: ');
+            const contatoTexto = toUpperCase(ordem.contato);
+            const contatoLines = doc.splitTextToSize(contatoTexto, maxWidth - contatoWidth);
+            doc.text(contatoLines[0], margin + contatoWidth, y);
+            y += lineHeight;
+            
+            if (contatoLines.length > 1) {
+                for (let i = 1; i < contatoLines.length; i++) {
+                    doc.text(contatoLines[i], margin, y);
+                    y += lineHeight;
+                }
+            }
+        }
+
+        if (ordem.telefone) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('TELEFONE: ', margin, y);
+            const telefoneWidth = doc.getTextWidth('TELEFONE: ');
+            doc.text(`${ordem.telefone}`, margin + telefoneWidth, y);
+            y += lineHeight;
+        }
+
+        if (ordem.email) {
+            y += 1;
+            doc.setFont(undefined, 'normal');
+            doc.text('E-MAIL: ', margin, y);
+            const emailWidth = doc.getTextWidth('E-MAIL: ');
+            doc.text(ordem.email, margin + emailWidth, y);
+            y += lineHeight;
+        }
+        
+        y += 8;
+        
+        if (y > pageHeight - 50) {
+            y = addPageWithHeader();
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('ITENS DO PEDIDO', margin, y);
+        
+        y += 6;
+        
+        const tableWidth = pageWidth - (2 * margin);
+        const colWidths = {
+            item: tableWidth * 0.05,
+            especificacao: tableWidth * 0.35,
+            qtd: tableWidth * 0.08,
+            unid: tableWidth * 0.08,
+            valorUn: tableWidth * 0.12,
+            ipi: tableWidth * 0.10,
+            st: tableWidth * 0.10,
+            total: tableWidth * 0.12
+        };
+        
+        const itemRowHeight = 10;
+        
+        doc.setFillColor(108, 117, 125);
+        doc.setDrawColor(180, 180, 180);
+        doc.rect(margin, y, tableWidth, itemRowHeight, 'FD');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        
+        let xPos = margin;
+        
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        doc.text('ITEM', xPos + (colWidths.item / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.item;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('ESPECIFICAÇÃO', xPos + (colWidths.especificacao / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.especificacao;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('QTD', xPos + (colWidths.qtd / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.qtd;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('UNID', xPos + (colWidths.unid / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.unid;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('VALOR UN', xPos + (colWidths.valorUn / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.valorUn;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('IPI', xPos + (colWidths.ipi / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.ipi;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('ST', xPos + (colWidths.st / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.st;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        doc.text('TOTAL', xPos + (colWidths.total / 2), y + 6.5, { align: 'center' });
+        xPos += colWidths.total;
+        doc.line(xPos, y, xPos, y + itemRowHeight);
+        
+        y += itemRowHeight;
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        
+        ordem.items.forEach((item, index) => {
+            const especificacaoUpper = toUpperCase(item.especificacao);
+            const maxWidthEspec = colWidths.especificacao - 6;
+            const especLines = doc.splitTextToSize(especificacaoUpper, maxWidthEspec);
+            const lineCount = especLines.length;
+            const necessaryHeight = Math.max(itemRowHeight, lineCount * 4 + 4);
+            
+            if (y + necessaryHeight > pageHeight - 30) {
+                y = addPageWithHeader();
+            }
+            
+            if (index % 2 !== 0) {
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, y, tableWidth, necessaryHeight, 'F');
+            }
+            
+            xPos = margin;
+            
+            doc.setDrawColor(180, 180, 180);
+            doc.setLineWidth(0.3);
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text(item.item.toString(), xPos + (colWidths.item / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.item;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(especLines, xPos + 3, y + 4);
+            xPos += colWidths.especificacao;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(item.quantidade.toString(), xPos + (colWidths.qtd / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.qtd;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(toUpperCase(item.unidade), xPos + (colWidths.unid / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.unid;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            const valorUn = item.valorUnitario || item.valor_unitario || 0;
+            const valorUnFormatted = parseFloat(valorUn).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            doc.text(valorUnFormatted, xPos + (colWidths.valorUn / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.valorUn;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.ipi;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(toUpperCase(item.st || '-'), xPos + (colWidths.st / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.st;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.text(item.valorTotal || item.valor_total, xPos + (colWidths.total / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            xPos += colWidths.total;
+            doc.line(xPos, y, xPos, y + necessaryHeight);
+            
+            doc.line(margin, y + necessaryHeight, margin + tableWidth, y + necessaryHeight);
+            
+            y += necessaryHeight;
+        });
+        
+        y += 8;
+        
+        if (y > pageHeight - 40) {
+            y = addPageWithHeader();
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text(`VALOR TOTAL: ${ordem.valor_total || ordem.valorTotal}`, margin, y);
+        
+        y += 10;
+        
+        if (y > pageHeight - 60) {
+            y = addPageWithHeader();
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('LOCAL DE ENTREGA:', margin, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        
+        const localPadrao = 'RUA TADORNA Nº 472, SALA 2, NOVO HORIZONTE - SERRA/ES  |  CEP: 29.163-318';
+        const localEntregaPDF = (ordem.local_entrega || ordem.localEntrega || '').trim() !== '' 
+            ? toUpperCase(ordem.local_entrega || ordem.localEntrega)
+            : localPadrao;
+        
+        y = addTextWithWrap(localEntregaPDF, margin, y, maxWidth);
+        
+        y += 10;
+        
+        if (y > pageHeight - 50) {
+            y = addPageWithHeader();
+        }
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text('PRAZO DE ENTREGA:', margin, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.prazo_entrega || ordem.prazoEntrega || '-'), margin + 42, y);
+        
+        doc.setFont(undefined, 'bold');
+        doc.text('FRETE:', pageWidth - margin - 35, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.frete || '-'), pageWidth - margin - 20, y);
+        
+        y += 6;
+        
+        doc.setFont(undefined, 'bold');
+        doc.text('TRANSPORTE:', margin, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(toUpperCase(ordem.transporte || '-'), margin + 30, y);
+        
+        y += 10;
+        
+        if (y > pageHeight - 60) {
+            y = addPageWithHeader();
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('CONDIÇÕES DE PAGAMENTO:', margin, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`FORMA: ${toUpperCase(ordem.forma_pagamento || ordem.formaPagamento)}`, margin, y);
+        y += 5;
+        doc.text(`PRAZO: ${toUpperCase(ordem.prazo_pagamento || ordem.prazoPagamento)}`, margin, y);
+        
+        if (ordem.dados_bancarios || ordem.dadosBancarios) {
+            y += 5;
+            doc.setFont(undefined, 'bold');
+            doc.text('DADOS BANCÁRIOS:', margin, y);
+            y += 5;
+            doc.setFont(undefined, 'normal');
+            const bancarioUpper = toUpperCase(ordem.dados_bancarios || ordem.dadosBancarios);
+            y = addTextWithWrap(bancarioUpper, margin, y, maxWidth);
+        }
+        
+        y += 15;
+        
+        if (y > pageHeight - 80) {
+            y = addPageWithHeader();
+        }
+        
+        // DATA ATUAL (NÃO A DATA DA ORDEM) - CORREÇÃO PRINCIPAL
+        const dataAtual = new Date();
+        const dia = dataAtual.getDate();
+        const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 
+                       'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+        const mes = meses[dataAtual.getMonth()];
+        const ano = dataAtual.getFullYear();
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text(`SERRA/ES, ${dia} DE ${mes} DE ${ano}`, pageWidth / 2, y, { align: 'center' });
+        
+        y += 5;
+        
+        const assinatura = new Image();
+        assinatura.crossOrigin = 'anonymous';
+        assinatura.src = 'assinatura.png';
+
+        assinatura.onload = function() {
+            try {
+                const imgWidth = 50;
+                const imgHeight = (assinatura.height / assinatura.width) * imgWidth;
+                
+                doc.addImage(assinatura, 'PNG', (pageWidth / 2) - (imgWidth / 2), y + 2, imgWidth, imgHeight);
+                
+                let yFinal = y + imgHeight + 5;
+                
+                yFinal += 5;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
+                
+                yFinal += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
+                
+                yFinal += 5;
+                doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+                
+                yFinal += 12;
+                
+                if (yFinal > pageHeight - 30) {
+                    yFinal = addPageWithHeader();
+                }
+                
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
+                
+                yFinal += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(204, 112, 0);
+                doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
+                
+                yFinal += 5;
+                doc.setTextColor(0, 0, 0);
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9);
+                doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
+                
+                yFinal += 5;
+                doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
+                
+                doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
+                showToast('PDF gerado com sucesso!', 'success');
+                
+            } catch (e) {
+                console.log('Erro ao adicionar assinatura:', e);
+                gerarPDFSemAssinatura();
+            }
+        };
+
+        assinatura.onerror = function() {
+            console.log('Erro ao carregar assinatura, gerando PDF sem ela');
+            gerarPDFSemAssinatura();
+        };
+        
+        function gerarPDFSemAssinatura() {
+            let yFinal = y + 5;
+            
+            yFinal += 5;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('ROSEMEIRE BICALHO DE LIMA GRAVINO', pageWidth / 2, yFinal, { align: 'center' });
+            
+            yFinal += 5;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text('MG-10.078.568 / CPF: 045.160.616-78', pageWidth / 2, yFinal, { align: 'center' });
+            
+            yFinal += 5;
+            doc.text('DIRETORA', pageWidth / 2, yFinal, { align: 'center' });
+            
+            yFinal += 12;
+            
+            if (yFinal > pageHeight - 30) {
+                yFinal = addPageWithHeader();
+            }
+            
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(margin, yFinal, pageWidth - (2 * margin), 22, 'S');
+            
+            yFinal += 6;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(204, 112, 0);
+            doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
+            
+            yFinal += 5;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+            doc.text(`1) GENTILEZA MENCIONAR NA NOTA FISCAL O Nº ${ordem.numero_ordem || ordem.numeroOrdem}`, margin + 5, yFinal);
+            
+            yFinal += 5;
+            doc.text('2) FAVOR ENVIAR A NOTA FISCAL ELETRÔNICA (ARQUIVO .XML) PARA: FINANCEIRO.IRCOMERCIO@GMAIL.COM', margin + 5, yFinal);
+            
+            doc.save(`${toUpperCase(ordem.razao_social || ordem.razaoSocial)}-${ordem.numero_ordem || ordem.numeroOrdem}.pdf`);
+            showToast('PDF gerado (sem assinatura)', 'success');
+        }
+    }
 }

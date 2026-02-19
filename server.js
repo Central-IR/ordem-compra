@@ -1,93 +1,121 @@
 const express = require('express');
-const path = require('path');
 const cors = require('cors');
-require('dotenv').config();
-
-// ==============================
-// CONFIGURAÇÃO INICIAL
-// ==============================
+const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 const app = express();
-const PORT = process.env.PORT || 3003;
 
-app.use(cors());
-app.use(express.json());
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// ==============================
-// VARIÁVEIS DE AMBIENTE
-// ==============================
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configuradas');
+if (!supabaseUrl || !supabaseKey) {
+    console.error('❌ ERRO: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
     process.exit(1);
 }
 
-// ==============================
-// MIDDLEWARE DE AUTENTICAÇÃO
-// ==============================
-async function verificarAutenticacao(req, res, next) {
-    const publicPaths = ['/', '/api/health'];
+const supabase = createClient(supabaseUrl, supabaseKey);
+console.log('✅ Supabase configurado:', supabaseUrl);
 
-    if (publicPaths.includes(req.path)) {
+// CORS mais permissivo para desenvolvimento
+app.use(cors({
+    origin: function(origin, callback) {
+        // Permite requisições sem origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://ordem-compra.onrender.com',
+            'http://localhost:3000',
+            'http://localhost:10000',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:10000'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Permitir todas as origens em desenvolvimento
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filepath) => {
+        if (filepath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+        else if (filepath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+        else if (filepath.endsWith('.html')) res.setHeader('Content-Type', 'text/html');
+    }
+}));
+
+app.use((req, res, next) => {
+    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
+// AUTENTICAÇÃO
+const PORTAL_URL = process.env.PORTAL_URL || 'https://ir-comercio-portal-zcan.onrender.com';
+
+async function verificarAutenticacao(req, res, next) {
+    const publicPaths = ['/', '/health', '/diagnostico.html'];
+    if (publicPaths.includes(req.path)) return next();
+
+    // Modo produção — autenticação ativa
+    const DEVELOPMENT_MODE = false;
+    if (DEVELOPMENT_MODE) {
+        console.log('⚠️ MODO DESENVOLVIMENTO - Autenticação desabilitada');
         return next();
     }
 
     const sessionToken = req.headers['x-session-token'];
-
     if (!sessionToken) {
-        return res.status(401).json({ error: 'Token de sessão não fornecido' });
+        console.log('❌ Token não fornecido');
+        return res.status(401).json({ error: 'Não autenticado' });
     }
 
     try {
-        const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+        const verifyResponse = await fetch(`${PORTAL_URL}/api/verify-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionToken })
         });
 
-        if (!response.ok) {
+        if (!verifyResponse.ok) {
+            console.log('❌ Sessão inválida - Status:', verifyResponse.status);
             return res.status(401).json({ error: 'Sessão inválida' });
         }
 
-        const data = await response.json();
-
-        if (!data.valid) {
+        const sessionData = await verifyResponse.json();
+        if (!sessionData.valid) {
+            console.log('❌ Sessão não válida');
             return res.status(401).json({ error: 'Sessão inválida' });
         }
 
-        req.user = data.session;
+        req.user = sessionData.session;
         req.sessionToken = sessionToken;
-
+        console.log('✅ Autenticação OK');
         next();
     } catch (error) {
-        console.error('Erro ao validar sessão:', error);
-        res.status(500).json({ error: 'Erro interno de autenticação' });
+        console.error('❌ Erro ao verificar autenticação:', error.message);
+        return res.status(500).json({ error: 'Erro ao verificar autenticação', details: error.message });
     }
 }
 
-// ==============================
-// ROTAS PÚBLICAS
-// ==============================
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// ==============================
-// ROTAS PROTEGIDAS – ORDENS DE COMPRA
-// ==============================
-
-// Último número global (declarado ANTES do GET genérico para evitar conflito de rota)
+// ROTAS DA API
+// Rota: último número global (deve vir ANTES do GET genérico /api/ordens)
 app.get('/api/ordens/ultimo-numero', verificarAutenticacao, async (req, res) => {
     try {
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/ordens_compra?select=numero_ordem&order=numero_ordem.desc&limit=1`,
-            { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-        );
-        if (!response.ok) throw new Error('Erro Supabase');
-        const data = await response.json();
-        const ultimoNumero = data.length > 0 ? parseInt(data[0].numero_ordem) || 0 : 0;
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('numero_ordem')
+            .order('numero_ordem', { ascending: false })
+            .limit(1);
+        if (error) throw error;
+        const ultimoNumero = data?.length > 0 ? parseInt(data[0].numero_ordem) || 0 : 0;
         res.json({ ultimoNumero });
     } catch (error) {
         console.error('❌ Erro ao buscar último número:', error.message);
@@ -95,28 +123,26 @@ app.get('/api/ordens/ultimo-numero', verificarAutenticacao, async (req, res) => 
     }
 });
 
-// Fornecedores únicos para autocomplete (todos os meses, campos mínimos)
+// Rota: fornecedores únicos para autocomplete (todos os meses)
 app.get('/api/fornecedores', verificarAutenticacao, async (req, res) => {
     try {
-        const fields = 'razao_social,nome_fantasia,cnpj,endereco_fornecedor,site,contato,telefone,email';
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/ordens_compra?select=${fields}&order=created_at.desc`,
-            { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-        );
-        if (!response.ok) throw new Error('Erro Supabase');
-        const data = await response.json();
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('razao_social,nome_fantasia,cnpj,endereco_fornecedor,site,contato,telefone,email')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
 
-        // Desduplicar: mantém apenas o registro mais recente por razão social
+        // Deduplicar: mantém apenas o registro mais recente por razão social
         const seen = new Set();
         const fornecedores = [];
-        for (const row of data) {
-            const razao = row.razao_social?.trim().toUpperCase();
+        for (const row of data || []) {
+            const razao = (row.razao_social || '').trim().toUpperCase();
             if (razao && !seen.has(razao)) {
                 seen.add(razao);
                 fornecedores.push(row);
             }
         }
-        console.log(`👥 ${fornecedores.length} fornecedores únicos retornados`);
+        console.log(`👥 ${fornecedores.length} fornecedores únicos`);
         res.json(fornecedores);
     } catch (error) {
         console.error('❌ Erro ao buscar fornecedores:', error.message);
@@ -124,144 +150,290 @@ app.get('/api/fornecedores', verificarAutenticacao, async (req, res) => {
     }
 });
 
-// Listar ordens — com filtro de mês opcional
 app.get('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
         const { mes, ano } = req.query;
-        let supabaseUrl;
+        let query = supabase.from('ordens_compra').select('*');
 
         if (mes !== undefined && ano !== undefined) {
-            const month = parseInt(mes); // 0-based (Janeiro = 0)
+            const month = parseInt(mes); // 0-based
             const year = parseInt(ano);
-            const startDate = new Date(year, month, 1);
-            const endDate = new Date(year, month + 1, 0);
-            const startStr = startDate.toISOString().split('T')[0];
-            const endStr = endDate.toISOString().split('T')[0];
-            console.log(`📥 GET /api/ordens - Buscando de ${startStr} a ${endStr}...`);
-            supabaseUrl = `${SUPABASE_URL}/rest/v1/ordens_compra?select=*&data_ordem=gte.${startStr}&data_ordem=lte.${endStr}&order=numero_ordem.asc`;
+            const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+            const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+            console.log(`📋 Listando ordens de ${startDate} a ${endDate}...`);
+            query = query
+                .gte('data_ordem', startDate)
+                .lte('data_ordem', endDate)
+                .order('numero_ordem', { ascending: true });
         } else {
-            console.log('📥 GET /api/ordens - Buscando todos...');
-            supabaseUrl = `${SUPABASE_URL}/rest/v1/ordens_compra?select=*&order=numero_ordem.desc`;
+            console.log('📋 Listando todas as ordens...');
+            query = query.order('created_at', { ascending: false });
         }
 
-        const response = await fetch(supabaseUrl, {
-            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-        });
+        const { data, error } = await query;
+        if (error) throw error;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Erro Supabase:', errorText);
-            throw new Error(`Supabase erro ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log(`✅ ${data.length} ordens carregadas`);
-        res.json(data);
+        console.log(`✅ ${data?.length || 0} ordens encontradas`);
+        res.json(data || []);
     } catch (error) {
-        console.error('❌ Erro ao buscar ordens:', error.message);
-        res.status(500).json({ error: 'Erro ao buscar ordens', details: error.message });
+        console.error('❌ Erro ao listar ordens:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao listar ordens',
+            message: error.message
+        });
     }
 });
 
-// Criar ordem
+app.get('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+    try {
+        console.log(`🔍 Buscando ordem ID: ${req.params.id}`);
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .select('*')
+            .eq('id', req.params.id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('❌ Ordem não encontrada');
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            throw error;
+        }
+
+        console.log('✅ Ordem encontrada');
+        res.json(data);
+    } catch (error) {
+        console.error('❌ Erro ao buscar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao buscar ordem',
+            message: error.message
+        });
+    }
+});
+
 app.post('/api/ordens', verificarAutenticacao, async (req, res) => {
     try {
-        console.log('📝 POST /api/ordens - Criando ordem:', req.body.numero_ordem);
+        console.log('➕ Criando nova ordem...');
+        
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
 
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/ordens_compra`,
-            {
-                method: 'POST',
-                headers: {
-                    apikey: SUPABASE_KEY,
-                    Authorization: `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json',
-                    Prefer: 'return=representation'
-                },
-                body: JSON.stringify(req.body)
-            }
-        );
+        const novaOrdem = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta'
+        };
 
-        if (!response.ok) {
-            const err = await response.text();
-            console.error('❌ Erro ao criar ordem:', err);
-            throw new Error(err);
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .insert([novaOrdem])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('❌ Erro Supabase ao inserir:', error);
+            throw error;
         }
 
-        const data = await response.json();
-        console.log('✅ Ordem criada:', data[0]?.numero_ordem);
-        res.json(data);
+        console.log('✅ Ordem criada com sucesso! ID:', data.id);
+        res.status(201).json(data);
     } catch (error) {
-        console.error('❌ Erro ao criar ordem:', error.message);
-        res.status(500).json({ error: 'Erro ao criar ordem', details: error.message });
+        console.error('❌ Erro ao criar ordem:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao criar ordem',
+            message: error.message
+        });
     }
 });
 
-// Atualizar ordem
-app.patch('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
+app.put('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/ordens_compra?id=eq.${req.params.id}`,
-            {
-                method: 'PATCH',
-                headers: {
-                    apikey: SUPABASE_KEY,
-                    Authorization: `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json',
-                    Prefer: 'return=representation'
-                },
-                body: JSON.stringify(req.body)
+        console.log(`✏️ Atualizando ordem ID: ${req.params.id}`);
+        
+        const { 
+            numeroOrdem, responsavel, dataOrdem, razaoSocial, nomeFantasia, 
+            cnpj, enderecoFornecedor, site, contato, telefone, email, items, 
+            valorTotal, frete, localEntrega, prazoEntrega, transporte, 
+            formaPagamento, prazoPagamento, dadosBancarios, status 
+        } = req.body;
+
+        const ordemAtualizada = {
+            numero_ordem: numeroOrdem,
+            responsavel,
+            data_ordem: dataOrdem,
+            razao_social: razaoSocial,
+            nome_fantasia: nomeFantasia || null,
+            cnpj,
+            endereco_fornecedor: enderecoFornecedor || null,
+            site: site || null,
+            contato: contato || null,
+            telefone: telefone || null,
+            email: email || null,
+            items: items || [],
+            valor_total: valorTotal || 'R$ 0,00',
+            frete: frete || null,
+            local_entrega: localEntrega || null,
+            prazo_entrega: prazoEntrega || null,
+            transporte: transporte || null,
+            forma_pagamento: formaPagamento,
+            prazo_pagamento: prazoPagamento,
+            dados_bancarios: dadosBancarios || null,
+            status: status || 'aberta',
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .update(ordemAtualizada)
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
             }
-        );
+            throw error;
+        }
 
-        if (!response.ok) throw new Error('Erro ao atualizar ordem');
-
-        const data = await response.json();
+        console.log('✅ Ordem atualizada com sucesso!');
         res.json(data);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Erro ao atualizar ordem' });
+        console.error('❌ Erro ao atualizar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao atualizar ordem',
+            message: error.message
+        });
     }
 });
 
-// Excluir ordem
+app.patch('/api/ordens/:id/status', verificarAutenticacao, async (req, res) => {
+    try {
+        console.log(`🔄 Atualizando status da ordem ID: ${req.params.id}`);
+        const updates = {
+            status: req.body.status,
+            updated_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('ordens_compra')
+            .update(updates)
+            .eq('id', req.params.id)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ success: false, error: 'Ordem não encontrada' });
+            }
+            throw error;
+        }
+
+        console.log('✅ Status atualizado com sucesso!');
+        res.json(data);
+    } catch (error) {
+        console.error('❌ Erro ao atualizar status:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao atualizar status',
+            message: error.message
+        });
+    }
+});
+
 app.delete('/api/ordens/:id', verificarAutenticacao, async (req, res) => {
     try {
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/ordens_compra?id=eq.${req.params.id}`,
-            {
-                method: 'DELETE',
-                headers: {
-                    apikey: SUPABASE_KEY,
-                    Authorization: `Bearer ${SUPABASE_KEY}`
-                }
-            }
-        );
+        console.log(`🗑️ Deletando ordem ID: ${req.params.id}`);
+        const { error } = await supabase
+            .from('ordens_compra')
+            .delete()
+            .eq('id', req.params.id);
 
-        if (!response.ok) throw new Error('Erro ao excluir ordem');
+        if (error) throw error;
 
-        res.json({ success: true });
+        console.log('✅ Ordem deletada com sucesso!');
+        res.json({ success: true, message: 'Ordem removida com sucesso' });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Erro ao excluir ordem' });
+        console.error('❌ Erro ao deletar ordem:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao deletar ordem',
+            message: error.message
+        });
     }
 });
 
-// ==============================
-// SERVIR FRONTEND
-// ==============================
-app.use(express.static(path.join(__dirname, 'public')));
+// ROTAS DE SAÚDE
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-app.get('*', (req, res) => {
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ==============================
-// INICIAR SERVIDOR
-// ==============================
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor Ordem de Compra rodando na porta ${PORT}`);
-    console.log('🔒 Autenticação centralizada no Portal');
-    console.log('📦 Supabase conectado com Service Role');
-    console.log('💾 Tabela: ordens_compra');
+// TRATAMENTO GLOBAL DE ERROS
+app.use((err, req, res, next) => {
+    console.error('❌ Erro não tratado:', err);
+    res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor',
+        message: err.message
+    });
 });
+
+// INICIAR SERVIDOR
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log('');
+    console.log('===============================================');
+    console.log('🚀 ORDEM DE COMPRA');
+    console.log('===============================================');
+    console.log(`✅ Porta: ${PORT}`);
+    console.log(`✅ Supabase: ${supabaseUrl}`);
+    console.log(`✅ Portal: ${PORTAL_URL}`);
+    console.log('===============================================');
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    process.exit(1);
+});
+
+module.exports = app;

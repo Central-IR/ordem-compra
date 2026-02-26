@@ -17,7 +17,21 @@ let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
 let isLoadingMonth = false;
 let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
 
-const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
+let currentUserName = null; // Will be set from authenticated session
+
+const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
+
+function detectResponsavelFromUser(name) {
+    if (!name) return null;
+    const upper = name.trim().toUpperCase();
+    // Match by first name
+    for (const resp of KNOWN_RESPONSAVEIS) {
+        if (upper === resp || upper.startsWith(resp + ' ') || upper.startsWith(resp + '.')) {
+            return resp;
+        }
+    }
+    return null;
+}
 
 console.log('🚀 Ordem de Compra iniciada');
 console.log('📍 API URL:', API_URL);
@@ -68,9 +82,30 @@ function verificarAutenticacao() {
     }
 
     inicializarApp();
+    // Fetch session details to get user name
+    fetchSessionUser();
 }
 
-function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
+async function fetchSessionUser() {
+    if (!sessionToken) return;
+    try {
+        const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.valid && data.session?.name) {
+            currentUserName = data.session.name;
+            console.log('👤 Usuário autenticado:', currentUserName);
+        }
+    } catch (e) {
+        console.error('❌ Erro ao obter dados do usuário:', e);
+    }
+}
+
+
     document.body.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
             <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
@@ -419,9 +454,8 @@ function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
     ordens = [];           // descarta apenas as ordens do mês anterior
     lastDataHash = '';
-    isLoadingMonth = true;
-    updateDisplay();       // mostra "Carregando..." imediatamente
-    loadOrdens().finally(() => { isLoadingMonth = false; });
+    updateDisplay();       // mostra "Nenhuma ordem encontrada" imediatamente
+    loadOrdens();
     // fornecedoresCache e ultimoNumeroGlobal permanecem intactos
 }
 
@@ -565,6 +599,9 @@ function openFormModal() {
     const nextNumber = getNextOrderNumber();
     const today = new Date().toISOString().split('T')[0];
     
+    // Auto-detect responsavel from authenticated user
+    const autoResponsavel = detectResponsavelFromUser(currentUserName) || '';
+    
     const modalHTML = `
         <div class="modal-overlay" id="formModal" style="display: flex;">
             <div class="modal-content" style="max-width: 1200px;">
@@ -592,13 +629,8 @@ function openFormModal() {
                                     <input type="text" id="numeroOrdem" value="${nextNumber}" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="responsavel">Responsável *</label>
-                                    <select id="responsavel" required>
-                                        <option value="">Selecione...</option>
-                                        <option value="ROBERTO">ROBERTO</option>
-                                        <option value="ISAQUE">ISAQUE</option>
-                                        <option value="MIGUEL">MIGUEL</option>
-                                    </select>
+                                    <label for="responsavel">Responsável</label>
+                                    <input type="text" id="responsavel" value="${autoResponsavel}" readonly style="background:var(--input-bg);cursor:default;" tabindex="-1">
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
@@ -711,7 +743,7 @@ function openFormModal() {
                         <div class="modal-actions">
                             <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
                             <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
-                            <button type="submit" id="btnSave" class="save" style="display: none;">Salvar Ordem</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Salvar</button>
                             <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
                         </div>
                     </form>
@@ -966,13 +998,8 @@ async function editOrdem(id) {
                                     <input type="text" id="numeroOrdem" value="${ordem.numero_ordem || ordem.numeroOrdem}" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="responsavel">Responsável *</label>
-                                    <select id="responsavel" required>
-                                        <option value="">Selecione...</option>
-                                        <option value="ROBERTO" ${toUpperCase(ordem.responsavel) === 'ROBERTO' ? 'selected' : ''}>ROBERTO</option>
-                                        <option value="ISAQUE" ${toUpperCase(ordem.responsavel) === 'ISAQUE' ? 'selected' : ''}>ISAQUE</option>
-                                        <option value="MIGUEL" ${toUpperCase(ordem.responsavel) === 'MIGUEL' ? 'selected' : ''}>MIGUEL</option>
-                                    </select>
+                                    <label for="responsavel">Responsável</label>
+                                    <input type="text" id="responsavel" value="${toUpperCase(ordem.responsavel || '')}" readonly style="background:var(--input-bg);cursor:default;" tabindex="-1">
                                 </div>
                                 <div class="form-group">
                                     <label for="dataOrdem">Data da Ordem *</label>
@@ -1085,7 +1112,7 @@ async function editOrdem(id) {
                         <div class="modal-actions">
                             <button type="button" id="btnPrevious" onclick="previousTab()" class="secondary" style="display: none;">Anterior</button>
                             <button type="button" id="btnNext" onclick="nextTab()" class="secondary">Próximo</button>
-                            <button type="submit" id="btnSave" class="save" style="display: none;">Atualizar Ordem</button>
+                            <button type="submit" id="btnSave" class="save" style="display: none;">Atualizar</button>
                             <button type="button" onclick="closeFormModal(true)" class="secondary">Cancelar</button>
                         </div>
                     </form>
@@ -1434,15 +1461,7 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
-        if (isLoadingMonth) {
-            container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;">
-                <div style="display:inline-flex;align-items:center;gap:12px;color:var(--text-secondary,#aaa);">
-                    <div style="width:22px;height:22px;border-radius:50%;border:2.5px solid transparent;border-top-color:#e07b00;border-right-color:#f5a623;animation:spinLoader 0.75s linear infinite;"></div>
-                    <span style="font-size:0.95rem;">Carregando...</span>
-                </div></td></tr>`;
-        } else {
-            container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
-        }
+        container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
         return;
     }
     
@@ -2143,7 +2162,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
                 yFinal += 6;
                 doc.setFontSize(10);
                 doc.setFont(undefined, 'bold');
-                doc.setTextColor(204, 112, 0);
+                doc.setTextColor(255, 82, 29);
                 doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
                 
                 yFinal += 5;
@@ -2199,7 +2218,7 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             yFinal += 6;
             doc.setFontSize(10);
             doc.setFont(undefined, 'bold');
-            doc.setTextColor(204, 112, 0);
+            doc.setTextColor(255, 82, 29);
             doc.text('ATENÇÃO SR. FORNECEDOR:', margin + 5, yFinal);
             
             yFinal += 5;

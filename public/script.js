@@ -14,17 +14,16 @@ let isOnline = false;
 let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
-let isLoadingMonth = false;
 let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
 
-let currentUserName = null; // Will be set from authenticated session
+const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
+let currentUserName = null; // Will be set from authenticated session
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
 function detectResponsavelFromUser(name) {
     if (!name) return null;
     const upper = name.trim().toUpperCase();
-    // Match by first name
     for (const resp of KNOWN_RESPONSAVEIS) {
         if (upper === resp || upper.startsWith(resp + ' ') || upper.startsWith(resp + '.')) {
             return resp;
@@ -82,8 +81,7 @@ function verificarAutenticacao() {
     }
 
     inicializarApp();
-    // Fetch session details to get user name
-    fetchSessionUser();
+    fetchSessionUser(); // Detect user name for auto-fill
 }
 
 async function fetchSessionUser() {
@@ -96,16 +94,16 @@ async function fetchSessionUser() {
         });
         if (!response.ok) return;
         const data = await response.json();
-        if (data.valid && data.session?.name) {
+        if (data.valid && data.session && data.session.name) {
             currentUserName = data.session.name;
-            console.log('👤 Usuário autenticado:', currentUserName);
+            console.log('\u{1F464} Usuário autenticado:', currentUserName);
         }
     } catch (e) {
-        console.error('❌ Erro ao obter dados do usuário:', e);
+        console.error('Erro ao obter dados do usuário:', e);
     }
 }
 
-
+function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
     document.body.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-primary); color: var(--text-primary); text-align: center; padding: 2rem;">
             <h1 style="font-size: 2.2rem; margin-bottom: 1rem;">${mensagem}</h1>
@@ -598,8 +596,6 @@ function openFormModal() {
     
     const nextNumber = getNextOrderNumber();
     const today = new Date().toISOString().split('T')[0];
-    
-    // Auto-detect responsavel from authenticated user
     const autoResponsavel = detectResponsavelFromUser(currentUserName) || '';
     
     const modalHTML = `

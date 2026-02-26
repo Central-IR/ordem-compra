@@ -440,8 +440,11 @@ function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
     ordens = [];
     lastDataHash = '';
-    updateMonthDisplay();  // só atualiza o label do mês imediatamente
-    loadOrdensDirectly();  // 'Nenhuma ordem' só aparece após resposta
+    updateMonthDisplay();
+    // Limpa tabela imediatamente — sem rastro do mês anterior
+    const container = document.getElementById('ordensContainer');
+    if (container) container.innerHTML = '';
+    loadOrdensDirectly();
 }
 
 function updateMonthDisplay() {

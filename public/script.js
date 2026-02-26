@@ -15,7 +15,7 @@ let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
 let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
-let isLoadingOrdens = false;  // evita mostrar 'vazio' antes da resposta chegar
+let currentFetchController = null;  // AbortController — cancela fetch anterior ao trocar de mês
 let currentUserName = null;
 const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
@@ -161,48 +161,49 @@ function updateConnectionStatus() {
 }
 
 
-// loadOrdensDirectly: carrega o mês atual sem depender de isOnline
-// Usa isLoadingOrdens para evitar mostrar 'vazio' antes de receber resposta
+// loadOrdensDirectly: cancela fetch anterior via AbortController,
+// garante que apenas o mês atualmente visível é renderizado
 async function loadOrdensDirectly() {
-    if (isLoadingOrdens) return;
-    isLoadingOrdens = true;
-    try {
-        const headers = {
-            'Accept': 'application/json'
-        };
-        
-        if (!DEVELOPMENT_MODE && sessionToken) {
-            headers['X-Session-Token'] = sessionToken;
-        }
+    // Cancela qualquer requisição anterior em voo
+    if (currentFetchController) currentFetchController.abort();
+    currentFetchController = new AbortController();
+    const signal = currentFetchController.signal;
 
-        const mes = currentMonth.getMonth();
-        const ano = currentMonth.getFullYear();
-        const response = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
-            method: 'GET',
-            headers: headers,
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+    // Captura o mês/ano no momento do clique — imutável para este fetch
+    const mesFetch = currentMonth.getMonth();
+    const anoFetch = currentMonth.getFullYear();
+
+    try {
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+
+        const response = await fetch(
+            `${API_URL}/ordens?mes=${mesFetch}&ano=${anoFetch}`,
+            { method: 'GET', headers, mode: 'cors', cache: 'no-cache', signal }
+        );
 
         if (!DEVELOPMENT_MODE && response.status === 401) {
             sessionStorage.removeItem('ordemCompraSession');
             mostrarTelaAcessoNegado('Sua sessão expirou');
             return;
         }
-
-        if (!response.ok) { isLoadingOrdens = false; return; }
+        if (!response.ok) return;
 
         const data = await response.json();
+
+        // Descarta se o usuário já trocou de mês enquanto esperava
+        if (mesFetch !== currentMonth.getMonth() || anoFetch !== currentMonth.getFullYear()) return;
+
         ordens = data;
         isOnline = true;
         updateConnectionStatus();
         mesclarCacheFornecedores(data);
         lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        currentFetchController = null; // fetch concluído
         updateDisplay();
     } catch (error) {
+        if (error.name === 'AbortError') return; // fetch cancelado — normal
         console.error('Erro ao carregar ordens:', error);
-    } finally {
-        isLoadingOrdens = false;
     }
 }
 
@@ -1447,7 +1448,8 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
-        if (isLoadingOrdens) return; // aguarda resposta antes de mostrar vazio
+        // Só mostra 'vazio' se não há fetch ativo para este mês
+        if (currentFetchController) return;
         container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
         return;
     }

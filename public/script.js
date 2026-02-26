@@ -15,6 +15,7 @@ let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
 let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
+let isLoadingOrdens = false;  // true while fetching — prevents showing empty state prematurely
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
@@ -114,12 +115,21 @@ function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
 }
 
 function inicializarApp() {
-    updateDisplay();
+    // Load data immediately without waiting for health check
+    carregarTudoInicial();
+    // Health check runs in background; also starts polling
     checkServerStatus();
     setInterval(checkServerStatus, 15000);
-    loadFornecedoresGlobal();
-    loadUltimoNumero();
-    startPolling();
+}
+
+async function carregarTudoInicial() {
+    updateMonthDisplay();
+    // Run all initial loads in parallel for maximum speed
+    await Promise.all([
+        loadOrdensDirectly(),
+        loadUltimoNumero(),
+        loadFornecedoresGlobal()
+    ]);
 }
 
 async function checkServerStatus() {
@@ -144,7 +154,7 @@ async function checkServerStatus() {
         
         if (wasOffline && isOnline) {
             console.log('✅ SERVIDOR ONLINE');
-            await Promise.all([loadOrdens(), loadUltimoNumero(), loadFornecedoresGlobal()]);
+            await Promise.all([loadOrdensDirectly(), loadUltimoNumero(), loadFornecedoresGlobal()]);
         }
         
         updateConnectionStatus();
@@ -165,10 +175,50 @@ function updateConnectionStatus() {
 }
 
 function startPolling() {
-    loadOrdens();
     setInterval(() => {
-        if (isOnline) loadOrdens();
+        if (isOnline) loadOrdensDirectly();
     }, 10000);
+}
+
+// Direct loader — skips isOnline check, used for initial load and manual sync
+async function loadOrdensDirectly() {
+    if (isLoadingOrdens) return;
+    isLoadingOrdens = true;
+    try {
+        const headers = { 'Accept': 'application/json' };
+        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
+
+        const mes = currentMonth.getMonth();
+        const ano = currentMonth.getFullYear();
+        const response = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
+            method: 'GET', headers, mode: 'cors', cache: 'no-cache'
+        });
+
+        if (!DEVELOPMENT_MODE && response.status === 401) {
+            sessionStorage.removeItem('ordemCompraSession');
+            mostrarTelaAcessoNegado('Sua sessão expirou');
+            return;
+        }
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        ordens = data;
+        isOnline = true;
+        updateConnectionStatus();
+        mesclarCacheFornecedores(data);
+        const newHash = JSON.stringify(ordens.map(o => o.id));
+        if (newHash !== lastDataHash) {
+            lastDataHash = newHash;
+            updateDisplay();
+        } else {
+            updateDisplay();
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar ordens:', error);
+    } finally {
+        isLoadingOrdens = false;
+    }
 }
 
 async function loadOrdens() {
@@ -452,8 +502,9 @@ function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
     ordens = [];           // descarta apenas as ordens do mês anterior
     lastDataHash = '';
-    updateDisplay();       // mostra "Nenhuma ordem encontrada" imediatamente
-    loadOrdens();
+    updateMonthDisplay();  // atualiza o mês exibido imediatamente
+    // Não chama updateDisplay() para não mostrar "Nenhuma ordem encontrada" prematuramente
+    loadOrdensDirectly();  // busca e exibe quando chegar
     // fornecedoresCache e ultimoNumeroGlobal permanecem intactos
 }
 
@@ -1457,6 +1508,10 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
+        if (isLoadingOrdens) {
+            // Still fetching — don't show empty message yet, leave table as-is
+            return;
+        }
         container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
         return;
     }

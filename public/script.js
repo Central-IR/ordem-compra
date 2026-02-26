@@ -15,20 +15,17 @@ let sessionToken = null;
 let lastDataHash = '';
 let fornecedoresCache = {};   // cache global — nunca zerado ao trocar de mês
 let ultimoNumeroGlobal = 0;   // maior número de ordem do banco inteiro
-let isLoadingOrdens = false;  // true while fetching — prevents showing empty state prematurely
+let isLoadingOrdens = false;  // evita mostrar 'vazio' antes da resposta chegar
+let currentUserName = null;
+const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
-
-let currentUserName = null; // Will be set from authenticated session
-const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
 function detectResponsavelFromUser(name) {
     if (!name) return null;
     const upper = name.trim().toUpperCase();
     for (const resp of KNOWN_RESPONSAVEIS) {
-        if (upper === resp || upper.startsWith(resp + ' ') || upper.startsWith(resp + '.')) {
-            return resp;
-        }
+        if (upper === resp || upper.startsWith(resp + ' ') || upper.startsWith(resp + '.')) return resp;
     }
     return null;
 }
@@ -82,26 +79,21 @@ function verificarAutenticacao() {
     }
 
     inicializarApp();
-    fetchSessionUser(); // Detect user name for auto-fill
+    fetchSessionUser();
 }
 
 async function fetchSessionUser() {
     if (!sessionToken) return;
     try {
-        const response = await fetch(`${PORTAL_URL}/api/verify-session`, {
+        const r = await fetch(`${PORTAL_URL}/api/verify-session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionToken })
         });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data.valid && data.session && data.session.name) {
-            currentUserName = data.session.name;
-            console.log('\u{1F464} Usuário autenticado:', currentUserName);
-        }
-    } catch (e) {
-        console.error('Erro ao obter dados do usuário:', e);
-    }
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.valid && d.session && d.session.name) currentUserName = d.session.name;
+    } catch (e) { /* silencioso */ }
 }
 
 function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
@@ -115,21 +107,15 @@ function mostrarTelaAcessoNegado(mensagem = 'NÃO AUTORIZADO') {
 }
 
 function inicializarApp() {
-    // Load data immediately without waiting for health check
-    carregarTudoInicial();
-    // Health check runs in background; also starts polling
+    updateMonthDisplay();
+    // Carrega dados imediatamente — sem aguardar health check
+    loadOrdensDirectly();
+    loadUltimoNumero();
+    loadFornecedoresGlobal();
+    // Health check e polling em paralelo
     checkServerStatus();
     setInterval(checkServerStatus, 15000);
-}
-
-async function carregarTudoInicial() {
-    updateMonthDisplay();
-    // Run all initial loads in parallel for maximum speed
-    await Promise.all([
-        loadOrdensDirectly(),
-        loadUltimoNumero(),
-        loadFornecedoresGlobal()
-    ]);
+    setInterval(() => { if (isOnline) loadOrdensDirectly(); }, 10000);
 }
 
 async function checkServerStatus() {
@@ -174,56 +160,12 @@ function updateConnectionStatus() {
     }
 }
 
-function startPolling() {
-    setInterval(() => {
-        if (isOnline) loadOrdensDirectly();
-    }, 10000);
-}
 
-// Direct loader — skips isOnline check, used for initial load and manual sync
+// loadOrdensDirectly: carrega o mês atual sem depender de isOnline
+// Usa isLoadingOrdens para evitar mostrar 'vazio' antes de receber resposta
 async function loadOrdensDirectly() {
     if (isLoadingOrdens) return;
     isLoadingOrdens = true;
-    try {
-        const headers = { 'Accept': 'application/json' };
-        if (!DEVELOPMENT_MODE && sessionToken) headers['X-Session-Token'] = sessionToken;
-
-        const mes = currentMonth.getMonth();
-        const ano = currentMonth.getFullYear();
-        const response = await fetch(`${API_URL}/ordens?mes=${mes}&ano=${ano}`, {
-            method: 'GET', headers, mode: 'cors', cache: 'no-cache'
-        });
-
-        if (!DEVELOPMENT_MODE && response.status === 401) {
-            sessionStorage.removeItem('ordemCompraSession');
-            mostrarTelaAcessoNegado('Sua sessão expirou');
-            return;
-        }
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        ordens = data;
-        isOnline = true;
-        updateConnectionStatus();
-        mesclarCacheFornecedores(data);
-        const newHash = JSON.stringify(ordens.map(o => o.id));
-        if (newHash !== lastDataHash) {
-            lastDataHash = newHash;
-            updateDisplay();
-        } else {
-            updateDisplay();
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar ordens:', error);
-    } finally {
-        isLoadingOrdens = false;
-    }
-}
-
-async function loadOrdens() {
-    if (!isOnline && !DEVELOPMENT_MODE) return;
-
     try {
         const headers = {
             'Accept': 'application/json'
@@ -248,23 +190,19 @@ async function loadOrdens() {
             return;
         }
 
-        if (!response.ok) {
-            console.error('❌ Erro ao carregar ordens:', response.status);
-            return;
-        }
+        if (!response.ok) { isLoadingOrdens = false; return; }
 
         const data = await response.json();
         ordens = data;
-
+        isOnline = true;
+        updateConnectionStatus();
         mesclarCacheFornecedores(data);
-
-        const newHash = JSON.stringify(ordens.map(o => o.id));
-        if (newHash !== lastDataHash) {
-            lastDataHash = newHash;
-            updateDisplay();
-        }
+        lastDataHash = JSON.stringify(ordens.map(o => o.id));
+        updateDisplay();
     } catch (error) {
-        console.error('❌ Erro ao carregar:', error);
+        console.error('Erro ao carregar ordens:', error);
+    } finally {
+        isLoadingOrdens = false;
     }
 }
 
@@ -500,12 +438,10 @@ function setupFornecedorAutocomplete() {
 
 function changeMonth(direction) {
     currentMonth.setMonth(currentMonth.getMonth() + direction);
-    ordens = [];           // descarta apenas as ordens do mês anterior
+    ordens = [];
     lastDataHash = '';
-    updateMonthDisplay();  // atualiza o mês exibido imediatamente
-    // Não chama updateDisplay() para não mostrar "Nenhuma ordem encontrada" prematuramente
-    loadOrdensDirectly();  // busca e exibe quando chegar
-    // fornecedoresCache e ultimoNumeroGlobal permanecem intactos
+    updateMonthDisplay();  // só atualiza o label do mês imediatamente
+    loadOrdensDirectly();  // 'Nenhuma ordem' só aparece após resposta
 }
 
 function updateMonthDisplay() {
@@ -1508,10 +1444,7 @@ function updateTable() {
     }
     
     if (filteredOrdens.length === 0) {
-        if (isLoadingOrdens) {
-            // Still fetching — don't show empty message yet, leave table as-is
-            return;
-        }
+        if (isLoadingOrdens) return; // aguarda resposta antes de mostrar vazio
         container.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;">Nenhuma ordem encontrada</td></tr>`;
         return;
     }

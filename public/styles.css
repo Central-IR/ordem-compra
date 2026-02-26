@@ -9,7 +9,7 @@
     --border-color: #E5E7EB;
     --input-bg: #F9FAFB;
     --success-color: #22C55E;
-    --warning-color: #F59E0B;
+    --warning-color: #ff521d;
     --info-color: #3B82F6;
     --table-stripe: #FAFAFA;
     --table-hover: rgba(0, 0, 0, 0.02);
@@ -21,7 +21,7 @@
     --btn-register: #3B82F6;
     --btn-delete: #EF4444;
     --btn-edit: #6B7280;
-    --btn-view: #F59E0B;
+    --btn-view: #ff521d;
     --btn-save: #22C55E;
     --alert-color: #EF4444;
 }
@@ -509,8 +509,8 @@ h2 {
 }
 
 .stat-icon-warning {
-    background: rgba(245, 158, 11, 0.1);
-    color: #F59E0B;
+    background: rgba(255, 82, 29, 0.1);
+    color: #ff521d;
 }
 
 .stat-icon-info {
@@ -535,7 +535,7 @@ h2 {
 }
 
 .stat-value-warning {
-    color: #F59E0B;
+    color: #ff521d;
 }
 
 .stat-value-info {

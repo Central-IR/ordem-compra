@@ -21,6 +21,16 @@ const KNOWN_RESPONSAVEIS = ['ROBERTO', 'ISAQUE', 'MIGUEL'];
 
 const tabs = ['tab-geral', 'tab-fornecedor', 'tab-pedido', 'tab-entrega', 'tab-pagamento'];
 
+// ------------------------------------------------------------
+// FUNÇÃO AUXILIAR PARA CONVERTER STRING EM NÚMERO (ACEITA VÍRGULA)
+// ------------------------------------------------------------
+function parseFloatLocale(str) {
+    if (typeof str !== 'string') return NaN;
+    const cleaned = str.replace(/\s+/g, '').replace(',', '.');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? NaN : num;
+}
+
 function detectResponsavelFromUser(name) {
     if (!name) return null;
     const upper = name.trim().toUpperCase();
@@ -784,7 +794,7 @@ function addItem() {
             <input type="number" class="item-valor" min="0" step="0.01" value="0" onchange="calculateItemTotal(this)">
         </td>
         <td>
-            <input type="text" class="item-ipi" placeholder="Ex: Isento">
+            <input type="text" class="item-ipi" placeholder="Ex: 15.50" onchange="calculateItemTotal(this)">
         </td>
         <td>
             <input type="text" class="item-st" placeholder="Ex: Não incluído">
@@ -818,11 +828,19 @@ function renumberItems() {
     itemCounter = rows.length;
 }
 
+// ------------------------------------------------------------
+// FUNÇÃO calculateItemTotal AGORA INCLUI O IPI NO TOTAL DO ITEM
+// ------------------------------------------------------------
 function calculateItemTotal(input) {
     const row = input.closest('tr');
     const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
     const valor = parseFloat(row.querySelector('.item-valor').value) || 0;
-    const total = qtd * valor;
+    const ipiStr = row.querySelector('.item-ipi').value;
+    const ipiNum = parseFloatLocale(ipiStr);
+    let total = qtd * valor;
+    if (!isNaN(ipiNum)) {
+        total += ipiNum; // soma o valor do IPI (em reais)
+    }
     row.querySelector('.item-total').value = formatCurrency(total);
     recalculateOrderTotal();
 }
@@ -852,7 +870,7 @@ async function handleSubmit(event) {
             quantidade: parseFloat(row.querySelector('.item-qtd').value) || 0,
             unidade: toUpperCase(row.querySelector('.item-unid').value),
             valorUnitario: parseFloat(row.querySelector('.item-valor').value) || 0,
-            ipi: toUpperCase(row.querySelector('.item-ipi').value || ''),
+            ipi: row.querySelector('.item-ipi').value, // mantém como string
             st: toUpperCase(row.querySelector('.item-st').value || ''),
             valorTotal: row.querySelector('.item-total').value
         });
@@ -1125,9 +1143,10 @@ async function editOrdem(id) {
                 row.querySelector('.item-qtd').value = item.quantidade || 1;
                 row.querySelector('.item-unid').value = toUpperCase(item.unidade || 'UN');
                 row.querySelector('.item-valor').value = item.valorUnitario || item.valor_unitario || 0;
-                row.querySelector('.item-ipi').value = toUpperCase(item.ipi || '');
+                row.querySelector('.item-ipi').value = item.ipi || '';  // valor original
                 row.querySelector('.item-st').value = toUpperCase(item.st || '');
-                row.querySelector('.item-total').value = item.valorTotal || item.valor_total || 'R$ 0,00';
+                // Recalcula o total do item (incluindo IPI) e atualiza o campo
+                calculateItemTotal(row.querySelector('.item-valor')); // qualquer input serve para acionar
             }
         });
     } else {
@@ -1315,7 +1334,7 @@ function viewOrdem(id) {
                                 <td>${item.quantidade}</td>
                                 <td>${toUpperCase(item.unidade)}</td>
                                 <td>${formatCurrency(item.valorUnitario || item.valor_unitario || 0)}</td>
-                                <td>${toUpperCase(item.ipi || '-')}</td>
+                                <td>${item.ipi ? (isNaN(parseFloatLocale(item.ipi)) ? toUpperCase(item.ipi) : formatCurrency(parseFloatLocale(item.ipi))) : '-'}</td>
                                 <td>${toUpperCase(item.st || '-')}</td>
                                 <td>${item.valorTotal || item.valor_total}</td>
                             </tr>
@@ -1994,7 +2013,20 @@ function continuarGeracaoPDF(doc, ordem, y, margin, pageWidth, pageHeight, lineH
             xPos += colWidths.valorUn;
             doc.line(xPos, y, xPos, y + necessaryHeight);
             
-            doc.text(toUpperCase(item.ipi || '-'), xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
+            // ------------------------------------------------------------
+            // CAMPO IPI: se for numérico, exibe como moeda; senão, exibe o texto original
+            // ------------------------------------------------------------
+            const ipiValor = item.ipi;
+            let ipiDisplay = '-';
+            if (ipiValor && ipiValor.trim() !== '') {
+                const ipiNum = parseFloatLocale(ipiValor);
+                if (!isNaN(ipiNum)) {
+                    ipiDisplay = ipiNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                } else {
+                    ipiDisplay = toUpperCase(ipiValor);
+                }
+            }
+            doc.text(ipiDisplay, xPos + (colWidths.ipi / 2), y + (necessaryHeight / 2) + 1.5, { align: 'center' });
             xPos += colWidths.ipi;
             doc.line(xPos, y, xPos, y + necessaryHeight);
             
